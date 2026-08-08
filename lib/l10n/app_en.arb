@@ -224,5 +224,6 @@
 "atLeastOneMemberType": "Create at least one member type.",
 "atLeastOnePaymentMethod": "Create at least one payment method.",
 "atLeastOneEquipment": "Create at least one equipment record.",
+"sessionExpired": "Your session has expired. Please log in again.",
 "unknown": "Unknown"
 }

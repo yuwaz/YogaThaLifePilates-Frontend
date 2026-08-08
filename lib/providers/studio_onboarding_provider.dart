@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -68,6 +69,20 @@ class StudioOnboardingAdvanceResult {
   });
 }
 
+enum OnboardingGateDecision { incomplete, completed, unavailable, unauthorized }
+
+class OnboardingGateResolution {
+  final OnboardingGateDecision decision;
+  final int? studioId;
+  final String? onboardingStep;
+
+  const OnboardingGateResolution({
+    required this.decision,
+    this.studioId,
+    this.onboardingStep,
+  });
+}
+
 final studioOnboardingProvider =
     StateNotifierProvider<StudioOnboardingProvider, StudioOnboardingState>(
       (ref) => StudioOnboardingProvider(),
@@ -81,12 +96,126 @@ class StudioOnboardingProvider extends StateNotifier<StudioOnboardingState> {
 
   final SecureStorageService _storage = SecureStorageService();
 
+  static const Set<String> _incompleteSteps = {
+    'studio',
+    'salon',
+    'member_types',
+    'payment_methods',
+    'equipment',
+    'users',
+  };
+
   Future<Map<String, String>> _authHeaders() async {
     final token = await _storage.getToken();
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
+  }
+
+  Future<OnboardingGateResolution> resolveOnboardingGate() async {
+    try {
+      final response = await http
+          .get(Uri.parse(_baseUrl), headers: await _authHeaders())
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 401) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unauthorized,
+        );
+      }
+
+      if (response.statusCode != 200) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      final rawStudioId = decoded['studioId'];
+      int? studioId;
+      if (rawStudioId is int) {
+        studioId = rawStudioId;
+      } else if (rawStudioId is num) {
+        studioId = rawStudioId.toInt();
+      } else {
+        studioId = int.tryParse(rawStudioId?.toString() ?? '');
+      }
+      if (studioId == null || studioId <= 0) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      final rawCompleted = decoded['onboardingCompleted'];
+      if (rawCompleted is! bool) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      final rawStep = decoded['onboardingStep'];
+      final step = rawStep?.toString();
+      if (step == null || !kOnboardingStepOrder.contains(step)) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      if (rawCompleted) {
+        if (step != 'completed') {
+          return const OnboardingGateResolution(
+            decision: OnboardingGateDecision.unavailable,
+          );
+        }
+
+        state = state.copyWith(
+          studioId: studioId,
+          onboardingCompleted: true,
+          onboardingStep: step,
+          error: null,
+        );
+
+        return OnboardingGateResolution(
+          decision: OnboardingGateDecision.completed,
+          studioId: studioId,
+          onboardingStep: step,
+        );
+      }
+
+      if (!_incompleteSteps.contains(step)) {
+        return const OnboardingGateResolution(
+          decision: OnboardingGateDecision.unavailable,
+        );
+      }
+
+      state = state.copyWith(
+        studioId: studioId,
+        onboardingCompleted: false,
+        onboardingStep: step,
+        error: null,
+      );
+
+      return OnboardingGateResolution(
+        decision: OnboardingGateDecision.incomplete,
+        studioId: studioId,
+        onboardingStep: step,
+      );
+    } on TimeoutException {
+      return const OnboardingGateResolution(
+        decision: OnboardingGateDecision.unavailable,
+      );
+    } catch (_) {
+      return const OnboardingGateResolution(
+        decision: OnboardingGateDecision.unavailable,
+      );
+    }
   }
 
   StudioOnboardingState _stateFromMap(Map<String, dynamic> jsonMap) {

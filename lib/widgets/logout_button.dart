@@ -9,6 +9,7 @@ import '../providers/payment_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../providers/salons_provider.dart';
 import '../providers/secure_storage_service.dart';
+import '../providers/studio_onboarding_provider.dart';
 import '../pages/entry_page.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorageService());
@@ -30,6 +31,9 @@ class LogoutButton extends ConsumerWidget {
       ref.invalidate(reservationsProvider);
       ref.invalidate(paymentProvider);
       ref.invalidate(attendanceProvider);
+      ref.invalidate(studioOnboardingProvider);
+
+      if (!context.mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const EntryPage()),

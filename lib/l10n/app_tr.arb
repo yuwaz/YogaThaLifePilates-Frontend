@@ -225,5 +225,6 @@
 "atLeastOneMemberType": "En az bir üye tipi oluşturun.",
 "atLeastOnePaymentMethod": "En az bir ödeme yöntemi oluşturun.",
 "atLeastOneEquipment": "En az bir ekipman kaydı oluşturun.",
+"sessionExpired": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
 "unknown": "Bilinmiyor"
 }

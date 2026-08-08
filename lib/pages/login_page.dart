@@ -7,8 +7,11 @@ import 'package:http/http.dart' as http;
 import '../api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
+import '../providers/studio_onboarding_provider.dart';
 import '../utils/app_bootstrap.dart';
+import 'entry_page.dart';
 import 'main_page.dart';
+import 'studio_onboarding_page.dart';
 
 const kBrandTextColor = Color(0xFF116478);
 const kBrandBackgroundColor = Color(0xFFF6F6D7);
@@ -102,7 +105,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     .whereType<int>()
                     .toList()
               : <int>[];
-          // Parse permissions as List<String>
           List<String> permissions = [];
           final rawPermissions = data['permissions'];
           if (rawPermissions is List) {
@@ -143,19 +145,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             }
             return;
           }
+
           final storage = ref.read(secureStorageProvider);
           await storage.saveAuthData(token, role, assignedSalonIds);
           await storage.savePermissions(permissions);
           if (studioCode.isNotEmpty) {
             await storage.saveLastStudioCode(studioCode);
           }
-
-          // Keep login transition instant; refresh providers silently in background.
-          unawaited(() async {
-            try {
-              await preloadEssentialProviders(ref, token);
-            } catch (_) {}
-          }());
 
           ref
               .read(authProvider.notifier)
@@ -165,10 +161,55 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 assignedSalonIds: assignedSalonIds,
                 permissions: permissions,
               );
+
+          ref.invalidate(studioOnboardingProvider);
+          final gateResolution = await ref
+              .read(studioOnboardingProvider.notifier)
+              .resolveOnboardingGate();
+
           if (!mounted) return;
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainPage()),
-          );
+
+          switch (gateResolution.decision) {
+            case OnboardingGateDecision.incomplete:
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const StudioOnboardingPage()),
+                (route) => false,
+              );
+              return;
+            case OnboardingGateDecision.completed:
+            case OnboardingGateDecision.unavailable:
+              unawaited(() async {
+                try {
+                  await preloadEssentialProviders(ref, token);
+                } catch (_) {}
+              }());
+
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const MainPage()),
+              );
+              return;
+            case OnboardingGateDecision.unauthorized:
+              await storage.clearAuthData();
+              await ref.read(authProvider.notifier).logout();
+              ref.invalidate(studioOnboardingProvider);
+
+              if (!mounted) return;
+              final sessionExpiredMessage =
+                  AppLocalizations.of(context)?.translate('sessionExpired') ??
+                  'Your session has expired. Please log in again.';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(sessionExpiredMessage),
+                  backgroundColor: Colors.red,
+                ),
+              );
+
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const EntryPage()),
+                (route) => false,
+              );
+              return;
+          }
         } catch (e) {
           debugPrint('Malformed backend response: $e');
           ref

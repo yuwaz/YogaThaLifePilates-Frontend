@@ -9,6 +9,7 @@ import '../providers/member_types_provider.dart' as member_types;
 import '../providers/payment_methods_provider.dart' as payment_methods;
 import '../providers/salons_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
+import '../widgets/logout_button.dart';
 import 'main_page.dart';
 
 const kBrandTextColor = Color(0xFF116478);
@@ -25,14 +26,14 @@ const List<String> _memberTypeColorHexes = [
 ];
 
 class StudioOnboardingPage extends ConsumerStatefulWidget {
-  final String studioName;
-  final String studioCode;
+  final String? studioName;
+  final String? studioCode;
   final String? trialEndsAt;
 
   const StudioOnboardingPage({
     super.key,
-    required this.studioName,
-    required this.studioCode,
+    this.studioName,
+    this.studioCode,
     this.trialEndsAt,
   });
 
@@ -401,63 +402,84 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
   }
 
   Widget _buildStudioStep(BuildContext context, bool busy) {
+    final hasStudioName =
+        widget.studioName != null && widget.studioName!.trim().isNotEmpty;
+    final hasStudioCode =
+        widget.studioCode != null && widget.studioCode!.trim().isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          widget.studioName,
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
+        if (hasStudioName) ...[
+          Text(
+            widget.studioName!.trim(),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          _tr(context, 'yourStudioCode', 'Your Studio Code'),
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
+          const SizedBox(height: 14),
+        ],
+        if (hasStudioCode) ...[
+          Text(
+            _tr(context, 'yourStudioCode', 'Your Studio Code'),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        SelectableText(
-          widget.studioCode,
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
+          const SizedBox(height: 6),
+          SelectableText(
+            widget.studioCode!.trim(),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 24,
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          _tr(
-            context,
-            'studioCodeTeamExplanation',
-            'Share this code with your team. They will use it to log in.',
+          const SizedBox(height: 10),
+          Text(
+            _tr(
+              context,
+              'studioCodeTeamExplanation',
+              'Share this code with your team. They will use it to log in.',
+            ),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontSize: 14,
+              height: 1.4,
+            ),
           ),
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontSize: 14,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          _tr(context, 'trialStarted', 'Your trial has started.'),
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+          const SizedBox(height: 14),
+        ],
         if (widget.trialEndsAt != null &&
             widget.trialEndsAt!.trim().isNotEmpty) ...[
+          Text(
+            _tr(context, 'trialStarted', 'Your trial has started.'),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             '${_tr(context, 'trialEndsAt', 'Trial ends at')}: ${_formatTrialEndsAt(widget.trialEndsAt!.trim())}',
             style: const TextStyle(color: kBrandTextColor),
           ),
+          const SizedBox(height: 16),
+        ],
+        if (!hasStudioName && !hasStudioCode) ...[
+          Text(
+            _tr(context, 'continueSetup', 'Continue Setup'),
+            style: const TextStyle(
+              color: kBrandTextColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 14),
         ],
         const SizedBox(height: 20),
         ElevatedButton(
@@ -1047,6 +1069,7 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
           _tr(context, 'setupYourStudio', 'Setup your studio'),
           style: const TextStyle(color: kBrandTextColor),
         ),
+        actions: const [LogoutButton()],
         backgroundColor: kBrandBackgroundColor,
         iconTheme: const IconThemeData(color: kBrandTextColor),
         elevation: 0,

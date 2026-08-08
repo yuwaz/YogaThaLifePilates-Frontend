@@ -6,9 +6,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/entry_page.dart';
 import 'pages/main_page.dart';
+import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/secure_storage_service.dart';
+import 'providers/studio_onboarding_provider.dart';
 import 'utils/app_bootstrap.dart';
 
 void main() async {
@@ -24,8 +26,11 @@ class AuthInit extends ConsumerStatefulWidget {
   ConsumerState<AuthInit> createState() => _AuthInitState();
 }
 
+enum StartupDestination { entry, main, onboarding }
+
 class _AuthInitState extends ConsumerState<AuthInit> {
   bool _restoring = true;
+  StartupDestination _startupDestination = StartupDestination.entry;
 
   @override
   void initState() {
@@ -64,29 +69,51 @@ class _AuthInitState extends ConsumerState<AuthInit> {
               permissions: safePermissions,
             );
 
+        final gateResolution = await ref
+            .read(studioOnboardingProvider.notifier)
+            .resolveOnboardingGate();
+
+        switch (gateResolution.decision) {
+          case OnboardingGateDecision.incomplete:
+            _startupDestination = StartupDestination.onboarding;
+            break;
+          case OnboardingGateDecision.completed:
+          case OnboardingGateDecision.unavailable:
+            _startupDestination = StartupDestination.main;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              unawaited(() async {
+                try {
+                  await preloadEssentialProviders(ref, token);
+                } catch (e) {
+                  // Keep authenticated state even if preload fails.
+                  debugPrint(
+                    '[AuthRestore] preload failed but auth kept alive: $e',
+                  );
+                }
+              }());
+            });
+            break;
+          case OnboardingGateDecision.unauthorized:
+            await storage.clearAuthData();
+            await ref.read(authProvider.notifier).logout();
+            ref.invalidate(studioOnboardingProvider);
+            _startupDestination = StartupDestination.entry;
+            break;
+        }
+
         debugPrint('[AuthRestore] token restore success.');
         debugPrint('[AuthRestore] auth restored from storage.');
         if (safeRole == 'unknown') {
           debugPrint('[AuthRestore] auth fallback used.');
         }
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          unawaited(() async {
-            try {
-              await preloadEssentialProviders(ref, token);
-            } catch (e) {
-              // Keep authenticated state even if preload fails.
-              debugPrint(
-                '[AuthRestore] preload failed but auth kept alive: $e',
-              );
-            }
-          }());
-        });
       } else {
+        _startupDestination = StartupDestination.entry;
+        ref.invalidate(studioOnboardingProvider);
         debugPrint('[AuthRestore] no token found in storage.');
       }
     } catch (e) {
+      _startupDestination = StartupDestination.entry;
       debugPrint('[AuthRestore] unexpected restore error: $e');
     } finally {
       if (mounted) {
@@ -126,12 +153,14 @@ class _AuthInitState extends ConsumerState<AuthInit> {
         ),
       );
     }
-    return const MyApp();
+    return MyApp(startupDestination: _startupDestination);
   }
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  final StartupDestination startupDestination;
+
+  const MyApp({super.key, required this.startupDestination});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -194,7 +223,22 @@ class MyApp extends ConsumerWidget {
         }
         return const Locale('tr');
       },
-      home: auth.token == null ? const EntryPage() : const MainPage(),
+      home: _resolveHome(auth),
     );
+  }
+
+  Widget _resolveHome(AuthState auth) {
+    if (auth.token == null) {
+      return const EntryPage();
+    }
+
+    switch (startupDestination) {
+      case StartupDestination.entry:
+        return const EntryPage();
+      case StartupDestination.main:
+        return const MainPage();
+      case StartupDestination.onboarding:
+        return const StudioOnboardingPage();
+    }
   }
 }
