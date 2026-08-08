@@ -218,12 +218,26 @@ class StudioOnboardingProvider extends StateNotifier<StudioOnboardingState> {
     }
   }
 
-  StudioOnboardingState _stateFromMap(Map<String, dynamic> jsonMap) {
-    final rawStep = jsonMap['onboardingStep']?.toString() ?? 'studio';
-    final normalizedStep = kOnboardingStepOrder.contains(rawStep)
-        ? rawStep
-        : 'studio';
-    final completed = jsonMap['onboardingCompleted'] == true;
+  StudioOnboardingState? _strictStateFromMap(Map<String, dynamic> jsonMap) {
+    final rawStep = jsonMap['onboardingStep'];
+    final step = rawStep?.toString();
+    if (step == null || !kOnboardingStepOrder.contains(step)) {
+      return null;
+    }
+
+    final rawCompleted = jsonMap['onboardingCompleted'];
+    if (rawCompleted is! bool) {
+      return null;
+    }
+    final completed = rawCompleted;
+
+    if (completed && step != 'completed') {
+      return null;
+    }
+    if (!completed && !_incompleteSteps.contains(step)) {
+      return null;
+    }
+
     final rawStudioId = jsonMap['studioId'];
 
     int? studioId;
@@ -235,10 +249,14 @@ class StudioOnboardingProvider extends StateNotifier<StudioOnboardingState> {
       studioId = int.tryParse(rawStudioId?.toString() ?? '');
     }
 
+    if (studioId == null || studioId <= 0) {
+      return null;
+    }
+
     return state.copyWith(
       studioId: studioId,
       onboardingCompleted: completed,
-      onboardingStep: normalizedStep,
+      onboardingStep: step,
       error: null,
     );
   }
@@ -294,7 +312,16 @@ class StudioOnboardingProvider extends StateNotifier<StudioOnboardingState> {
         return;
       }
 
-      state = _stateFromMap(decoded).copyWith(loading: false, advancing: false);
+      final parsed = _strictStateFromMap(decoded);
+      if (parsed == null) {
+        state = state.copyWith(
+          loading: false,
+          error: 'Invalid onboarding response format.',
+        );
+        return;
+      }
+
+      state = parsed.copyWith(loading: false, advancing: false);
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
@@ -323,7 +350,19 @@ class StudioOnboardingProvider extends StateNotifier<StudioOnboardingState> {
           );
         }
 
-        state = _stateFromMap(decoded).copyWith(advancing: false);
+        final parsed = _strictStateFromMap(decoded);
+        if (parsed == null) {
+          state = state.copyWith(
+            advancing: false,
+            error: 'Invalid onboarding response format.',
+          );
+          return const StudioOnboardingAdvanceResult(
+            success: false,
+            userMessage: 'Invalid onboarding response format.',
+          );
+        }
+
+        state = parsed.copyWith(advancing: false);
         return const StudioOnboardingAdvanceResult(success: true);
       }
 

@@ -76,16 +76,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         payload['studioCode'] = studioCode;
       }
 
-      final body = jsonEncode(payload);
-      print('[Auth] LOGIN URL: $loginUrl');
-      print('[Auth] LOGIN REQUEST BODY: $body');
       final response = await http.post(
         loginUrl,
         headers: {'Content-Type': 'application/json'},
-        body: body,
+        body: jsonEncode(payload),
       );
-      print('[Auth] LOGIN RESPONSE STATUS: ${response.statusCode}');
-      print('[Auth] LOGIN RESPONSE BODY: ${response.body}');
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body);
@@ -127,10 +122,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               permissions = [rawPermissions];
             }
           }
-          debugPrint('Parsed token: $token');
-          debugPrint('Parsed role: $role');
-          debugPrint('Parsed assignedSalonIds: $assignedSalonIds');
-          debugPrint('Parsed permissions: $permissions');
           if (token is! String || role is! String) {
             ref
                 .read(authProvider.notifier)

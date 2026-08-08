@@ -55,7 +55,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       assignedSalonIds: assignedSalonIds,
       permissions: permissions,
     );
-    print('[Auth] stored permissions: $permissions');
   }
 
   Future<void> logout() async {

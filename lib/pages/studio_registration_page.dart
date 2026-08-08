@@ -9,7 +9,6 @@ import '../api_config.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
-import '../utils/app_bootstrap.dart';
 import 'entry_page.dart' show EntryPage;
 import 'studio_onboarding_page.dart';
 
@@ -320,12 +319,6 @@ class _StudioRegistrationPageState
       if (generatedStudioCode.trim().isNotEmpty) {
         await storage.saveLastStudioCode(generatedStudioCode.trim());
       }
-
-      unawaited(() async {
-        try {
-          await preloadEssentialProviders(ref, token);
-        } catch (_) {}
-      }());
 
       ref
           .read(authProvider.notifier)
