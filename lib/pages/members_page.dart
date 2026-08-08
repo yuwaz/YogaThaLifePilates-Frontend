@@ -1,21 +1,26 @@
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/member.dart';
-import '../models/equipment.dart';
-import '../models/salon.dart';
-import '../providers/member_provider.dart';
-import '../widgets/multi_select_dialog.dart';
-import '../providers/salons_provider.dart';
-import 'member_edit_dialog.dart';
-import 'member_detail_page.dart';
-import '../providers/equipment_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
+import '../models/member.dart';
+import '../models/salon.dart';
+import '../providers/member_provider.dart';
+import '../providers/instructors_provider.dart';
+import '../providers/salons_provider.dart';
+import '../providers/equipment_provider.dart';
+import '../providers/member_types_provider.dart';
+import '../providers/lesson_packages_provider.dart';
+import 'member_detail_page.dart';
+import 'member_edit_dialog.dart';
 
 class MembersPage extends ConsumerStatefulWidget {
   final String token;
-  final String role; // 'admin' or 'instructor'
+  final String role;
   final List<int> assignedSalonIds;
+
   const MembersPage({
     Key? key,
     required this.token,
@@ -28,416 +33,848 @@ class MembersPage extends ConsumerStatefulWidget {
 }
 
 class _MembersPageState extends ConsumerState<MembersPage> {
-  bool _isDeleting = false;
-  Member? _recentlyDeleted;
-  int? _recentlyDeletedIndex;
+  // Removed unused: _isDeleting, _recentlyDeleted, _recentlyDeletedIndex
   List<int> _selectedSalonIds = [];
-  List<int> _selectedEquipmentIds = [];
+  String? _selectedMemberTypeId;
+  String? _selectedInstructorId;
+  bool _showInactive = false;
+  String _memberSearchQuery = '';
+  String _selectedSort = 'created_desc';
+  Timer? _searchDebounce;
+  List<Member> _filteredMembers = const [];
+  List<Member>? _lastMembersSource;
+  List<MemberType>? _lastMemberTypesSource;
+  bool _needsMemberRecompute = true;
+
+  Future<void> _refreshMembers() async {
+    if (_showInactive) {
+      await ref.read(memberProvider.notifier).fetchAllMembers(widget.token);
+    } else {
+      await ref.read(memberProvider.notifier).fetchMembers(widget.token);
+    }
+  }
+
+  void _markMembersDirty() {
+    _needsMemberRecompute = true;
+  }
+
+  void _recomputeMembers(
+    List<Member> members,
+    Map<String, MemberType> memberTypeMap,
+    bool isAdmin,
+    List<int> allowedSalonIds,
+  ) {
+    final filtered = members.where((m) {
+      if (_showInactive) {
+        if (m.isActive) return false;
+      } else {
+        if (!m.isActive) return false;
+      }
+      if (_selectedSalonIds.isNotEmpty &&
+          !m.assignedSalonIds.any((id) => _selectedSalonIds.contains(id))) {
+        return false;
+      }
+      if (_selectedMemberTypeId != null &&
+          m.memberTypeId.toString() != _selectedMemberTypeId) {
+        return false;
+      }
+      if (_selectedInstructorId != null &&
+          m.assignedInstructorId?.toString() != _selectedInstructorId) {
+        return false;
+      }
+      if (!isAdmin &&
+          !m.assignedSalonIds.any((id) => allowedSalonIds.contains(id))) {
+        return false;
+      }
+      if (_memberSearchQuery.isNotEmpty) {
+        final query = _memberSearchQuery;
+        final name = m.name.toLowerCase();
+        final phone = m.phone.toLowerCase();
+        final email = m.email.toLowerCase();
+        if (!name.contains(query) &&
+            !phone.contains(query) &&
+            !email.contains(query)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    filtered.sort((a, b) {
+      switch (_selectedSort) {
+        case 'remaining_asc':
+          final aCardBased = _isCardBasedMember(a, memberTypeMap);
+          final bCardBased = _isCardBasedMember(b, memberTypeMap);
+          if (aCardBased != bCardBased) {
+            return aCardBased ? 1 : -1;
+          }
+          final remainingCompare = a.remainingLessons.compareTo(
+            b.remainingLessons,
+          );
+          if (remainingCompare != 0) return remainingCompare;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case 'remaining_desc':
+          final aCardBased = _isCardBasedMember(a, memberTypeMap);
+          final bCardBased = _isCardBasedMember(b, memberTypeMap);
+          if (aCardBased != bCardBased) {
+            return aCardBased ? 1 : -1;
+          }
+          final remainingCompare = b.remainingLessons.compareTo(
+            a.remainingLessons,
+          );
+          if (remainingCompare != 0) return remainingCompare;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case 'created_asc':
+          final aCreated = _memberCreatedAt(a);
+          final bCreated = _memberCreatedAt(b);
+          if (aCreated == null && bCreated == null) return 0;
+          if (aCreated == null) return 1;
+          if (bCreated == null) return -1;
+          return aCreated.compareTo(bCreated);
+        case 'created_desc':
+        default:
+          final aCreated = _memberCreatedAt(a);
+          final bCreated = _memberCreatedAt(b);
+          if (aCreated == null && bCreated == null) return 0;
+          if (aCreated == null) return 1;
+          if (bCreated == null) return -1;
+          return bCreated.compareTo(aCreated);
+      }
+    });
+
+    _filteredMembers = filtered;
+    _needsMemberRecompute = false;
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final salons = ref.read(salonsProvider).salons;
+      if (!mounted) return;
       setState(() {
         if (widget.role == 'admin') {
           _selectedSalonIds = salons.map((s) => s.id).toList();
         } else {
-          _selectedSalonIds = widget.assignedSalonIds;
+          _selectedSalonIds = List<int>.from(widget.assignedSalonIds);
         }
-        _selectedEquipmentIds = [];
       });
+      // Fetch on first page load only when provider has no data yet.
+      if (ref.read(memberProvider).members.isEmpty) {
+        ref.read(memberProvider.notifier).fetchMembers(widget.token);
+      }
     });
   }
 
   @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  String _safeText(dynamic value) {
+    if (value == null) return '';
+    final text = value.toString();
+    if (text.toLowerCase() == 'null') return '';
+    return text;
+  }
+
+  Color _parseMemberTypeColor(dynamic hex) {
+    try {
+      final raw = _safeText(hex).replaceAll('#', '');
+      final safeHex = raw.isEmpty ? '888888' : raw;
+      return Color(int.parse('FF$safeHex', radix: 16));
+    } catch (_) {
+      return Colors.grey;
+    }
+  }
+
+  bool _isCardBasedMember(
+    Member member,
+    Map<String, MemberType> memberTypeMap,
+  ) {
+    final memberType = memberTypeMap[member.memberTypeId.toString()];
+    return memberType?.isCardBased == true;
+  }
+
+  DateTime? _memberCreatedAt(dynamic member) {
+    try {
+      final value = member.createdAt;
+      if (value == null) return null;
+      if (value is DateTime) return value;
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _sortLabel() {
+    switch (_selectedSort) {
+      case 'created_asc':
+        return 'Sırala: Eski → Yeni';
+      case 'remaining_asc':
+        return 'Sırala: Ders Artan';
+      case 'remaining_desc':
+        return 'Sırala: Ders Azalan';
+      case 'created_desc':
+      default:
+        return 'Sırala: Yeni → Eski';
+    }
+  }
+
+  List<int> _defaultSalonIds(List<Salon> salons) {
+    if (widget.role == 'admin') {
+      return salons.map((s) => s.id).toList();
+    }
+    return salons
+        .where((s) => widget.assignedSalonIds.contains(s.id))
+        .map((s) => s.id)
+        .toList();
+  }
+
+  bool _hasCustomSalonFilter(List<Salon> salons) {
+    final defaultSalonIds = _defaultSalonIds(salons).toSet();
+    final selectedSalonIds = _selectedSalonIds.toSet();
+    return selectedSalonIds.length != defaultSalonIds.length ||
+        !selectedSalonIds.containsAll(defaultSalonIds);
+  }
+
+  bool _hasActiveFilters(List<Salon> salons) {
+    return _hasCustomSalonFilter(salons) ||
+        _selectedMemberTypeId != null ||
+        _selectedInstructorId != null;
+  }
+
+  String _filterButtonLabel(List<Salon> salons) {
+    var activeFilterCount = 0;
+    if (_hasCustomSalonFilter(salons)) activeFilterCount++;
+    if (_selectedMemberTypeId != null) activeFilterCount++;
+    if (_selectedInstructorId != null) activeFilterCount++;
+    if (activeFilterCount == 0) return 'Filtrele';
+    return 'Filtrele ($activeFilterCount)';
+  }
+
+  ButtonStyle _topActionButtonStyle({required bool isActive}) {
+    return OutlinedButton.styleFrom(
+      minimumSize: const Size.fromHeight(44),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+      side: const BorderSide(color: Color(0xFF116478), width: 1),
+      backgroundColor: isActive ? const Color(0xFF116478) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    );
+  }
+
+  Future<void> _showFilterDialog(
+    BuildContext context,
+    List<Salon> salons,
+    MemberTypesState memberTypesState,
+    InstructorsState instructorsState,
+  ) async {
+    final defaultSalonIds = _defaultSalonIds(salons);
+    int? tempSelectedSalonId;
+    if (_selectedSalonIds.length == defaultSalonIds.length &&
+        _selectedSalonIds.toSet().containsAll(defaultSalonIds)) {
+      tempSelectedSalonId = null;
+    } else if (_selectedSalonIds.isNotEmpty) {
+      tempSelectedSalonId = _selectedSalonIds.first;
+    }
+    var tempSelectedMemberTypeId = _selectedMemberTypeId;
+    var tempSelectedInstructorId = _selectedInstructorId;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('Filtrele'),
+              content: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<int?>(
+                        key: ValueKey(
+                          tempSelectedSalonId ?? 'dialog_all_salons',
+                        ),
+                        initialValue: tempSelectedSalonId,
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('Tüm Salonlar'),
+                          ),
+                          ...salons.map(
+                            (salon) => DropdownMenuItem<int?>(
+                              value: salon.id,
+                              child: Text(
+                                salon.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            tempSelectedSalonId = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Salon',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        dropdownColor: Colors.white,
+                        iconEnabledColor: Color(0xFF116478),
+                      ),
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<String?>(
+                        key: ValueKey(
+                          tempSelectedMemberTypeId ?? 'dialog_all_member_types',
+                        ),
+                        initialValue: tempSelectedMemberTypeId,
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Tüm Üye Tipleri'),
+                          ),
+                          ...memberTypesState.memberTypes.map(
+                            (memberType) => DropdownMenuItem<String?>(
+                              value: memberType.id,
+                              child: Text(
+                                memberType.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            tempSelectedMemberTypeId = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Üye Tipi',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        dropdownColor: Colors.white,
+                        iconEnabledColor: Color(0xFF116478),
+                      ),
+                      const SizedBox(height: 20),
+                      DropdownButtonFormField<String?>(
+                        key: ValueKey(
+                          tempSelectedInstructorId ?? 'dialog_all_instructors',
+                        ),
+                        initialValue: tempSelectedInstructorId,
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Tüm Eğitmenler'),
+                          ),
+                          ...instructorsState.instructors.map(
+                            (instructor) => DropdownMenuItem<String?>(
+                              value: instructor.id,
+                              child: Text(
+                                instructor.username,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setDialogState(() {
+                            tempSelectedInstructorId = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Eğitmen',
+                          border: OutlineInputBorder(),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        dropdownColor: Colors.white,
+                        iconEnabledColor: Color(0xFF116478),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      tempSelectedSalonId = null;
+                      tempSelectedMemberTypeId = null;
+                      tempSelectedInstructorId = null;
+                    });
+                  },
+                  child: const Text('Temizle'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF116478),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _selectedSalonIds = tempSelectedSalonId == null
+                          ? [...defaultSalonIds]
+                          : [tempSelectedSalonId!];
+                      _selectedMemberTypeId = tempSelectedMemberTypeId;
+                      _selectedInstructorId = tempSelectedInstructorId;
+                      _markMembersDirty();
+                    });
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Uygula'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Removed unused: _memberTypeLabel
+
+  @override
   Widget build(BuildContext context) {
     final memberState = ref.watch(memberProvider);
+    final instructorsState = ref.watch(instructorsProvider);
     final salons = ref.watch(salonsProvider).salons;
-    final equipmentState = ref.watch(equipmentProvider);
-    final equipment = equipmentState.equipmentList;
+    final equipment = ref.watch(equipmentProvider).equipmentList;
+    final memberTypesState = ref.watch(memberTypesProvider);
+    final memberTypeMap = {
+      for (final mt in memberTypesState.memberTypes) mt.id: mt,
+    };
     final isAdmin = widget.role == 'admin';
-    final assignedSalonIds = isAdmin
+    final availableSalons = isAdmin
+        ? salons
+        : salons.where((s) => widget.assignedSalonIds.contains(s.id)).toList();
+    final allowedSalonIds = isAdmin
         ? salons.map((s) => s.id).toList()
         : widget.assignedSalonIds;
+    final l10n = AppLocalizations.of(context);
 
-    // Filtering logic
-    final filteredMembers = memberState.members.where((m) {
-      if (_selectedSalonIds.isNotEmpty &&
-          !m.assignedSalonIds.any((id) => _selectedSalonIds.contains(id))) {
-        return false;
-      }
-      if (_selectedEquipmentIds.isNotEmpty) {
-        final eqIds = m.assignedEquipmentIds ?? [];
-        if (!eqIds.any((id) => _selectedEquipmentIds.contains(id))) {
-          return false;
-        }
-      }
-      if (!isAdmin &&
-          !m.assignedSalonIds.any((id) => assignedSalonIds.contains(id))) {
-        return false;
-      }
-      return true;
-    }).toList();
+    if (!identical(_lastMembersSource, memberState.members)) {
+      _lastMembersSource = memberState.members;
+      _markMembersDirty();
+    }
+    if (!identical(_lastMemberTypesSource, memberTypesState.memberTypes)) {
+      _lastMemberTypesSource = memberTypesState.memberTypes;
+      _markMembersDirty();
+    }
+    if (_needsMemberRecompute) {
+      _recomputeMembers(
+        memberState.members,
+        memberTypeMap,
+        isAdmin,
+        allowedSalonIds,
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFf6f6d7),
       appBar: AppBar(
+        toolbarHeight: 46,
         backgroundColor: const Color(0xFF116478),
-        title: const Text('Members', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            l10n?.translate('members') ?? 'Members',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+            textAlign: TextAlign.left,
+          ),
+        ),
         actions: [
+          TextButton(
+            onPressed: () async {
+              setState(() {
+                _showInactive = !_showInactive;
+                _markMembersDirty();
+              });
+              if (_showInactive) {
+                await ref
+                    .read(memberProvider.notifier)
+                    .fetchAllMembers(widget.token);
+              } else {
+                await ref
+                    .read(memberProvider.notifier)
+                    .fetchMembers(widget.token);
+              }
+            },
+            child: Text(
+              _showInactive ? 'Aktif Üyeler' : 'Pasif Üyeler',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () =>
-                ref.read(memberProvider.notifier).fetchMembers(widget.token),
+            onPressed: () {
+              _refreshMembers();
+            },
           ),
-          const Padding(padding: EdgeInsets.only(right: 8.0)),
+          const Padding(padding: EdgeInsets.only(right: 8)),
         ],
       ),
-      body: Column(
-        children: [
-          // Salon filter
-          // Equipment filter
-          if (equipment.isNotEmpty)
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Column(
+          children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.filter_alt, color: Color(0xFF116478)),
-                label: Text(
-                  _selectedEquipmentIds.isEmpty
-                      ? (AppLocalizations.of(
-                              context,
-                            )?.translate('filterByEquipment') ??
-                            'Filter by Equipment')
-                      : (AppLocalizations.of(context)?.translate('equipment') ??
-                                'Equipment') +
-                            ': ' +
-                            _selectedEquipmentIds
-                                .map(
-                                  (id) => equipment
-                                      .firstWhere(
-                                        (e) => e.id == id,
-                                        orElse: () => Equipment(
-                                          id: -1,
-                                          name: 'Unknown',
-                                          type: '',
-                                          salonId: -1,
-                                        ),
-                                      )
-                                      .name,
-                                )
-                                .join(', '),
-                  style: const TextStyle(color: Color(0xFF116478)),
+              padding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Üye ara',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF116478)),
-                  backgroundColor: Colors.white,
-                ),
-                onPressed: () async {
-                  final result = await showDialog<List<int>>(
-                    context: context,
-                    builder: (context) => MultiSelectDialog<int>(
-                      title:
-                          AppLocalizations.of(
+                onChanged: (value) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(
+                    const Duration(milliseconds: 200),
+                    () {
+                      if (!mounted) return;
+                      setState(() {
+                        _memberSearchQuery = value.trim().toLowerCase();
+                        _markMembersDirty();
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+            if (availableSalons.isNotEmpty ||
+                memberTypesState.memberTypes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: _hasActiveFilters(availableSalons)
+                              ? Colors.white
+                              : const Color(0xFF116478),
+                        ),
+                        label: Text(
+                          _filterButtonLabel(availableSalons),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _hasActiveFilters(availableSalons)
+                                ? Colors.white
+                                : const Color(0xFF116478),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: _topActionButtonStyle(
+                          isActive: _hasActiveFilters(availableSalons),
+                        ),
+                        onPressed: () {
+                          _showFilterDialog(
                             context,
-                          )?.translate('filterByEquipment') ??
-                          'Filter by Equipment',
-                      items: equipment.map((e) => e.id).toList(),
-                      initialSelected: _selectedEquipmentIds,
-                      labelBuilder: (id) => equipment
-                          .firstWhere(
-                            (e) => e.id == id,
-                            orElse: () => Equipment(
-                              id: -1,
-                              name: 'Unknown',
-                              type: '',
-                              salonId: -1,
-                            ),
-                          )
-                          .name,
-                      brandColor: const Color(0xFF116478),
-                      chipColor: const Color(0xFF8cb2ab),
-                    ),
-                  );
-                  if (result != null)
-                    setState(() => _selectedEquipmentIds = result);
-                },
-              ),
-            ),
-          if (salons.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.filter_list, color: Color(0xFF116478)),
-                label: Text(
-                  _selectedSalonIds.isEmpty
-                      ? 'Filter by Salon'
-                      : 'Salon: ' +
-                            _selectedSalonIds
-                                .map(
-                                  (id) =>
-                                      salons.firstWhere((s) => s.id == id).name,
-                                )
-                                .join(', '),
-                  style: const TextStyle(color: Color(0xFF116478)),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF116478)),
-                  backgroundColor: Colors.white,
-                ),
-                onPressed: () async {
-                  final result = await showDialog<List<int>>(
-                    context: context,
-                    builder: (context) => MultiSelectDialog<int>(
-                      title: 'Filter by Salon',
-                      items: salons.map((s) => s.id).toList(),
-                      initialSelected: _selectedSalonIds,
-                      labelBuilder: (id) =>
-                          salons.firstWhere((s) => s.id == id).name,
-                      brandColor: const Color(0xFF116478),
-                      chipColor: const Color(0xFF8cb2ab),
-                    ),
-                  );
-                  if (result != null)
-                    setState(() => _selectedSalonIds = result);
-                },
-              ),
-            ),
-          // Equipment filter
-          if (equipment.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.filter_alt, color: Color(0xFF116478)),
-                label: Text(
-                  _selectedEquipmentIds.isEmpty
-                      ? 'Filter by Equipment'
-                      : 'Equipment: ' +
-                            _selectedEquipmentIds
-                                .map(
-                                  (id) => equipment
-                                      .firstWhere(
-                                        (e) => e.id == id,
-                                        orElse: () => Equipment(
-                                          id: -1,
-                                          name: 'Unknown',
-                                          type: '',
-                                          salonId: -1,
-                                        ),
-                                      )
-                                      .name,
-                                )
-                                .join(', '),
-                  style: const TextStyle(color: Color(0xFF116478)),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF116478)),
-                  backgroundColor: Colors.white,
-                ),
-                onPressed: () async {
-                  final result = await showDialog<List<int>>(
-                    context: context,
-                    builder: (context) => MultiSelectDialog<int>(
-                      title: 'Filter by Equipment',
-                      items: equipment.map((e) => e.id).toList(),
-                      initialSelected: _selectedEquipmentIds,
-                      labelBuilder: (id) => equipment
-                          .firstWhere(
-                            (e) => e.id == id,
-                            orElse: () => Equipment(
-                              id: -1,
-                              name: 'Unknown',
-                              type: '',
-                              salonId: -1,
-                            ),
-                          )
-                          .name,
-                      brandColor: const Color(0xFF116478),
-                      chipColor: const Color(0xFF8cb2ab),
-                    ),
-                  );
-                  if (result != null)
-                    setState(() => _selectedEquipmentIds = result);
-                },
-              ),
-            ),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                if (memberState.status == MemberStatus.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF8cb2ab)),
-                  );
-                } else if (memberState.status == MemberStatus.error) {
-                  return Center(
-                    child: Text(
-                      memberState.error ?? 'Failed to load members',
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
+                            availableSalons,
+                            memberTypesState,
+                            instructorsState,
+                          );
+                        },
                       ),
                     ),
-                  );
-                } else if (filteredMembers.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No members found.',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 18),
-                    ),
-                  );
-                }
-                return RefreshIndicator(
-                  onRefresh: () async => ref
-                      .read(memberProvider.notifier)
-                      .fetchMembers(widget.token),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: filteredMembers.length,
-                    itemBuilder: (context, index) {
-                      final member = filteredMembers[index];
-                      Color? memberTypeColor;
-                      try {
-                        final hex = member.memberTypeColor.replaceAll('#', '');
-                        memberTypeColor = Color(int.parse('FF$hex', radix: 16));
-                      } catch (_) {
-                        memberTypeColor = const Color(0xFF116478);
-                      }
-                      return Card(
-                        color: Colors.white,
-                        margin: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 2,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: PopupMenuButton<String>(
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedSort = selected;
+                            _markMembersDirty();
+                          });
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'created_desc',
+                            child: Text('Kayıt Tarihi Yeni → Eski'),
+                          ),
+                          PopupMenuItem(
+                            value: 'created_asc',
+                            child: Text('Kayıt Tarihi Eski → Yeni'),
+                          ),
+                          PopupMenuItem(
+                            value: 'remaining_asc',
+                            child: Text('Kalan Ders Artan'),
+                          ),
+                          PopupMenuItem(
+                            value: 'remaining_desc',
+                            child: Text('Kalan Ders Azalan'),
+                          ),
+                        ],
+                        child: IgnorePointer(
+                          child: OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.sort,
+                              color: Color(0xFF116478),
+                              size: 24,
+                            ),
+                            label: Text(
+                              _sortLabel(),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF116478),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: _topActionButtonStyle(isActive: false),
+                          ),
                         ),
-                        elevation: 2,
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: memberTypeColor,
-                            radius: 16,
-                            child: Text(
-                              member.memberTypeName.isNotEmpty
-                                  ? member.memberTypeName[0].toUpperCase()
-                                  : '',
-                              style: TextStyle(
-                                color: memberTypeColor.computeLuminance() > 0.5
-                                    ? Colors.black
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  if (memberState.status == MemberStatus.loading &&
+                      memberState.members.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF8cb2ab),
+                      ),
+                    );
+                  }
+                  if (memberTypesState.isLoading &&
+                      memberTypesState.memberTypes.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF8cb2ab),
+                      ),
+                    );
+                  }
+                  return RefreshIndicator(
+                    onRefresh: _refreshMembers,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 96),
+                      itemCount: _filteredMembers.length,
+                      itemBuilder: (context, index) {
+                        final member = _filteredMembers[index];
+                        final memberType =
+                            memberTypeMap[member.memberTypeId.toString()];
+                        final memberTypeColor =
+                            memberType != null && memberType.color.isNotEmpty
+                            ? _parseMemberTypeColor(memberType.color)
+                            : Colors.grey;
+                        final memberTypeLabel =
+                            memberType != null && memberType.name.isNotEmpty
+                            ? memberType.name
+                            : (l10n?.translate('unknown') ?? 'Unknown');
+                        final isCardBasedMember =
+                            memberType?.isCardBased == true;
+                        final memberName = _safeText(member.name);
+                        // Removed unused: memberPhone, memberEmail
+
+                        return Card(
+                          color: Colors.white,
+                          margin: const EdgeInsets.symmetric(
+                            vertical: 6,
+                            horizontal: 2,
                           ),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => MemberDetailPage(
-                                member: member,
-                                salons: salons,
-                                equipment: equipment,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            member.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(member.email),
-                              Text(member.phone),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 10,
-                                    height: 10,
-                                    margin: const EdgeInsets.only(right: 6),
-                                    decoration: BoxDecoration(
-                                      color: memberTypeColor,
-                                      shape: BoxShape.circle,
-                                    ),
+                          elevation: 2,
+                          child: ListTile(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => MemberDetailPage(
+                                    member: member,
+                                    salons: salons,
+                                    equipment: equipment,
+                                    token: widget.token,
                                   ),
-                                  Text(
-                                    member.memberTypeName,
-                                    style: TextStyle(
-                                      color: memberTypeColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Wrap(
-                                spacing: 4,
-                                children: [
-                                  ...member.assignedSalonIds.map((id) {
-                                    final salon = salons.firstWhere(
-                                      (s) => s.id == id,
-                                      orElse: () => Salon(
-                                        id: -1,
-                                        name: 'Unknown',
-                                        type: '',
-                                      ),
-                                    );
-                                    if (salon.id == -1) return const SizedBox();
-                                    return Chip(
-                                      label: Text(salon.name),
-                                      backgroundColor: const Color(
-                                        0xFF8cb2ab,
-                                      ).withOpacity(0.2),
-                                    );
-                                  }),
-                                  ...?member.assignedEquipmentIds?.map((id) {
-                                    final eq = equipment.firstWhere(
-                                      (e) => e.id == id,
-                                      orElse: () => Equipment(
-                                        id: -1,
-                                        name: 'Unknown',
-                                        type: '',
-                                        salonId: -1,
-                                      ),
-                                    );
-                                    if (eq.id == -1) return const SizedBox();
-                                    return Chip(
-                                      label: Text(eq.name),
-                                      backgroundColor: const Color(
-                                        0xFF116478,
-                                      ).withOpacity(0.15),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Color(0xFF8cb2ab),
                                 ),
-                                onPressed: _isDeleting
-                                    ? null
-                                    : () async {
-                                        await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => MemberEditDialog(
-                                            member: member,
-                                            token: widget.token,
-                                            onSave:
-                                                (
-                                                  name,
-                                                  phone,
-                                                  email,
-                                                  memberTypeId,
-                                                  assignedSalonIds,
-                                                  assignedEquipmentIds,
-                                                  remainingLessons,
-                                                ) async {
-                                                  final updateResult = await ref
-                                                      .read(
-                                                        memberProvider.notifier,
-                                                      )
-                                                      .updateMember(
-                                                        Member(
+                              );
+                            },
+                            leading: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: memberTypeColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            title: Text(memberName),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  (l10n?.translate('type') ?? 'Type') +
+                                      ': $memberTypeLabel',
+                                ),
+                                if (!isCardBasedMember)
+                                  Text(
+                                    (l10n?.translate('remainingLessons') ??
+                                            'Remaining lessons') +
+                                        ': ${member.remainingLessons}',
+                                    style: TextStyle(
+                                      color: member.remainingLessons <= 3
+                                          ? Colors.red
+                                          : const Color(0xFF116478),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            trailing: (_showInactive && isAdmin)
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.restore,
+                                      color: Color(0xFF116478),
+                                    ),
+                                    tooltip:
+                                        l10n?.translate('reactivate') ??
+                                        'Reactivate Member',
+                                    onPressed: () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (dialogContext) {
+                                          return AlertDialog(
+                                            title: Text('Üyeyi Aktifleştir'),
+                                            content: Text(
+                                              'Bu üyeyi tekrar aktifleştirmek istediğinize emin misiniz?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.of(
+                                                  dialogContext,
+                                                ).pop(false),
+                                                child: Text('İptal'),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Color(
+                                                    0xFF116478,
+                                                  ),
+                                                ),
+                                                onPressed: () => Navigator.of(
+                                                  dialogContext,
+                                                ).pop(true),
+                                                child: Text('Aktifleştir'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (confirmed == true) {
+                                        final restoreResult = await ref
+                                            .read(memberProvider.notifier)
+                                            .restoreMember(
+                                              member.id,
+                                              widget.token,
+                                            );
+                                        if (restoreResult == null) {
+                                          await ref
+                                              .read(memberProvider.notifier)
+                                              .fetchAllMembers(widget.token);
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                l10n?.translate(
+                                                      'memberReactivatedSuccessfully',
+                                                    ) ??
+                                                    'Member reactivated successfully',
+                                              ),
+                                              backgroundColor: const Color(
+                                                0xFF8cb2ab,
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(restoreResult),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const FaIcon(
+                                          FontAwesomeIcons.whatsapp,
+                                          color: Colors.green,
+                                        ),
+                                        tooltip: 'WhatsApp',
+                                        onPressed: () async {
+                                          final phone = member.phone
+                                              .replaceAll('+', '')
+                                              .replaceAll(' ', '');
+                                          if (phone.isEmpty) return;
+
+                                          final url = Uri.parse(
+                                            'https://wa.me/$phone',
+                                          );
+
+                                          if (await canLaunchUrl(url)) {
+                                            await launchUrl(
+                                              url,
+                                              mode: LaunchMode
+                                                  .externalApplication,
+                                            );
+                                          }
+                                        },
+                                      ),
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) async {
+                                          if (value == 'edit') {
+                                            final result = await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) {
+                                                return MemberEditDialog(
+                                                  token: widget.token,
+                                                  member: member,
+                                                  onSave:
+                                                      (
+                                                        name,
+                                                        phone,
+                                                        email,
+                                                        memberTypeId,
+                                                        assignedSalonIds,
+                                                        assignedEquipmentIds,
+                                                        remainingLessons,
+                                                        assignedInstructorId,
+                                                      ) async {
+                                                        final updatedMember = Member(
                                                           id: member.id,
                                                           name: name,
                                                           phone: phone,
@@ -456,201 +893,750 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                               remainingLessons,
                                                           totalDebt:
                                                               member.totalDebt,
-                                                        ),
-                                                        widget.token,
-                                                      );
-                                                  if (updateResult == null) {
-                                                    Navigator.pop(
-                                                      context,
-                                                      true,
-                                                    );
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      const SnackBar(
-                                                        content: Text(
-                                                          'Member updated successfully',
-                                                        ),
-                                                        backgroundColor: Color(
-                                                          0xFF8cb2ab,
-                                                        ),
-                                                      ),
-                                                    );
-                                                    return null;
-                                                  } else {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          updateResult,
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                    return updateResult;
-                                                  }
-                                                },
-                                          ),
-                                        );
-                                      },
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: _isDeleting
-                                    ? null
-                                    : () async {
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Delete Member'),
-                                            content: const Text(
-                                              'Are you sure you want to delete this member?',
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                  context,
-                                                  false,
-                                                ),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                  context,
-                                                  true,
-                                                ),
-                                                child: const Text(
-                                                  'Delete',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
+                                                          assignedInstructorId:
+                                                              assignedInstructorId,
+                                                        );
+                                                        final updateResult =
+                                                            await ref
+                                                                .read(
+                                                                  memberProvider
+                                                                      .notifier,
+                                                                )
+                                                                .updateMember(
+                                                                  updatedMember,
+                                                                  widget.token,
+                                                                );
+                                                        if (updateResult ==
+                                                            null) {
+                                                          return null;
+                                                        }
+                                                        if (!dialogContext
+                                                            .mounted)
+                                                          return updateResult;
+                                                        ScaffoldMessenger.of(
+                                                          dialogContext,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              updateResult,
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.red,
+                                                          ),
+                                                        );
+                                                        return updateResult;
+                                                      },
+                                                );
+                                              },
+                                            );
+                                            if (result == true) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    l10n?.translate(
+                                                          'memberUpdatedSuccessfully',
+                                                        ) ??
+                                                        'Member updated successfully',
+                                                  ),
+                                                  backgroundColor: const Color(
+                                                    0xFF8cb2ab,
                                                   ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirm == true) {
-                                          setState(() => _isDeleting = true);
-                                          _recentlyDeleted = member;
-                                          _recentlyDeletedIndex = index;
-                                          await ref
-                                              .read(memberProvider.notifier)
-                                              .deleteMember(
-                                                member.id,
-                                                widget.token,
                                               );
-                                          setState(() => _isDeleting = false);
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: const Text(
-                                                'Member deleted',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                              action: SnackBarAction(
-                                                label: 'UNDO',
-                                                textColor: Color(0xFF8cb2ab),
-                                                onPressed: () async {
-                                                  if (_recentlyDeleted !=
-                                                          null &&
-                                                      _recentlyDeletedIndex !=
-                                                          null) {
-                                                    await ref
-                                                        .read(
-                                                          memberProvider
-                                                              .notifier,
-                                                        )
-                                                        .addMember(
-                                                          _recentlyDeleted!,
-                                                          widget.token,
+                                            }
+                                          }
+                                          if (value == 'assign_package') {
+                                            await ref
+                                                .read(
+                                                  lessonPackagesProvider
+                                                      .notifier,
+                                                )
+                                                .fetchLessonPackages();
+                                            String? selectedPackageId;
+                                            String? errorText;
+                                            String discountType = 'none';
+                                            final TextEditingController
+                                            discountValueController =
+                                                TextEditingController();
+                                            double finalPrice = 0;
+                                            int originalPrice = 0;
+                                            await showDialog(
+                                              context: context,
+                                              builder: (dialogContext) {
+                                                return StatefulBuilder(
+                                                  builder: (context, setState) {
+                                                    return Consumer(
+                                                      builder: (context, ref, _) {
+                                                        final lessonPackagesState =
+                                                            ref.watch(
+                                                              lessonPackagesProvider,
+                                                            );
+                                                        final packages =
+                                                            lessonPackagesState
+                                                                .lessonPackages;
+                                                        final isLoading =
+                                                            lessonPackagesState
+                                                                .isLoading &&
+                                                            packages.isEmpty;
+                                                        final selectedPkg =
+                                                            packages.firstWhere(
+                                                              (p) =>
+                                                                  (p as dynamic)
+                                                                      .id ==
+                                                                  selectedPackageId,
+                                                              orElse: () =>
+                                                                  packages[0],
+                                                            );
+                                                        originalPrice =
+                                                            (selectedPkg
+                                                                    as dynamic)
+                                                                .price;
+                                                        double discountValue =
+                                                            double.tryParse(
+                                                              discountValueController
+                                                                  .text,
+                                                            ) ??
+                                                            0;
+                                                        if (discountType ==
+                                                            'none') {
+                                                          finalPrice =
+                                                              originalPrice
+                                                                  .toDouble();
+                                                        } else if (discountType ==
+                                                            'amount') {
+                                                          finalPrice =
+                                                              (originalPrice -
+                                                                      discountValue)
+                                                                  .clamp(
+                                                                    0,
+                                                                    originalPrice,
+                                                                  )
+                                                                  .toDouble();
+                                                        } else if (discountType ==
+                                                            'percent') {
+                                                          finalPrice =
+                                                              (originalPrice -
+                                                                      (originalPrice *
+                                                                          discountValue /
+                                                                          100))
+                                                                  .clamp(
+                                                                    0,
+                                                                    originalPrice,
+                                                                  )
+                                                                  .toDouble();
+                                                        }
+                                                        return AlertDialog(
+                                                          title: Text(
+                                                            l10n?.translate(
+                                                                  'assignLessonPackage',
+                                                                ) ??
+                                                                'Ders Paketi Ata',
+                                                          ),
+                                                          content: isLoading
+                                                              ? const SizedBox(
+                                                                  height: 80,
+                                                                  child: Center(
+                                                                    child:
+                                                                        CircularProgressIndicator(),
+                                                                  ),
+                                                                )
+                                                              : Column(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    DropdownButtonFormField<
+                                                                      String
+                                                                    >(
+                                                                      value:
+                                                                          selectedPackageId,
+                                                                      items: packages
+                                                                          .map(
+                                                                            (
+                                                                              pkg,
+                                                                            ) => DropdownMenuItem(
+                                                                              value: pkg.id,
+                                                                              child: Text(
+                                                                                '${pkg.name} (${pkg.lessonCount} ders, ₺${pkg.price})',
+                                                                              ),
+                                                                            ),
+                                                                          )
+                                                                          .toList(),
+                                                                      onChanged: (val) {
+                                                                        setState(() {
+                                                                          selectedPackageId =
+                                                                              val;
+                                                                          errorText =
+                                                                              null;
+                                                                          discountType =
+                                                                              'none';
+                                                                          discountValueController.text =
+                                                                              '';
+                                                                        });
+                                                                      },
+                                                                      decoration: InputDecoration(
+                                                                        labelText:
+                                                                            l10n?.translate(
+                                                                              'selectPackage',
+                                                                            ) ??
+                                                                            'Select Package',
+                                                                      ),
+                                                                    ),
+                                                                    if (selectedPackageId !=
+                                                                        null) ...[
+                                                                      const SizedBox(
+                                                                        height:
+                                                                            12,
+                                                                      ),
+                                                                      Text(
+                                                                        'Standart Fiyat: ₺${(selectedPkg as dynamic).price.toStringAsFixed(2)}',
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        height:
+                                                                            8,
+                                                                      ),
+                                                                      DropdownButtonFormField<
+                                                                        String
+                                                                      >(
+                                                                        value:
+                                                                            discountType,
+                                                                        items: [
+                                                                          DropdownMenuItem(
+                                                                            value:
+                                                                                'none',
+                                                                            child: Text(
+                                                                              'İndirim Yok',
+                                                                            ),
+                                                                          ),
+                                                                          DropdownMenuItem(
+                                                                            value:
+                                                                                'amount',
+                                                                            child: Text(
+                                                                              'Tutar (₺)',
+                                                                            ),
+                                                                          ),
+                                                                          DropdownMenuItem(
+                                                                            value:
+                                                                                'percent',
+                                                                            child: Text(
+                                                                              'Yüzde (%)',
+                                                                            ),
+                                                                          ),
+                                                                        ],
+                                                                        onChanged: (val) {
+                                                                          setState(() {
+                                                                            discountType =
+                                                                                val ??
+                                                                                'none';
+                                                                            discountValueController.text =
+                                                                                '';
+                                                                          });
+                                                                        },
+                                                                        decoration: const InputDecoration(
+                                                                          labelText:
+                                                                              'İndirim Türü',
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        height:
+                                                                            8,
+                                                                      ),
+                                                                      TextField(
+                                                                        controller:
+                                                                            discountValueController,
+                                                                        enabled:
+                                                                            discountType !=
+                                                                            'none',
+                                                                        keyboardType: const TextInputType.numberWithOptions(
+                                                                          decimal:
+                                                                              true,
+                                                                        ),
+                                                                        decoration: InputDecoration(
+                                                                          labelText:
+                                                                              'İndirim Tutarı',
+                                                                          prefixText:
+                                                                              discountType ==
+                                                                                  'amount'
+                                                                              ? '₺'
+                                                                              : discountType ==
+                                                                                    'percent'
+                                                                              ? '%'
+                                                                              : null,
+                                                                        ),
+                                                                        onChanged:
+                                                                            (
+                                                                              _,
+                                                                            ) => setState(
+                                                                              () {},
+                                                                            ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                        height:
+                                                                            8,
+                                                                      ),
+                                                                      Text(
+                                                                        'Son Fiyat: ₺${finalPrice.toStringAsFixed(2)}',
+                                                                        style: const TextStyle(
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                    if (errorText !=
+                                                                        null)
+                                                                      Padding(
+                                                                        padding: const EdgeInsets.only(
+                                                                          top:
+                                                                              8,
+                                                                        ),
+                                                                        child: Text(
+                                                                          errorText!,
+                                                                          style: const TextStyle(
+                                                                            color:
+                                                                                Colors.red,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                  ],
+                                                                ),
+                                                          actions: [
+                                                            TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.of(
+                                                                    dialogContext,
+                                                                  ).pop(),
+                                                              child: Text(
+                                                                l10n?.translate(
+                                                                      'cancel',
+                                                                    ) ??
+                                                                    'Cancel',
+                                                              ),
+                                                            ),
+                                                            ElevatedButton(
+                                                              onPressed: () async {
+                                                                if (selectedPackageId ==
+                                                                    null) {
+                                                                  setState(
+                                                                    () => errorText =
+                                                                        l10n?.translate(
+                                                                          'pleaseSelectPackage',
+                                                                        ) ??
+                                                                        'Please select a package',
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                final pkg = packages.firstWhere(
+                                                                  (p) =>
+                                                                      (p as dynamic)
+                                                                          .id ==
+                                                                      selectedPackageId,
+                                                                );
+                                                                double
+                                                                discountValue =
+                                                                    double.tryParse(
+                                                                      discountValueController
+                                                                          .text,
+                                                                    ) ??
+                                                                    0;
+                                                                if (discountType ==
+                                                                        'amount' &&
+                                                                    discountValue >
+                                                                        (pkg as dynamic)
+                                                                            .price) {
+                                                                  setState(
+                                                                    () => errorText =
+                                                                        'Discount cannot exceed price',
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                if (discountType ==
+                                                                        'percent' &&
+                                                                    (discountValue <
+                                                                            0 ||
+                                                                        discountValue >
+                                                                            100)) {
+                                                                  setState(
+                                                                    () => errorText =
+                                                                        'Percent must be 0-100',
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                if (finalPrice <
+                                                                    0) {
+                                                                  setState(
+                                                                    () => errorText =
+                                                                        'Final price cannot be negative',
+                                                                  );
+                                                                  return;
+                                                                }
+                                                                final error = await ref
+                                                                    .read(
+                                                                      memberProvider
+                                                                          .notifier,
+                                                                    )
+                                                                    .assignLessonPackage(
+                                                                      memberId:
+                                                                          member
+                                                                              .id,
+                                                                      lessonPackageId: int.parse(
+                                                                        (pkg
+                                                                                as dynamic)
+                                                                            .id,
+                                                                      ),
+                                                                      token: widget
+                                                                          .token,
+                                                                      originalPrice:
+                                                                          (pkg
+                                                                                  as dynamic)
+                                                                              .price,
+                                                                      discountType:
+                                                                          discountType,
+                                                                      discountValue:
+                                                                          discountValue,
+                                                                      finalPrice:
+                                                                          finalPrice,
+                                                                    );
+                                                                if (error ==
+                                                                    null) {
+                                                                  await ref
+                                                                      .read(
+                                                                        memberProvider
+                                                                            .notifier,
+                                                                      )
+                                                                      .fetchMembers(
+                                                                        widget
+                                                                            .token,
+                                                                      );
+                                                                  if (mounted) {
+                                                                    ScaffoldMessenger.of(
+                                                                      context,
+                                                                    ).showSnackBar(
+                                                                      SnackBar(
+                                                                        content: Text(
+                                                                          l10n?.translate(
+                                                                                'packageAssigned',
+                                                                              ) ??
+                                                                              'Lesson package assigned!',
+                                                                        ),
+                                                                        backgroundColor:
+                                                                            const Color(
+                                                                              0xFF8cb2ab,
+                                                                            ),
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                  Navigator.of(
+                                                                    dialogContext,
+                                                                  ).pop();
+                                                                } else {
+                                                                  setState(
+                                                                    () => errorText =
+                                                                        error,
+                                                                  );
+                                                                }
+                                                              },
+                                                              child: Text(
+                                                                l10n?.translate(
+                                                                      'assign',
+                                                                    ) ??
+                                                                    'Ata',
+                                                              ),
+                                                            ),
+                                                          ],
                                                         );
-                                                    setState(() {
-                                                      _recentlyDeleted = null;
-                                                      _recentlyDeletedIndex =
-                                                          null;
-                                                    });
-                                                  }
+                                                      },
+                                                    );
+                                                  },
+                                                );
+                                              },
+                                            );
+                                          }
+                                          if (value == 'deactivate') {
+                                            if (member.totalDebt > 0) {
+                                              await showDialog<void>(
+                                                context: context,
+                                                builder: (dialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      'Üye Pasifleştirilemez',
+                                                    ),
+                                                    content: const Text(
+                                                      'Bu üyenin borcu var. Lütfen önce borcu kapatın.',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(),
+                                                        child: const Text(
+                                                          'Tamam',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
                                                 },
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                              ),
-                            ],
+                                              );
+                                              return;
+                                            }
+                                            if (member.remainingLessons > 0) {
+                                              final confirmReset = await showDialog<bool>(
+                                                context: context,
+                                                builder: (dialogContext) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      'Kalan Dersler Sıfırlanacak',
+                                                    ),
+                                                    content: const Text(
+                                                      'Bu üyenin kalan dersi var. Pasifleştirirseniz kalan dersler sıfırlanacak. Emin misiniz?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(false),
+                                                        child: const Text(
+                                                          'İptal',
+                                                        ),
+                                                      ),
+                                                      ElevatedButton(
+                                                        style:
+                                                            ElevatedButton.styleFrom(
+                                                              backgroundColor:
+                                                                  Colors.red,
+                                                            ),
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              dialogContext,
+                                                            ).pop(true),
+                                                        child: const Text(
+                                                          'Onayla',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                              if (confirmReset == true) {
+                                                final deleteResult = await ref
+                                                    .read(
+                                                      memberProvider.notifier,
+                                                    )
+                                                    .deleteMember(
+                                                      member.id,
+                                                      widget.token,
+                                                      confirmResetLessons: true,
+                                                    );
+                                                if (deleteResult == null) {
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        l10n?.translate(
+                                                              'memberDeactivatedSuccessfully',
+                                                            ) ??
+                                                            'Member deactivated successfully',
+                                                      ),
+                                                      backgroundColor:
+                                                          const Color(
+                                                            0xFF8cb2ab,
+                                                          ),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        deleteResult,
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                              return;
+                                            }
+                                            // Normal deactivate confirmation
+                                            final confirmed = await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) {
+                                                return AlertDialog(
+                                                  title: Text(
+                                                    'Üyeyi Pasifleştir',
+                                                  ),
+                                                  content: Text(
+                                                    'Bu üyeyi pasifleştirmek istediğinize emin misiniz?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop(false),
+                                                      child: Text(
+                                                        l10n?.translate(
+                                                              'cancel',
+                                                            ) ??
+                                                            'Cancel',
+                                                      ),
+                                                    ),
+                                                    ElevatedButton(
+                                                      style:
+                                                          ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                Colors.red,
+                                                          ),
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            dialogContext,
+                                                          ).pop(true),
+                                                      child: Text(
+                                                        'Pasifleştir',
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                            if (confirmed == true) {
+                                              final deleteResult = await ref
+                                                  .read(memberProvider.notifier)
+                                                  .deleteMember(
+                                                    member.id,
+                                                    widget.token,
+                                                  );
+                                              if (deleteResult == null) {
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      l10n?.translate(
+                                                            'memberDeactivatedSuccessfully',
+                                                          ) ??
+                                                          'Member deactivated successfully',
+                                                    ),
+                                                    backgroundColor:
+                                                        const Color(0xFF8cb2ab),
+                                                  ),
+                                                );
+                                              } else {
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(deleteResult),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem<String>(
+                                            value: 'edit',
+                                            child: Text('Düzenle'),
+                                          ),
+                                          PopupMenuItem<String>(
+                                            value: 'assign_package',
+                                            child: Text('Ders Paketi Ata'),
+                                          ),
+                                          PopupMenuItem<String>(
+                                            value: 'deactivate',
+                                            child: Text('Pasifleştir'),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF8cb2ab),
-        child: const Icon(Icons.add, color: Color(0xFF116478)),
-        onPressed: () {
-          showDialog(
+        backgroundColor: const Color(0xFF116478),
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: () async {
+          await showDialog<bool>(
             context: context,
-            builder: (context) => MemberEditDialog(
-              token: widget.token,
-              onSave:
-                  (
-                    name,
-                    phone,
-                    email,
-                    memberTypeId,
-                    assignedSalonIds,
-                    assignedEquipmentIds,
-                    remainingLessons,
-                  ) async {
-                    final addResult = await ref
-                        .read(memberProvider.notifier)
-                        .addMember(
-                          Member(
-                            id: 0,
-                            name: name,
-                            phone: phone,
-                            email: email,
-                            memberTypeId: memberTypeId,
-                            memberTypeName: '',
-                            memberTypeColor: '#116478',
-                            assignedSalonIds: assignedSalonIds,
-                            assignedEquipmentIds: assignedEquipmentIds,
-                            remainingLessons: remainingLessons,
-                            totalDebt: 0.0,
-                          ),
-                          widget.token,
-                        );
-                    if (addResult == null) {
-                      Navigator.pop(context, true);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Member added successfully'),
-                          backgroundColor: Color(0xFF8cb2ab),
-                        ),
+            builder: (dialogContext) {
+              return MemberEditDialog(
+                token: widget.token,
+                onSave:
+                    (
+                      name,
+                      phone,
+                      email,
+                      memberTypeId,
+                      assignedSalonIds,
+                      assignedEquipmentIds,
+                      remainingLessons,
+                      assignedInstructorId,
+                    ) async {
+                      final member = Member(
+                        id: 0,
+                        name: name,
+                        phone: phone,
+                        email: email,
+                        memberTypeId: memberTypeId,
+                        memberTypeName: '',
+                        memberTypeColor: '#116478',
+                        assignedSalonIds: assignedSalonIds,
+                        assignedEquipmentIds: assignedEquipmentIds,
+                        remainingLessons: remainingLessons,
+                        totalDebt: 0.0,
+                        assignedInstructorId: assignedInstructorId,
                       );
-                      return null;
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      final addResult = await ref
+                          .read(memberProvider.notifier)
+                          .addMember(member, widget.token);
+                      if (addResult == null) {
+                        if (!dialogContext.mounted) return null;
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              l10n?.translate('memberAddedSuccessfully') ??
+                                  'Member added successfully',
+                            ),
+                            backgroundColor: const Color(0xFF8cb2ab),
+                          ),
+                        );
+                        return null;
+                      }
+                      if (!dialogContext.mounted) return addResult;
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         SnackBar(
                           content: Text(addResult),
                           backgroundColor: Colors.red,
                         ),
                       );
                       return addResult;
-                    }
-                  },
-            ),
+                    },
+              );
+            },
           );
         },
       ),

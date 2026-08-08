@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/attendance.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/member_provider.dart';
 
 const kBrandTextColor = Color(0xFF116478);
 const kBrandAccentColor = Color(0xFF8CB2AB);
@@ -13,6 +14,7 @@ class AddAttendanceDialog extends ConsumerStatefulWidget {
   final List salons;
   final String token;
   final WidgetRef ref;
+  final Attendance? initialAttendance;
   const AddAttendanceDialog({
     super.key,
     required this.isAdmin,
@@ -21,6 +23,7 @@ class AddAttendanceDialog extends ConsumerStatefulWidget {
     required this.salons,
     required this.token,
     required this.ref,
+    this.initialAttendance,
   });
 
   @override
@@ -35,16 +38,27 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
   bool _loading = false;
   final _formKey = GlobalKey<FormState>();
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedSalonId = widget.initialAttendance?.salonId;
+    _selectedMemberId = widget.initialAttendance?.memberId;
+    _selectedDate = widget.initialAttendance?.date;
+  }
+
   List get filteredMembers {
     if (_selectedSalonId == null) return [];
     if (widget.isAdmin) {
       return widget.members
-          .where((m) => m.assignedSalonIds.contains(_selectedSalonId))
+          .where(
+            (m) => m.isActive && m.assignedSalonIds.contains(_selectedSalonId),
+          )
           .toList();
     } else {
       return widget.members
           .where(
             (m) =>
+                m.isActive &&
                 m.assignedSalonIds.contains(_selectedSalonId) &&
                 widget.instructorSalonIds.any(
                   (id) => m.assignedSalonIds.contains(id),
@@ -56,11 +70,15 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = Localizations.of(context, dynamic) ?? (context as dynamic).loc;
+    final isEdit = widget.initialAttendance != null;
     return AlertDialog(
       backgroundColor: Colors.white,
-      title: const Text(
-        'Add Attendance',
-        style: TextStyle(color: kBrandTextColor),
+      title: Text(
+        isEdit
+            ? (loc?.translate('editAttendance') ?? 'Edit Attendance')
+            : (loc?.translate('addAttendance') ?? 'Add Attendance'),
+        style: const TextStyle(color: kBrandTextColor),
       ),
       content: Form(
         key: _formKey,
@@ -78,8 +96,12 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
                 _selectedSalonId = v;
                 _selectedMemberId = null;
               }),
-              decoration: const InputDecoration(labelText: 'Salon'),
-              validator: (v) => v == null ? 'Select a salon' : null,
+              decoration: InputDecoration(
+                labelText: loc?.translate('salon') ?? 'Salon',
+              ),
+              validator: (v) => v == null
+                  ? (loc?.translate('selectSalon') ?? 'Select a salon')
+                  : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
@@ -90,8 +112,12 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
                   )
                   .toList(),
               onChanged: (v) => setState(() => _selectedMemberId = v),
-              decoration: const InputDecoration(labelText: 'Member'),
-              validator: (v) => v == null ? 'Select a member' : null,
+              decoration: InputDecoration(
+                labelText: loc?.translate('member') ?? 'Member',
+              ),
+              validator: (v) => v == null
+                  ? (loc?.translate('selectMember') ?? 'Select a member')
+                  : null,
             ),
             const SizedBox(height: 12),
             InkWell(
@@ -106,10 +132,12 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
                 if (picked != null) setState(() => _selectedDate = picked);
               },
               child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Date'),
+                decoration: InputDecoration(
+                  labelText: loc?.translate('date') ?? 'Date',
+                ),
                 child: Text(
                   _selectedDate == null
-                      ? 'Select date'
+                      ? (loc?.translate('selectDate') ?? 'Select date')
                       : _selectedDate!.toLocal().toString().split(' ')[0],
                 ),
               ),
@@ -120,7 +148,7 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
       actions: [
         TextButton(
           onPressed: _loading ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: Text(loc?.translate('cancel') ?? 'Cancel'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: kBrandAccentColor),
@@ -128,41 +156,49 @@ class _AddAttendanceDialogState extends ConsumerState<AddAttendanceDialog> {
               ? null
               : () async {
                   if (!_formKey.currentState!.validate() ||
-                      _selectedDate == null)
+                      _selectedDate == null) {
                     return;
+                  }
                   setState(() => _loading = true);
                   final attendance = Attendance(
-                    id: 0,
+                    id: isEdit ? widget.initialAttendance!.id : 0,
                     memberId: _selectedMemberId!,
                     salonId: _selectedSalonId!,
                     equipmentId: null,
                     date: _selectedDate!,
                     deleted: false,
                   );
-                  final ok = await widget.ref
-                      .read(attendanceProvider.notifier)
-                      .addAttendance(attendance, widget.token);
-                  setState(() => _loading = false);
-                  if (ok) {
-                    Navigator.pop(context, true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Attendance marked successfully'),
-                        backgroundColor: kBrandAccentColor,
-                      ),
-                    );
+                  String? error;
+                  if (isEdit) {
+                    error = await widget.ref
+                        .read(attendanceProvider.notifier)
+                        .updateAttendance(attendance, widget.token);
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to mark attendance'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    error = await widget.ref
+                        .read(attendanceProvider.notifier)
+                        .addAttendance(attendance, widget.token);
+                  }
+                  setState(() => _loading = false);
+                  if (mounted) {
+                    widget.ref
+                        .read(memberProvider.notifier)
+                        .fetchMembers(widget.token);
+                    if (error == null) {
+                      Navigator.pop(
+                        context,
+                        isEdit ? 'success:edited' : 'success:created',
+                      );
+                    } else {
+                      Navigator.pop(context, error);
+                    }
                   }
                 },
           child: _loading
               ? const CircularProgressIndicator()
-              : const Text('Submit', style: TextStyle(color: Colors.white)),
+              : Text(
+                  loc?.translate('save') ?? 'Submit',
+                  style: const TextStyle(color: Colors.white),
+                ),
         ),
       ],
     );

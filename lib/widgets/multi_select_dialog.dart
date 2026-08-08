@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class MultiSelectDialog<T> extends StatefulWidget {
   final List<T> items;
@@ -42,6 +43,7 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
               .contains(_search.toLowerCase()),
         )
         .toList();
+    final loc = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: const Color(0xFFf6f6d7),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -87,7 +89,7 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
               padding: const EdgeInsets.all(16),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Search...',
+                  hintText: loc?.translate('search') ?? 'Search...',
                   prefixIcon: Icon(Icons.search, color: widget.brandColor),
                   filled: true,
                   fillColor: Colors.white,
@@ -141,7 +143,7 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
                     style: TextButton.styleFrom(
                       foregroundColor: widget.brandColor,
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(loc?.translate('cancel') ?? 'Cancel'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -150,7 +152,7 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
                       backgroundColor: widget.chipColor,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('OK'),
+                    child: Text(loc?.translate('ok') ?? 'OK'),
                   ),
                 ],
               ),

@@ -23,10 +23,16 @@ class AddPaymentDialog extends ConsumerStatefulWidget {
 class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   int? _selectedMemberId;
   String? _selectedMethod;
-  DateTime? _selectedDate;
+  DateTime? _selectedDate = DateTime.now();
   final _amountController = TextEditingController();
   bool _loading = false;
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -36,7 +42,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final methodsAsync = ref.watch(paymentMethodProvider);
+    final methodsAsync = ref.watch(paymentMethodProvider(widget.token));
     return AlertDialog(
       backgroundColor: Colors.white,
       title: const Text(
@@ -51,6 +57,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
             DropdownButtonFormField<int>(
               value: _selectedMemberId,
               items: widget.members
+                  .where((m) => m.isActive)
                   .map<DropdownMenuItem<int>>(
                     (m) => DropdownMenuItem(value: m.id, child: Text(m.name)),
                   )
@@ -68,11 +75,17 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                     .toList(),
                 onChanged: (v) => setState(() => _selectedMethod = v),
                 decoration: const InputDecoration(labelText: 'Payment Method'),
-                validator: (v) => v == null ? 'Select a method' : null,
+                validator: (v) => v == null ? 'Select a payment method' : null,
               ),
               loading: () => const LinearProgressIndicator(),
-              error: (e, _) =>
-                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) => Text(
+                e is Exception && e.toString().contains(': ')
+                    ? e.toString().split(': ').last
+                    : (e.toString().isNotEmpty
+                          ? e.toString()
+                          : 'Failed to fetch payment methods'),
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -91,8 +104,8 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                 Expanded(
                   child: Text(
                     _selectedDate == null
-                        ? 'Select Date'
-                        : _selectedDate!.toLocal().toString().split(' ')[0],
+                        ? 'Date: ${DateTime.now().toLocal().toString().split(' ')[0]}'
+                        : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
                   ),
                 ),
                 IconButton(
@@ -104,7 +117,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                     final now = DateTime.now();
                     final picked = await showDatePicker(
                       context: context,
-                      initialDate: now,
+                      initialDate: _selectedDate ?? now,
                       firstDate: DateTime(now.year - 1),
                       lastDate: DateTime(now.year + 1),
                     );
@@ -132,7 +145,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                       _selectedDate == null)
                     return;
                   setState(() => _loading = true);
-                  final ok = await ref
+                  final error = await ref
                       .read(paymentProvider.notifier)
                       .addPayment(
                         Payment(
@@ -141,16 +154,16 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                           amount: double.parse(_amountController.text),
                           method: _selectedMethod!,
                           date: _selectedDate!,
-                        ),
+                        ).toJson(),
                         widget.token,
                       );
                   setState(() => _loading = false);
-                  if (ok) {
+                  if (error == null) {
                     Navigator.pop(context, true);
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to add payment'),
+                      SnackBar(
+                        content: Text(error),
                         backgroundColor: Colors.red,
                       ),
                     );

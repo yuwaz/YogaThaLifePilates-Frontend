@@ -1,37 +1,9 @@
+import '../api_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
-class LessonPackage {
-  final String id;
-  final String name;
-  final int lessonCount;
-  final double price;
-
-  LessonPackage({
-    required this.id,
-    required this.name,
-    required this.lessonCount,
-    required this.price,
-  });
-
-  factory LessonPackage.fromJson(Map<String, dynamic> json) {
-    return LessonPackage(
-      id: json['id'].toString(),
-      name: json['name'] ?? '',
-      lessonCount: json['lessonCount'] is int
-          ? json['lessonCount']
-          : int.tryParse(json['lessonCount'].toString()) ?? 0,
-      price: json['price'] is double
-          ? json['price']
-          : double.tryParse(json['price'].toString()) ?? 0.0,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'lessonCount': lessonCount, 'price': price};
-  }
-}
+import '../models/lesson_package.dart' as model_lesson;
+import 'secure_storage_service.dart';
 
 final lessonPackagesProvider =
     StateNotifierProvider<LessonPackagesProvider, LessonPackagesState>(
@@ -39,7 +11,7 @@ final lessonPackagesProvider =
     );
 
 class LessonPackagesState {
-  final List<LessonPackage> lessonPackages;
+  final List<model_lesson.LessonPackage> lessonPackages;
   final bool isLoading;
   final String? error;
 
@@ -50,7 +22,7 @@ class LessonPackagesState {
   });
 
   LessonPackagesState copyWith({
-    List<LessonPackage>? lessonPackages,
+    List<model_lesson.LessonPackage>? lessonPackages,
     bool? isLoading,
     String? error,
   }) {
@@ -63,22 +35,49 @@ class LessonPackagesState {
 }
 
 class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
-  static const String _baseUrl =
-      'http://204.168.168.23:3000/api/lesson_packages';
+  Future<String?> getToken() => _storage.getToken();
+  static String get _baseUrl => '${ApiConfig.baseUrl}/settings/lessonPackages';
+  final SecureStorageService _storage = SecureStorageService();
 
   LessonPackagesProvider() : super(LessonPackagesState(lessonPackages: [])) {
     fetchLessonPackages();
   }
 
+  Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   Future<void> fetchLessonPackages() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: await _authHeaders(),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        final lessonPackages = data
-            .map((e) => LessonPackage.fromJson(e))
-            .toList();
+        final lessonPackages = <model_lesson.LessonPackage>[];
+        for (var i = 0; i < data.length; i++) {
+          try {
+            print(
+              '[fetchLessonPackages] raw JSON item $i: ' + data[i].toString(),
+            );
+            final parsed = model_lesson.LessonPackage.fromJson(data[i]);
+            print(
+              '[fetchLessonPackages] parsed object $i: ' +
+                  parsed.runtimeType.toString(),
+            );
+            lessonPackages.add(parsed);
+          } catch (err) {
+            print(
+              '[fetchLessonPackages] ERROR parsing item $i: ' + err.toString(),
+            );
+          }
+        }
         state = state.copyWith(
           lessonPackages: lessonPackages,
           isLoading: false,
@@ -91,64 +90,112 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
         );
       }
     } catch (e) {
+      print('[fetchLessonPackages] FATAL ERROR: ' + e.toString());
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> addLessonPackage(LessonPackage lessonPackage) async {
+  Future<void> addLessonPackage(
+    model_lesson.LessonPackage lessonPackage,
+  ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final body = {
+        'name': lessonPackage.name,
+        'lessonCount': lessonPackage.lessonCount,
+        'price': lessonPackage.price,
+      };
+      print('LessonPackage create request url: $_baseUrl');
+      print('LessonPackage create request body: ' + json.encode(body));
       final response = await http.post(
         Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(lessonPackage.toJson()),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
+      print('LessonPackage create response status: ${response.statusCode}');
+      print('LessonPackage create response body: ${response.body}');
       if (response.statusCode == 201) {
-        fetchLessonPackages();
+        // Parse single object from response
+        final data = json.decode(response.body);
+        model_lesson.LessonPackage.fromJson(data);
+        // Optionally, you could add created to state.lessonPackages here, but to keep logic consistent, just refresh list
+        await fetchLessonPackages();
       } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to add lesson package',
-        );
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
+        state = state.copyWith(isLoading: false, error: backendMsg);
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> updateLessonPackage(LessonPackage lessonPackage) async {
+  Future<void> updateLessonPackage(
+    model_lesson.LessonPackage lessonPackage,
+  ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final body = {
+        'name': lessonPackage.name,
+        'lessonCount': lessonPackage.lessonCount,
+        'price': lessonPackage.price,
+      };
+      final url = '$_baseUrl/${lessonPackage.id}';
+      print('LessonPackage update request url: $url');
+      print('LessonPackage update request body: ' + json.encode(body));
       final response = await http.put(
-        Uri.parse('$_baseUrl/${lessonPackage.id}'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(lessonPackage.toJson()),
+        Uri.parse(url),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
+      print('LessonPackage update response status: ${response.statusCode}');
+      print('LessonPackage update response body: ${response.body}');
       if (response.statusCode == 200) {
         fetchLessonPackages();
       } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to update lesson package',
-        );
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
+        state = state.copyWith(isLoading: false, error: backendMsg);
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> deleteLessonPackage(String id) async {
+  Future<void> deleteLessonPackage(String token, String id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/$id'));
-      if (response.statusCode == 200) {
-        fetchLessonPackages();
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to delete lesson package',
+      final url = Uri.parse('${ApiConfig.baseUrl}/settings/lessonPackages/$id');
+      print('LessonPackage delete request url: $url');
+
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('LessonPackage delete response status: ${response.statusCode}');
+      print('LessonPackage delete response body: ${response.body}');
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(
+          'Failed to delete lesson package: ${response.statusCode} ${response.body}',
         );
       }
+
+      await fetchLessonPackages();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

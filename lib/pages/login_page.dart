@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
+import '../utils/app_bootstrap.dart';
 import 'main_page.dart';
 
 const kBrandTextColor = Color(0xFF116478);
@@ -31,20 +34,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     ref.read(authProvider.notifier).setLoading(true);
     ref.read(authProvider.notifier).setError(null);
     try {
-      final url = Uri.parse('http://204.168.168.23:3000/auth/login');
+      final loginUrl = Uri.parse('${ApiConfig.baseUrl}/auth/login');
       final body = jsonEncode({
         'username': _usernameController.text.trim(),
         'password': _passwordController.text.trim(),
       });
-      debugPrint('Login request to: ${url.toString()}');
-      debugPrint('Request body: $body');
+      print('[Auth] LOGIN URL: $loginUrl');
+      print('[Auth] LOGIN REQUEST BODY: $body');
       final response = await http.post(
-        url,
+        loginUrl,
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Raw response body: ${response.body}');
+      print('[Auth] LOGIN RESPONSE STATUS: ${response.statusCode}');
+      print('[Auth] LOGIN RESPONSE BODY: ${response.body}');
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body);
@@ -53,12 +56,40 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           }
           final token = data['token'];
           final role = data['role'];
-          final assignedSalonIds =
-              (data['assignedSalonIds'] as List?)
-                  ?.map((e) => e as int)
-                  .toList() ??
-              <int>[];
-          final permissions = data['permissions'];
+          final assignedSalonIdsRaw = data['assignedSalonIds'];
+          final assignedSalonIds = assignedSalonIdsRaw is List
+              ? assignedSalonIdsRaw
+                    .map((e) {
+                      if (e is int) return e;
+                      if (e is num) return e.toInt();
+                      return int.tryParse(e.toString());
+                    })
+                    .whereType<int>()
+                    .toList()
+              : <int>[];
+          // Parse permissions as List<String>
+          List<String> permissions = [];
+          final rawPermissions = data['permissions'];
+          if (rawPermissions is List) {
+            permissions = rawPermissions
+                .map((e) => e.toString())
+                .where((e) => e.trim().isNotEmpty)
+                .toList();
+          } else if (rawPermissions is String && rawPermissions.isNotEmpty) {
+            try {
+              final decoded = jsonDecode(rawPermissions);
+              if (decoded is List) {
+                permissions = decoded
+                    .map((e) => e.toString())
+                    .where((e) => e.trim().isNotEmpty)
+                    .toList();
+              } else {
+                permissions = [rawPermissions];
+              }
+            } catch (_) {
+              permissions = [rawPermissions];
+            }
+          }
           debugPrint('Parsed token: $token');
           debugPrint('Parsed role: $role');
           debugPrint('Parsed assignedSalonIds: $assignedSalonIds');
@@ -77,15 +108,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             }
             return;
           }
-          await ref
-              .read(secureStorageProvider)
-              .saveAuthData(token, role, assignedSalonIds);
+          final storage = ref.read(secureStorageProvider);
+          await storage.saveAuthData(token, role, assignedSalonIds);
+          await storage.savePermissions(permissions);
+
+          // Keep login transition instant; refresh providers silently in background.
+          unawaited(() async {
+            try {
+              await preloadEssentialProviders(ref, token);
+            } catch (_) {}
+          }());
+
           ref
               .read(authProvider.notifier)
               .setAuth(
                 token: token,
                 role: role,
                 assignedSalonIds: assignedSalonIds,
+                permissions: permissions,
               );
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
@@ -121,8 +161,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           );
         }
       }
-    } catch (e, st) {
-      debugPrint('Login exception: $e\n$st');
+    } catch (e) {
       ref.read(authProvider.notifier).setError('Login failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,7 +182,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Scaffold(
       backgroundColor: kBrandBackgroundColor,
       appBar: AppBar(
-        title: const Text('Login', style: TextStyle(color: kBrandTextColor)),
+        title: Text(
+          AppLocalizations.of(context)?.translate('login') ?? 'Login',
+          style: TextStyle(color: kBrandTextColor),
+        ),
         backgroundColor: kBrandBackgroundColor,
         iconTheme: const IconThemeData(color: kBrandTextColor),
         elevation: 0,
@@ -159,22 +201,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 TextFormField(
                   controller: _usernameController,
                   decoration: InputDecoration(
-                    labelText: 'Username',
+                    labelText:
+                        AppLocalizations.of(context)?.translate('email') ??
+                        'Username',
                     labelStyle: const TextStyle(color: kBrandTextColor),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   style: const TextStyle(color: kBrandTextColor),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Enter username' : null,
+                  validator: (v) => v == null || v.isEmpty
+                      ? (AppLocalizations.of(context)?.translate('email') ??
+                            'Enter username')
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscure,
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText:
+                        AppLocalizations.of(context)?.translate('password') ??
+                        'Password',
                     labelStyle: const TextStyle(color: kBrandTextColor),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -210,13 +258,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kBrandAccentColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     onPressed: auth.isLoading ? null : _login,
                     child: auth.isLoading
-                        ? const CircularProgressIndicator(
-                            color: kBrandTextColor,
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text('Giriş yapılıyor...'),
+                            ],
                           )
                         : Text(
                             AppLocalizations.of(context)?.translate('login') ??
@@ -224,6 +282,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                   ),
                 ),
+                if (auth.isLoading) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Bilgiler güncelleniyor...',
+                    style: TextStyle(
+                      color: kBrandTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Lütfen bekleyin',
+                    style: TextStyle(color: kBrandTextColor, fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),

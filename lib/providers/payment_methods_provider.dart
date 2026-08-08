@@ -1,3 +1,5 @@
+import '../api_config.dart';
+import 'secure_storage_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -47,8 +49,17 @@ class PaymentMethodsState {
 }
 
 class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
-  static const String _baseUrl =
-      'http://204.168.168.23:3000/api/payment_methods';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/settings/paymentMethods';
+
+  final SecureStorageService _storage = SecureStorageService();
+
+  Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   PaymentMethodsProvider() : super(PaymentMethodsState(paymentMethods: [])) {
     fetchPaymentMethods();
@@ -57,7 +68,10 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
   Future<void> fetchPaymentMethods() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: await _authHeaders(),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final paymentMethods = data
@@ -82,17 +96,27 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
   Future<void> addPaymentMethod(PaymentMethod paymentMethod) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final url = _baseUrl;
+      final body = {'name': paymentMethod.name};
       final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(paymentMethod.toJson()),
+        Uri.parse(url),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
       if (response.statusCode == 201) {
         fetchPaymentMethods();
       } else {
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to add payment method',
+          error:
+              'POST $url\nBody: ${json.encode(body)}\nStatus: ${response.statusCode}\nResponse: $backendMsg',
         );
       }
     } catch (e) {
@@ -103,10 +127,11 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
   Future<void> updatePaymentMethod(PaymentMethod paymentMethod) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final body = {'name': paymentMethod.name};
       final response = await http.put(
         Uri.parse('$_baseUrl/${paymentMethod.id}'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(paymentMethod.toJson()),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
       if (response.statusCode == 200) {
         fetchPaymentMethods();
@@ -121,20 +146,30 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
     }
   }
 
-  Future<void> deletePaymentMethod(String id) async {
+  Future<void> deletePaymentMethod(String token, String id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/$id'));
-      if (response.statusCode == 200) {
-        fetchPaymentMethods();
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to delete payment method',
+      final url = Uri.parse('${ApiConfig.baseUrl}/settings/paymentMethods/$id');
+      print('PaymentMethod delete request url: $url');
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('PaymentMethod delete response status: ${response.statusCode}');
+      print('PaymentMethod delete response body: ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(
+          'Failed to delete payment method: ${response.statusCode} ${response.body}',
         );
       }
+      await fetchPaymentMethods();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  Future<String?> getToken() => _storage.getToken();
 }

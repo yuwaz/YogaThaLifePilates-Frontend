@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../api_config.dart';
 import 'dart:convert';
-
 import '../models/salon.dart';
+import 'secure_storage_service.dart';
 
 final salonsProvider = StateNotifierProvider<SalonsProvider, SalonsState>(
   (ref) => SalonsProvider(),
@@ -25,27 +26,63 @@ class SalonsState {
 }
 
 class SalonsProvider extends StateNotifier<SalonsState> {
-  static const String _baseUrl = 'http://204.168.168.23:3000/api/salons';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/settings/salons';
+  static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
+  final SecureStorageService _storage = SecureStorageService();
 
-  SalonsProvider() : super(SalonsState(salons: [])) {
-    fetchSalons();
+  String _extractDeleteErrorMessage(http.Response response) {
+    if (response.body.isNotEmpty) {
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final message = decoded['message']?.toString().trim();
+          if (message != null && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return _deleteFallbackMessage;
+  }
+
+  SalonsProvider() : super(SalonsState(salons: []));
+
+  Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   Future<void> fetchSalons() async {
     state = state.copyWith(isLoading: true, error: null);
+    final stopwatch = Stopwatch()..start();
+    print('[PERF] salons fetch start');
     try {
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: await _authHeaders(),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final salons = data.map((e) => Salon.fromJson(e)).toList();
         state = state.copyWith(salons: salons, isLoading: false, error: null);
+        print(
+          '[PERF] salons fetch done: ${salons.length} items, ${stopwatch.elapsedMilliseconds}ms',
+        );
       } else {
+        print(
+          '[PERF] salons fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
+        );
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load salons',
         );
       }
     } catch (e) {
+      print('[PERF] salons fetch error: ${stopwatch.elapsedMilliseconds}ms');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -53,16 +90,28 @@ class SalonsProvider extends StateNotifier<SalonsState> {
   Future<void> addSalon(Salon salon) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final body = {'id': salon.id, 'name': salon.name, 'type': salon.type};
+      final body = {'name': salon.name, 'type': salon.type};
+      final url = _baseUrl;
       final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(url),
+        headers: await _authHeaders(),
         body: json.encode(body),
       );
       if (response.statusCode == 201) {
         fetchSalons();
       } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to add salon');
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
+        state = state.copyWith(
+          isLoading: false,
+          error:
+              'POST $url\nBody: ${json.encode(body)}\nStatus: ${response.statusCode}\nResponse: $backendMsg',
+        );
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -75,7 +124,7 @@ class SalonsProvider extends StateNotifier<SalonsState> {
       final body = {'id': salon.id, 'name': salon.name, 'type': salon.type};
       final response = await http.put(
         Uri.parse('$_baseUrl/${salon.id}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _authHeaders(),
         body: json.encode(body),
       );
       if (response.statusCode == 200) {
@@ -91,20 +140,32 @@ class SalonsProvider extends StateNotifier<SalonsState> {
     }
   }
 
-  Future<void> deleteSalon(int id) async {
+  Future<void> deleteSalon(String token, int id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/$id'));
-      if (response.statusCode == 200) {
-        fetchSalons();
-      } else {
+      final url = Uri.parse('${ApiConfig.baseUrl}/settings/salons/$id');
+      print('Salon delete request url: $url');
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('Salon delete response status: ${response.statusCode}');
+      print('Salon delete response body: ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to delete salon',
+          error: _extractDeleteErrorMessage(response),
         );
+        return;
       }
+      await fetchSalons();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);
     }
   }
+
+  Future<String?> getToken() => _storage.getToken();
 }

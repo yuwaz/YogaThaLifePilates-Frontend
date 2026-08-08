@@ -1,3 +1,5 @@
+import '../api_config.dart';
+import 'secure_storage_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -6,19 +8,71 @@ class MemberType {
   final String id;
   final String name;
   final String color;
+  final String sessionType;
+  final bool isCardBased;
+  final double cardUsageFee;
 
-  MemberType({required this.id, required this.name, required this.color});
+  MemberType({
+    required this.id,
+    required this.name,
+    required this.color,
+    this.sessionType = 'group',
+    this.isCardBased = false,
+    this.cardUsageFee = 0,
+  });
 
   factory MemberType.fromJson(Map<String, dynamic> json) {
+    // Parse isCardBased: accept bool, 0/1, or string '0'/'1'
+    final rawIsCardBased = json['isCardBased'];
+    bool isCardBased = false;
+    if (rawIsCardBased is bool) {
+      isCardBased = rawIsCardBased;
+    } else if (rawIsCardBased is int) {
+      isCardBased = rawIsCardBased == 1;
+    } else if (rawIsCardBased is String) {
+      isCardBased =
+          rawIsCardBased == '1' || rawIsCardBased.toLowerCase() == 'true';
+    }
+
+    // Parse cardUsageFee: accept int/double/string/null
+    final rawFee = json['cardUsageFee'];
+    double cardUsageFee = 0;
+    if (rawFee is int) {
+      cardUsageFee = rawFee.toDouble();
+    } else if (rawFee is double) {
+      cardUsageFee = rawFee;
+    } else if (rawFee is String) {
+      cardUsageFee = double.tryParse(rawFee) ?? 0;
+    }
+
+    // Debug log parsed values
+    // ignore: avoid_print
+    print(
+      '[MemberType.fromJson] id=${json['id']} sessionType=${json['sessionType']} isCardBased=$isCardBased cardUsageFee=$cardUsageFee',
+    );
+
+    final rawSessionType = json['sessionType']?.toString();
+    final sessionType = rawSessionType == 'individual' ? 'individual' : 'group';
+
     return MemberType(
       id: json['id'].toString(),
       name: json['name'] ?? '',
       color: json['color'] ?? '',
+      sessionType: sessionType,
+      isCardBased: isCardBased,
+      cardUsageFee: cardUsageFee,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'color': color};
+    return {
+      'id': id,
+      'name': name,
+      'color': color,
+      'sessionType': sessionType,
+      'isCardBased': isCardBased,
+      'cardUsageFee': cardUsageFee,
+    };
   }
 }
 
@@ -52,16 +106,44 @@ class MemberTypesState {
 }
 
 class MemberTypesProvider extends StateNotifier<MemberTypesState> {
-  static const String _baseUrl = 'http://204.168.168.23:3000/api/member_types';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/settings/memberTypes';
+  static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
 
-  MemberTypesProvider() : super(MemberTypesState(memberTypes: [])) {
-    fetchMemberTypes();
+  final SecureStorageService _storage = SecureStorageService();
+
+  String _extractDeleteErrorMessage(http.Response response) {
+    if (response.body.isNotEmpty) {
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final message = decoded['message']?.toString().trim();
+          if (message != null && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return _deleteFallbackMessage;
   }
+
+  Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  MemberTypesProvider() : super(MemberTypesState(memberTypes: []));
 
   Future<void> fetchMemberTypes() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: await _authHeaders(),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final memberTypes = data.map((e) => MemberType.fromJson(e)).toList();
@@ -84,17 +166,33 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
   Future<void> addMemberType(MemberType memberType) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final url = _baseUrl;
+      final body = memberType.toJson();
+      // Debug log payload
+      // ignore: avoid_print
+      print('[addMemberType] payload: ' + json.encode(body));
       final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(memberType.toJson()),
+        Uri.parse(url),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
+      // Debug log response
+      // ignore: avoid_print
+      print('[addMemberType] response: ' + response.body);
       if (response.statusCode == 201) {
-        fetchMemberTypes();
+        await fetchMemberTypes();
       } else {
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to add member type',
+          error:
+              'POST $url\nBody: ${json.encode(body)}\nStatus: ${response.statusCode}\nResponse: $backendMsg',
         );
       }
     } catch (e) {
@@ -105,13 +203,20 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
   Future<void> updateMemberType(MemberType memberType) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
+      final body = memberType.toJson();
+      // Debug log payload
+      // ignore: avoid_print
+      print('[updateMemberType] payload: ' + json.encode(body));
       final response = await http.put(
         Uri.parse('$_baseUrl/${memberType.id}'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(memberType.toJson()),
+        headers: await _authHeaders(),
+        body: json.encode(body),
       );
+      // Debug log response
+      // ignore: avoid_print
+      print('[updateMemberType] response: ' + response.body);
       if (response.statusCode == 200) {
-        fetchMemberTypes();
+        await fetchMemberTypes();
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -123,20 +228,32 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
     }
   }
 
-  Future<void> deleteMemberType(String id) async {
+  Future<void> deleteMemberType(String token, String id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/$id'));
-      if (response.statusCode == 200) {
-        fetchMemberTypes();
-      } else {
+      final url = Uri.parse('${ApiConfig.baseUrl}/settings/memberTypes/$id');
+      print('MemberType delete request url: $url');
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('MemberType delete response status: ${response.statusCode}');
+      print('MemberType delete response body: ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to delete member type',
+          error: _extractDeleteErrorMessage(response),
         );
+        return;
       }
+      await fetchMemberTypes();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);
     }
   }
+
+  Future<String?> getToken() => _storage.getToken();
 }

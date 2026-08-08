@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../api_config.dart';
 import 'dart:convert';
-
 import '../models/equipment.dart';
+import 'secure_storage_service.dart';
 
 final equipmentProvider =
     StateNotifierProvider<EquipmentProvider, EquipmentState>(
@@ -34,16 +35,45 @@ class EquipmentState {
 }
 
 class EquipmentProvider extends StateNotifier<EquipmentState> {
-  static const String _baseUrl = 'http://204.168.168.23:3000/api/equipment';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/settings/equipment';
+  static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
+  final SecureStorageService _storage = SecureStorageService();
 
-  EquipmentProvider() : super(EquipmentState(equipmentList: [])) {
-    fetchEquipment();
+  String _extractDeleteErrorMessage(http.Response response) {
+    if (response.body.isNotEmpty) {
+      try {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final message = decoded['message']?.toString().trim();
+          if (message != null && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return _deleteFallbackMessage;
+  }
+
+  EquipmentProvider() : super(EquipmentState(equipmentList: []));
+
+  Future<Map<String, String>> _authHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   Future<void> fetchEquipment() async {
     state = state.copyWith(isLoading: true, error: null);
+    final stopwatch = Stopwatch()..start();
+    print('[PERF] equipment fetch start');
     try {
-      final response = await http.get(Uri.parse(_baseUrl));
+      final response = await http.get(
+        Uri.parse(_baseUrl),
+        headers: await _authHeaders(),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final equipmentList = data.map((e) => Equipment.fromJson(e)).toList();
@@ -52,41 +82,52 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
           isLoading: false,
           error: null,
         );
+        print(
+          '[PERF] equipment fetch done: ${equipmentList.length} items, ${stopwatch.elapsedMilliseconds}ms',
+        );
       } else {
+        print(
+          '[PERF] equipment fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
+        );
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load equipment',
         );
       }
     } catch (e) {
+      print('[PERF] equipment fetch error: ${stopwatch.elapsedMilliseconds}ms');
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> addEquipment(
-    Equipment equipment,
-    List<String> assignedSalonIds,
-  ) async {
+  Future<void> addEquipment(Equipment equipment) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final body = {
-        'id': equipment.id,
         'name': equipment.name,
         'type': equipment.type,
         'salonId': equipment.salonId,
-        'assignedSalonIds': assignedSalonIds,
       };
+      final url = _baseUrl;
       final response = await http.post(
-        Uri.parse(_baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(url),
+        headers: await _authHeaders(),
         body: json.encode(body),
       );
       if (response.statusCode == 201) {
         fetchEquipment();
       } else {
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to add equipment',
+          error:
+              'POST $url\nBody: ${json.encode(body)}\nStatus: ${response.statusCode}\nResponse: $backendMsg',
         );
       }
     } catch (e) {
@@ -101,15 +142,13 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final body = {
-        'id': equipment.id,
         'name': equipment.name,
         'type': equipment.type,
         'salonId': equipment.salonId,
-        'assignedSalonIds': assignedSalonIds,
       };
       final response = await http.put(
         Uri.parse('$_baseUrl/${equipment.id}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await _authHeaders(),
         body: json.encode(body),
       );
       if (response.statusCode == 200) {
@@ -125,20 +164,32 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
     }
   }
 
-  Future<void> deleteEquipment(int id) async {
+  Future<void> deleteEquipment(String token, int id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/$id'));
-      if (response.statusCode == 200) {
-        fetchEquipment();
-      } else {
+      final url = Uri.parse('${ApiConfig.baseUrl}/settings/equipment/$id');
+      print('Equipment delete request url: $url');
+      final response = await http.delete(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      print('Equipment delete response status: ${response.statusCode}');
+      print('Equipment delete response body: ${response.body}');
+      if (response.statusCode != 200 && response.statusCode != 204) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to delete equipment',
+          error: _extractDeleteErrorMessage(response),
         );
+        return;
       }
+      await fetchEquipment();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);
     }
   }
+
+  Future<String?> getToken() => _storage.getToken();
 }

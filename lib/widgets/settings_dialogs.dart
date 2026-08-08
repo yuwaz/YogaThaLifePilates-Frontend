@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
 
 const Color kBrandTextColor = Color(0xFF116478);
 const Color kBrandBackgroundColor = Color(0xFFF6F6D7);
@@ -16,6 +17,7 @@ Future<void> showSalonDialog(
   final nameController = TextEditingController(text: salon?.name ?? '');
   bool isLoading = false;
   String? error;
+  final loc = AppLocalizations.of(context);
 
   await showDialog(
     context: context,
@@ -25,16 +27,23 @@ Future<void> showSalonDialog(
           return AlertDialog(
             backgroundColor: kBrandBackgroundColor,
             title: Text(
-              salon == null ? 'Add Salon' : 'Edit Salon',
+              salon == null
+                  ? (loc?.translate('addSalon') ?? 'Add Salon')
+                  : (loc?.translate('editSalon') ?? 'Edit Salon'),
               style: const TextStyle(color: kBrandTextColor),
             ),
             content: Form(
               key: formKey,
               child: TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Salon Name'),
+                decoration: InputDecoration(
+                  labelText: loc?.translate('name') ?? 'Name',
+                  errorText: error,
+                ),
                 style: const TextStyle(color: kBrandTextColor),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                validator: (v) => v == null || v.isEmpty
+                    ? (loc?.translate('required') ?? 'Required')
+                    : null,
               ),
             ),
             actions: [
@@ -48,9 +57,9 @@ Future<void> showSalonDialog(
                 ),
               TextButton(
                 onPressed: isLoading ? null : () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: kBrandTextColor),
+                child: Text(
+                  loc?.translate('cancel') ?? 'Cancel',
+                  style: const TextStyle(color: kBrandTextColor),
                 ),
               ),
               ElevatedButton(
@@ -69,7 +78,10 @@ Future<void> showSalonDialog(
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Salon saved successfully!'),
+                                content: Text(
+                                  loc?.translate('salonSaved') ??
+                                      'Salon saved successfully!',
+                                ),
                               ),
                             );
                           }
@@ -81,7 +93,9 @@ Future<void> showSalonDialog(
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Error: $e'),
+                                content: Text(
+                                  '${loc?.translate('error') ?? 'Error'}: $e',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -90,7 +104,7 @@ Future<void> showSalonDialog(
                       },
                 child: isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('Save'),
+                    : Text(loc?.translate('save') ?? 'Save'),
               ),
             ],
           );
@@ -124,6 +138,7 @@ Future<void> showInstructorDialog(
   );
   bool isLoading = false;
   String? error;
+  final loc = AppLocalizations.of(context);
 
   await showDialog(
     context: context,
@@ -133,7 +148,9 @@ Future<void> showInstructorDialog(
           return AlertDialog(
             backgroundColor: kBrandBackgroundColor,
             title: Text(
-              instructor == null ? 'Add Instructor' : 'Edit Instructor',
+              instructor == null
+                  ? (loc?.translate('addInstructor') ?? 'Add Instructor')
+                  : (loc?.translate('editInstructor') ?? 'Edit Instructor'),
               style: const TextStyle(color: kBrandTextColor),
             ),
             content: Form(
@@ -144,18 +161,21 @@ Future<void> showInstructorDialog(
                   children: [
                     TextFormField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Instructor Name',
+                      decoration: InputDecoration(
+                        labelText: loc?.translate('name') ?? 'Name',
                       ),
                       style: const TextStyle(color: kBrandTextColor),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) => v == null || v.isEmpty
+                          ? (loc?.translate('required') ?? 'Required')
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     // Multi-select for Salons
                     InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Assigned Salons',
+                      decoration: InputDecoration(
+                        labelText:
+                            loc?.translate('assignedSalons') ??
+                            'Assigned Salons',
                       ),
                       child: Wrap(
                         spacing: 8,
@@ -185,8 +205,9 @@ Future<void> showInstructorDialog(
                     const SizedBox(height: 16),
                     // Multi-select for Roles
                     InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Permission Roles',
+                      decoration: InputDecoration(
+                        labelText:
+                            loc?.translate('permissions') ?? 'Permissions',
                       ),
                       child: Wrap(
                         spacing: 8,
@@ -228,9 +249,9 @@ Future<void> showInstructorDialog(
                 ),
               TextButton(
                 onPressed: isLoading ? null : () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: kBrandTextColor),
+                child: Text(
+                  loc?.translate('cancel') ?? 'Cancel',
+                  style: const TextStyle(color: kBrandTextColor),
                 ),
               ),
               ElevatedButton(
@@ -253,7 +274,10 @@ Future<void> showInstructorDialog(
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Instructor saved successfully!'),
+                                content: Text(
+                                  loc?.translate('instructorSaved') ??
+                                      'Instructor saved successfully!',
+                                ),
                               ),
                             );
                           }
@@ -265,7 +289,9 @@ Future<void> showInstructorDialog(
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Error: $e'),
+                                content: Text(
+                                  '${loc?.translate('error') ?? 'Error'}: $e',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -274,7 +300,7 @@ Future<void> showInstructorDialog(
                       },
                 child: isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('Save'),
+                    : Text(loc?.translate('save') ?? 'Save'),
               ),
             ],
           );
