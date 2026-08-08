@@ -20,7 +20,7 @@ class LogoutButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final buttonLabel = 'Çıkış Yap';
     void doLogout() async {
-      await ref.read(secureStorageProvider).clear();
+      await ref.read(secureStorageProvider).clearAuthData();
       ref.read(authProvider.notifier).logout();
 
       ref.invalidate(memberProvider);

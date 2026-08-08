@@ -9,6 +9,7 @@ class SecureStorageService {
   static const _tokenKey = 'jwt_token';
   static const _roleKey = 'user_role';
   static const _salonsKey = 'assigned_salon_ids';
+  static const _lastStudioCodeKey = 'last_studio_code';
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<void> saveAuthData(
@@ -46,6 +47,21 @@ class SecureStorageService {
 
   Future<String?> getToken() => _storage.read(key: _tokenKey);
   Future<String?> getRole() => _storage.read(key: _roleKey);
+  Future<String?> getLastStudioCode() => _storage.read(key: _lastStudioCodeKey);
+
+  Future<void> saveLastStudioCode(String studioCode) async {
+    final normalized = studioCode.trim();
+    if (normalized.isEmpty) return;
+    await _storage.write(key: _lastStudioCodeKey, value: normalized);
+  }
+
+  Future<void> clearAuthData() async {
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _roleKey);
+    await _storage.delete(key: _salonsKey);
+    await _storage.delete(key: _permissionsKey);
+  }
+
   Future<List<int>> getSalonIds() async {
     final ids = await _storage.read(key: _salonsKey);
     if (ids == null || ids.isEmpty) return [];

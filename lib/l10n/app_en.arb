@@ -185,6 +185,8 @@
 "time": "Time",
 "back": "Back",
 "createNewStudio": "Create New Studio",
+"studioCode": "Studio Code",
+"studioCodeHelper": "Leave blank if you use the original YogaTha studio.",
 "studioRegistrationAvailableHere": "Studio registration will be available here.",
 "unknown": "Unknown"
 }

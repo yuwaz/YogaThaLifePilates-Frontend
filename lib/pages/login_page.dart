@@ -25,20 +25,55 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
+  final _studioCodeController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastStudioCode();
+  }
+
+  Future<void> _loadLastStudioCode() async {
+    final savedStudioCode = await ref
+        .read(secureStorageProvider)
+        .getLastStudioCode();
+    if (!mounted || savedStudioCode == null || savedStudioCode.trim().isEmpty) {
+      return;
+    }
+    _studioCodeController.text = savedStudioCode.trim();
+  }
+
+  @override
+  void dispose() {
+    _studioCodeController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     ref.read(authProvider.notifier).setLoading(true);
     ref.read(authProvider.notifier).setError(null);
     try {
+      final studioCode = _studioCodeController.text.trim();
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text.trim();
+
       final loginUrl = Uri.parse('${ApiConfig.baseUrl}/auth/login');
-      final body = jsonEncode({
-        'username': _usernameController.text.trim(),
-        'password': _passwordController.text.trim(),
-      });
+      final payload = <String, String>{
+        'username': username,
+        'password': password,
+      };
+
+      if (studioCode.isNotEmpty) {
+        payload['studioCode'] = studioCode;
+      }
+
+      final body = jsonEncode(payload);
       print('[Auth] LOGIN URL: $loginUrl');
       print('[Auth] LOGIN REQUEST BODY: $body');
       final response = await http.post(
@@ -111,6 +146,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           final storage = ref.read(secureStorageProvider);
           await storage.saveAuthData(token, role, assignedSalonIds);
           await storage.savePermissions(permissions);
+          if (studioCode.isNotEmpty) {
+            await storage.saveLastStudioCode(studioCode);
+          }
 
           // Keep login transition instant; refresh providers silently in background.
           unawaited(() async {
@@ -190,114 +228,160 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         iconTheme: const IconThemeData(color: kBrandTextColor),
         elevation: 0,
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: InputDecoration(
-                    labelText:
-                        AppLocalizations.of(context)?.translate('email') ??
-                        'Username',
-                    labelStyle: const TextStyle(color: kBrandTextColor),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  style: const TextStyle(color: kBrandTextColor),
-                  validator: (v) => v == null || v.isEmpty
-                      ? (AppLocalizations.of(context)?.translate('email') ??
-                            'Enter username')
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText:
-                        AppLocalizations.of(context)?.translate('password') ??
-                        'Password',
-                    labelStyle: const TextStyle(color: kBrandTextColor),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility : Icons.visibility_off,
-                        color: kBrandTextColor,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _studioCodeController,
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText:
+                            AppLocalizations.of(
+                              context,
+                            )?.translate('studioCode') ??
+                            'Studio Code',
+                        helperText:
+                            AppLocalizations.of(
+                              context,
+                            )?.translate('studioCodeHelper') ??
+                            'Leave blank if you use the original YogaTha studio.',
+                        labelStyle: const TextStyle(color: kBrandTextColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                      style: const TextStyle(color: kBrandTextColor),
                     ),
-                  ),
-                  style: const TextStyle(color: kBrandTextColor),
-                  validator: (v) {
-                    final loc = AppLocalizations.of(context);
-                    return v == null || v.isEmpty
-                        ? (loc?.translate('password') ?? 'Enter password')
-                        : null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                if (auth.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      auth.error!,
-                      style: const TextStyle(color: Colors.red),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _usernameController,
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText:
+                            AppLocalizations.of(
+                              context,
+                            )?.translate('username') ??
+                            'Username',
+                        labelStyle: const TextStyle(color: kBrandTextColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      style: const TextStyle(color: kBrandTextColor),
+                      validator: (v) {
+                        final loc = AppLocalizations.of(context);
+                        return v == null || v.isEmpty
+                            ? (loc?.translate('username') ?? 'Enter username')
+                            : null;
+                      },
                     ),
-                  ),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBrandAccentColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: auth.isLoading ? null : _login,
-                    child: auth.isLoading
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(width: 10),
-                              Text('Giriş yapılıyor...'),
-                            ],
-                          )
-                        : Text(
-                            AppLocalizations.of(context)?.translate('login') ??
-                                'Login',
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (!auth.isLoading) {
+                          _login();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText:
+                            AppLocalizations.of(
+                              context,
+                            )?.translate('password') ??
+                            'Password',
+                        labelStyle: const TextStyle(color: kBrandTextColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscure ? Icons.visibility : Icons.visibility_off,
+                            color: kBrandTextColor,
                           ),
-                  ),
-                ),
-                if (auth.isLoading) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Bilgiler güncelleniyor...',
-                    style: TextStyle(
-                      color: kBrandTextColor,
-                      fontWeight: FontWeight.w600,
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      style: const TextStyle(color: kBrandTextColor),
+                      validator: (v) {
+                        final loc = AppLocalizations.of(context);
+                        return v == null || v.isEmpty
+                            ? (loc?.translate('password') ?? 'Enter password')
+                            : null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Lütfen bekleyin',
-                    style: TextStyle(color: kBrandTextColor, fontSize: 12),
-                  ),
-                ],
-              ],
+                    const SizedBox(height: 24),
+                    if (auth.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          auth.error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kBrandAccentColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: auth.isLoading ? null : _login,
+                        child: auth.isLoading
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text('Giriş yapılıyor...'),
+                                ],
+                              )
+                            : Text(
+                                AppLocalizations.of(
+                                      context,
+                                    )?.translate('login') ??
+                                    'Login',
+                              ),
+                      ),
+                    ),
+                    if (auth.isLoading) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Bilgiler güncelleniyor...',
+                        style: TextStyle(
+                          color: kBrandTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Lütfen bekleyin',
+                        style: TextStyle(color: kBrandTextColor, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),
