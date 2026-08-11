@@ -7,7 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../api_config.dart';
+import '../models/subscription_pending_purchase_intent.dart';
+import '../models/subscription_purchase_scope.dart';
 import '../providers/auth_provider.dart';
+import '../providers/secure_storage_service.dart';
 
 enum SubscriptionPurchaseState {
   unavailable,
@@ -171,12 +174,16 @@ class GooglePlayPurchaseAdapter implements SubscriptionPurchaseAdapter {
 class SubscriptionPurchaseService {
   final SubscriptionPurchaseAdapter appleAdapter;
   final SubscriptionPurchaseAdapter googlePlayAdapter;
+  final SecureStorageService secureStorageService;
   final String authToken;
+  final String scopeKey;
 
   SubscriptionPurchaseService({
     required this.appleAdapter,
     required this.googlePlayAdapter,
+    required this.secureStorageService,
     required this.authToken,
+    required this.scopeKey,
   });
 
   SubscriptionPurchasePlatform get runtimePlatform {
@@ -229,6 +236,7 @@ class SubscriptionPurchaseService {
   }
 
   String? _extractPurchaseIntentId(Map<String, dynamic> payload) {
+    final purchaseIntent = _extractPurchaseIntentPayload(payload);
     const candidates = [
       'purchaseIntentId',
       'intentId',
@@ -242,7 +250,111 @@ class SubscriptionPurchaseService {
         return asString;
       }
     }
+    for (final key in candidates) {
+      final value = purchaseIntent[key];
+      final asString = value?.toString().trim();
+      if (asString != null && asString.isNotEmpty) {
+        return asString;
+      }
+    }
     return null;
+  }
+
+  Map<String, dynamic> _extractPurchaseIntentPayload(
+    Map<String, dynamic> payload,
+  ) {
+    final nested = payload['purchaseIntent'];
+    if (nested is Map) {
+      return nested.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return const <String, dynamic>{};
+  }
+
+  String? _extractString(Map<String, dynamic> payload, List<String> keys) {
+    for (final key in keys) {
+      final value = payload[key];
+      final asString = value?.toString().trim();
+      if (asString != null && asString.isNotEmpty) {
+        return asString;
+      }
+    }
+    return null;
+  }
+
+  DateTime? _extractDate(Map<String, dynamic> payload, List<String> keys) {
+    for (final key in keys) {
+      final value = payload[key];
+      if (value is DateTime) {
+        return value.toUtc();
+      }
+      if (value is String && value.trim().isNotEmpty) {
+        final parsed = DateTime.tryParse(value.trim());
+        if (parsed != null) {
+          return parsed.toUtc();
+        }
+      }
+    }
+    return null;
+  }
+
+  PendingPurchaseProvider? _pendingProviderForPlatform(
+    SubscriptionPurchasePlatform platform,
+  ) {
+    switch (platform) {
+      case SubscriptionPurchasePlatform.appleAppStore:
+        return PendingPurchaseProvider.appleAppStore;
+      case SubscriptionPurchasePlatform.googlePlay:
+        return PendingPurchaseProvider.googlePlay;
+      case SubscriptionPurchasePlatform.unsupportedWeb:
+      case SubscriptionPurchasePlatform.unsupported:
+        return null;
+    }
+  }
+
+  Future<void> _savePendingPurchaseIntentRecord({
+    required SubscriptionPurchasePlatform platform,
+    required String requestedPlan,
+    required Map<String, dynamic> payload,
+    required String? purchaseIntentId,
+  }) async {
+    final provider = _pendingProviderForPlatform(platform);
+    if (provider == null) {
+      return;
+    }
+
+    final normalizedScopeKey = scopeKey.trim();
+    final normalizedIntentId = (purchaseIntentId ?? '').trim();
+    if (!isStableSubscriptionPurchaseScopeKey(normalizedScopeKey) ||
+        normalizedIntentId.isEmpty) {
+      return;
+    }
+
+    final now = DateTime.now().toUtc();
+    final purchaseIntentPayload = _extractPurchaseIntentPayload(payload);
+    final plan =
+        _extractString(purchaseIntentPayload, const ['plan']) ?? requestedPlan;
+
+    final record = SubscriptionPendingPurchaseIntent(
+      purchaseIntentId: normalizedIntentId,
+      scopeKey: normalizedScopeKey,
+      provider: provider,
+      plan: plan,
+      productId: _extractString(purchaseIntentPayload, const ['productId']),
+      createdAt: now,
+      expiresAt: _extractDate(purchaseIntentPayload, const ['expiresAt']),
+      appAccountToken: _extractString(purchaseIntentPayload, const [
+        'appAccountToken',
+      ]),
+      obfuscatedAccountId: _extractString(purchaseIntentPayload, const [
+        'obfuscatedAccountId',
+      ]),
+      state: PendingPurchaseState.intentCreated,
+      retryCount: 0,
+      lastError: null,
+      updatedAt: now,
+    );
+
+    await secureStorageService.upsertPendingPurchaseIntent(record);
   }
 
   String? _extractMessage(Map<String, dynamic> payload) {
@@ -548,7 +660,7 @@ class SubscriptionPurchaseService {
           .post(
             endpoint,
             headers: _authHeaders(),
-            body: jsonEncode({'planCode': planCode}),
+            body: jsonEncode({'plan': planCode}),
           )
           .timeout(const Duration(seconds: 10));
 
@@ -595,10 +707,18 @@ class SubscriptionPurchaseService {
         }
       }
 
+      final intentId = _extractPurchaseIntentId(payload);
+      await _savePendingPurchaseIntentRecord(
+        platform: platform,
+        requestedPlan: planCode,
+        payload: payload,
+        purchaseIntentId: intentId,
+      );
+
       return SubscriptionPurchaseResult(
         state: SubscriptionPurchaseState.pending,
         platform: platform,
-        purchaseIntentId: _extractPurchaseIntentId(payload),
+        purchaseIntentId: intentId,
         backendPayload: payload.isEmpty ? null : payload,
         message: _extractMessage(payload),
       );
@@ -700,10 +820,19 @@ class SubscriptionPurchaseService {
 }
 
 final subscriptionPurchaseServiceProvider =
-    Provider<SubscriptionPurchaseService>(
-      (ref) => SubscriptionPurchaseService(
+    Provider<SubscriptionPurchaseService>((ref) {
+      final authToken = ref.watch(
+        authProvider.select((auth) => auth.token ?? ''),
+      );
+      final scopeKey = resolveSubscriptionPurchaseScopeKeyFromAuthToken(
+        authToken,
+      );
+
+      return SubscriptionPurchaseService(
         appleAdapter: AppleAppStorePurchaseAdapter(),
         googlePlayAdapter: GooglePlayPurchaseAdapter(),
-        authToken: ref.watch(authProvider.select((auth) => auth.token ?? '')),
-      ),
-    );
+        secureStorageService: SecureStorageService(),
+        authToken: authToken,
+        scopeKey: scopeKey,
+      );
+    });
