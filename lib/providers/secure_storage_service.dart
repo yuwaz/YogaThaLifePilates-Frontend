@@ -4,6 +4,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 
+import '../models/subscription_pending_purchase_correlation.dart';
 import '../models/subscription_pending_purchase_intent.dart';
 import '../models/subscription_purchase_scope.dart';
 
@@ -336,5 +337,63 @@ class SecureStorageService {
     final now = DateTime.now().toUtc();
     final records = await getPendingPurchaseIntentsForScope(normalizedScopeKey);
     return records.where((record) => record.isRecoverableAt(now)).toList();
+  }
+
+  Future<SubscriptionPendingPurchaseCorrelationResult>
+  findRecoverableApplePendingPurchaseIntent({
+    required String scopeKey,
+    required String appAccountToken,
+    String? productId,
+  }) async {
+    return _findRecoverablePendingPurchaseIntent(
+      scopeKey: scopeKey,
+      provider: PendingPurchaseProvider.appleAppStore,
+      identifier: appAccountToken,
+      productId: productId,
+      identifierSelector: (record) => record.appAccountToken,
+    );
+  }
+
+  Future<SubscriptionPendingPurchaseCorrelationResult>
+  findRecoverableGooglePlayPendingPurchaseIntent({
+    required String scopeKey,
+    required String obfuscatedAccountId,
+    String? productId,
+  }) async {
+    return _findRecoverablePendingPurchaseIntent(
+      scopeKey: scopeKey,
+      provider: PendingPurchaseProvider.googlePlay,
+      identifier: obfuscatedAccountId,
+      productId: productId,
+      identifierSelector: (record) => record.obfuscatedAccountId,
+    );
+  }
+
+  Future<SubscriptionPendingPurchaseCorrelationResult>
+  _findRecoverablePendingPurchaseIntent({
+    required String scopeKey,
+    required PendingPurchaseProvider provider,
+    required String identifier,
+    required PendingPurchaseIdentifierSelector identifierSelector,
+    String? productId,
+  }) async {
+    final normalizedScopeKey = scopeKey.trim();
+    if (!isStableSubscriptionPurchaseScopeKey(normalizedScopeKey)) {
+      return const SubscriptionPendingPurchaseCorrelationResult.unavailableScope();
+    }
+
+    final records = await getRecoverablePendingPurchaseIntentsForScope(
+      normalizedScopeKey,
+    );
+
+    return resolvePendingPurchaseCorrelation(
+      scopeKey: normalizedScopeKey,
+      records: records,
+      provider: provider,
+      identifier: identifier,
+      identifierSelector: identifierSelector,
+      productId: productId,
+      now: DateTime.now().toUtc(),
+    );
   }
 }
