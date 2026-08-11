@@ -384,7 +384,7 @@ class SubscriptionNativePurchaseProcessingNotifier
 }
 
 final subscriptionNativePurchaseProcessorProvider =
-    Provider.autoDispose<SubscriptionNativePurchaseProcessor>((ref) {
+    Provider<SubscriptionNativePurchaseProcessor>((ref) {
       return SubscriptionNativePurchaseProcessor(
         purchaseService: ref.watch(subscriptionPurchaseServiceProvider),
         repository: ref.watch(subscriptionPendingPurchaseRepositoryProvider),
@@ -394,7 +394,7 @@ final subscriptionNativePurchaseProcessorProvider =
     });
 
 final subscriptionNativePurchaseProcessingProvider =
-    StateNotifierProvider.autoDispose<
+    StateNotifierProvider<
       SubscriptionNativePurchaseProcessingNotifier,
       SubscriptionNativePurchaseProcessingStateSnapshot
     >((ref) {

@@ -116,7 +116,7 @@ class SubscriptionNativePurchaseRuntimeNotifier
 }
 
 final subscriptionNativePurchaseRuntimeServiceProvider =
-    Provider.autoDispose<SubscriptionNativePurchaseRuntimeService>((ref) {
+    Provider<SubscriptionNativePurchaseRuntimeService>((ref) {
       final correlator = RiverpodSubscriptionNativePurchaseCorrelator(ref);
       final service = SubscriptionNativePurchaseRuntimeService(
         correlator: correlator,
@@ -130,7 +130,7 @@ final subscriptionNativePurchaseRuntimeServiceProvider =
     });
 
 final subscriptionNativePurchaseRuntimeProvider =
-    StateNotifierProvider.autoDispose<
+    StateNotifierProvider<
       SubscriptionNativePurchaseRuntimeNotifier,
       SubscriptionNativePurchaseRuntimeState
     >((ref) {

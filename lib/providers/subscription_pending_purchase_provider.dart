@@ -27,6 +27,16 @@ class SubscriptionPendingPurchaseRepository {
     return _storage.upsertPendingPurchaseIntent(record);
   }
 
+  Future<SubscriptionPendingPurchaseIntent?> readById({
+    required String scopeKey,
+    required String purchaseIntentId,
+  }) {
+    return _storage.getPendingPurchaseIntentById(
+      scopeKey: scopeKey,
+      purchaseIntentId: purchaseIntentId,
+    );
+  }
+
   Future<void> updateState({
     required String scopeKey,
     required String purchaseIntentId,
