@@ -48,6 +48,7 @@ dependencies:
 
   # For Font Awesome icons
   font_awesome_flutter: ^10.7.0
+  in_app_purchase: ^3.3.0
 
 dev_dependencies:
   flutter_test:
