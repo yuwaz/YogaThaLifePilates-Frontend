@@ -81,6 +81,11 @@ class SubscriptionPurchaseResult {
             state == SubscriptionPurchaseState.restored) &&
         (nativePayload?.hasVerificationPayload ?? false);
   }
+
+  bool get shouldRefreshSubscriptionStatus {
+    return state == SubscriptionPurchaseState.purchased ||
+        state == SubscriptionPurchaseState.restored;
+  }
 }
 
 class SubscriptionBackendEndpoints {
@@ -249,6 +254,270 @@ class SubscriptionPurchaseService {
       }
     }
     return null;
+  }
+
+  bool? _extractBoolean(Map<String, dynamic> payload, List<String> keys) {
+    for (final key in keys) {
+      final value = payload[key];
+      if (value is bool) {
+        return value;
+      }
+      if (value is num) {
+        if (value == 1) return true;
+        if (value == 0) return false;
+      }
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+        if (normalized == 'true' || normalized == '1') {
+          return true;
+        }
+        if (normalized == 'false' || normalized == '0') {
+          return false;
+        }
+      }
+    }
+    return null;
+  }
+
+  String _resolveVerifyErrorCode({
+    required int statusCode,
+    required String? message,
+  }) {
+    if (statusCode == 401) return 'unauthenticated';
+
+    final normalized = (message ?? '').toLowerCase();
+
+    if (normalized.contains('already processed') ||
+        normalized.contains('idempotent')) {
+      return 'purchase_already_processed';
+    }
+
+    if (normalized.contains('provider') &&
+        (normalized.contains('conflict') || normalized.contains('mismatch'))) {
+      return 'provider_conflict';
+    }
+
+    if (normalized.contains('purchaseintent') ||
+        normalized.contains('purchase_intent') ||
+        normalized.contains('intent')) {
+      if (normalized.contains('invalid') ||
+          normalized.contains('expired') ||
+          normalized.contains('not found')) {
+        return 'invalid_or_expired_purchase_intent';
+      }
+    }
+
+    if (statusCode == 404 || statusCode == 410) {
+      return 'invalid_or_expired_purchase_intent';
+    }
+
+    if (statusCode == 409) return 'provider_conflict';
+    if (statusCode >= 500) return 'verify_purchase_unavailable';
+    return 'verify_purchase_failed';
+  }
+
+  Future<SubscriptionPurchaseResult> verifyPurchase({
+    required String purchaseIntentId,
+    required SubscriptionNativePurchasePayload nativePayload,
+  }) async {
+    final platform = runtimePlatform;
+    final endpoint = verifyPurchaseEndpointForRuntime;
+
+    if (endpoint == null) {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.unavailable,
+        platform: platform,
+        nativePayload: nativePayload,
+        errorCode: platform == SubscriptionPurchasePlatform.unsupportedWeb
+            ? 'web_not_supported'
+            : 'platform_not_supported',
+        message: platform == SubscriptionPurchasePlatform.unsupportedWeb
+            ? 'Subscription purchase verification is not supported on web.'
+            : 'Subscription purchase verification is unsupported on this platform.',
+      );
+    }
+
+    final intentId = purchaseIntentId.trim();
+    if (intentId.isEmpty) {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.failed,
+        platform: platform,
+        nativePayload: nativePayload,
+        errorCode: 'missing_purchase_intent_id',
+        message: 'Purchase intent id is required.',
+      );
+    }
+
+    if (authToken.trim().isEmpty) {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.failed,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        errorCode: 'unauthenticated',
+        message: 'Authentication is required to verify purchase.',
+      );
+    }
+
+    final Map<String, dynamic> requestBody;
+    switch (platform) {
+      case SubscriptionPurchasePlatform.appleAppStore:
+        final signed = nativePayload.appleSignedTransactionInfo?.trim() ?? '';
+        if (signed.isEmpty) {
+          return SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.failed,
+            platform: platform,
+            nativePayload: nativePayload,
+            purchaseIntentId: intentId,
+            errorCode: 'missing_signed_transaction_info',
+            message: 'Apple signed transaction info is required.',
+          );
+        }
+        requestBody = {
+          'purchaseIntentId': intentId,
+          'signedTransactionInfo': signed,
+        };
+        break;
+      case SubscriptionPurchasePlatform.googlePlay:
+        final token = nativePayload.googlePurchaseToken?.trim() ?? '';
+        if (token.isEmpty) {
+          return SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.failed,
+            platform: platform,
+            nativePayload: nativePayload,
+            purchaseIntentId: intentId,
+            errorCode: 'missing_purchase_token',
+            message: 'Google Play purchase token is required.',
+          );
+        }
+        requestBody = {'purchaseIntentId': intentId, 'purchaseToken': token};
+        break;
+      case SubscriptionPurchasePlatform.unsupportedWeb:
+      case SubscriptionPurchasePlatform.unsupported:
+        return SubscriptionPurchaseResult(
+          state: SubscriptionPurchaseState.unavailable,
+          platform: platform,
+          nativePayload: nativePayload,
+          purchaseIntentId: intentId,
+          errorCode: platform == SubscriptionPurchasePlatform.unsupportedWeb
+              ? 'web_not_supported'
+              : 'platform_not_supported',
+          message: platform == SubscriptionPurchasePlatform.unsupportedWeb
+              ? 'Subscription purchase verification is not supported on web.'
+              : 'Subscription purchase verification is unsupported on this platform.',
+        );
+    }
+
+    try {
+      final response = await http
+          .post(
+            endpoint,
+            headers: _authHeaders(),
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      Map<String, dynamic>? payload;
+      if (response.body.trim().isNotEmpty) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map) {
+          return SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.unavailable,
+            platform: platform,
+            nativePayload: nativePayload,
+            purchaseIntentId: intentId,
+            errorCode: 'verify_purchase_invalid_response',
+            message: 'Invalid purchase verification response format.',
+          );
+        }
+        payload = decoded.map((key, value) => MapEntry(key.toString(), value));
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final backendMessage = payload == null
+            ? 'Failed to verify purchase.'
+            : (_extractMessage(payload) ?? 'Failed to verify purchase.');
+
+        final errorCode = _resolveVerifyErrorCode(
+          statusCode: response.statusCode,
+          message: backendMessage,
+        );
+
+        return SubscriptionPurchaseResult(
+          state: response.statusCode >= 500
+              ? SubscriptionPurchaseState.unavailable
+              : SubscriptionPurchaseState.failed,
+          platform: platform,
+          nativePayload: nativePayload,
+          purchaseIntentId: intentId,
+          backendPayload: payload,
+          errorCode: errorCode,
+          message: backendMessage,
+        );
+      }
+
+      final isVerified = payload == null
+          ? null
+          : _extractBoolean(payload, const ['verified', 'isVerified']);
+      if (isVerified == false) {
+        return SubscriptionPurchaseResult(
+          state: SubscriptionPurchaseState.failed,
+          platform: platform,
+          nativePayload: nativePayload,
+          purchaseIntentId: intentId,
+          backendPayload: payload,
+          errorCode: 'verification_not_confirmed',
+          message: payload == null
+              ? 'Purchase verification failed.'
+              : (_extractMessage(payload) ?? 'Purchase verification failed.'),
+        );
+      }
+
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.purchased,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        backendPayload: payload,
+        message: payload == null ? null : _extractMessage(payload),
+      );
+    } on TimeoutException {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.unavailable,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        errorCode: 'verify_purchase_timeout',
+        message: 'Purchase verification request timed out.',
+      );
+    } on SocketException {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.unavailable,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        errorCode: 'verify_purchase_unavailable',
+        message: 'Subscription verification service unavailable.',
+      );
+    } on FormatException {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.unavailable,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        errorCode: 'verify_purchase_invalid_response',
+        message: 'Invalid purchase verification response format.',
+      );
+    } catch (e) {
+      return SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.failed,
+        platform: platform,
+        nativePayload: nativePayload,
+        purchaseIntentId: intentId,
+        errorCode: 'verify_purchase_error',
+        message: e.toString(),
+      );
+    }
   }
 
   Future<SubscriptionPurchaseResult> _createPurchaseIntent({
