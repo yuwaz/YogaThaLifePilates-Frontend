@@ -81,6 +81,20 @@ class SubscriptionPendingPurchaseRepository {
     return _storage.clearExpiredPendingPurchaseIntentsForScope(scopeKey);
   }
 
+  Future<void> incrementPendingPurchaseRetryCount({
+    required String scopeKey,
+    required String purchaseIntentId,
+    String? lastError,
+    PendingPurchaseState? state,
+  }) {
+    return _storage.incrementPendingPurchaseRetryCount(
+      scopeKey: scopeKey,
+      purchaseIntentId: purchaseIntentId,
+      lastError: lastError,
+      state: state,
+    );
+  }
+
   Future<SubscriptionPendingPurchaseCorrelationResult>
   findRecoverableApplePendingPurchaseIntent({
     required String scopeKey,

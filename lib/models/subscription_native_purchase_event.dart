@@ -20,6 +20,7 @@ class SubscriptionNativePurchaseEvent {
   final SubscriptionNativePurchaseEventType type;
   final SubscriptionStorePlatform platform;
   final PurchaseStatus purchaseStatus;
+  final PurchaseDetails? purchaseDetails;
   final String? storeSource;
   final String? productId;
   final String? purchaseId;
@@ -33,6 +34,7 @@ class SubscriptionNativePurchaseEvent {
     required this.type,
     required this.platform,
     required this.purchaseStatus,
+    this.purchaseDetails,
     this.storeSource,
     this.productId,
     this.purchaseId,

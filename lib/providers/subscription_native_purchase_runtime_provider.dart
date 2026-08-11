@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/subscription_native_purchase_event.dart';
 import '../models/subscription_pending_purchase_correlation.dart';
 import '../services/subscription_native_purchase_runtime_service.dart';
+import 'subscription_native_purchase_processing_provider.dart';
 import 'subscription_pending_purchase_provider.dart';
 
 class RiverpodSubscriptionNativePurchaseCorrelator
@@ -133,6 +134,9 @@ final subscriptionNativePurchaseRuntimeProvider =
       SubscriptionNativePurchaseRuntimeNotifier,
       SubscriptionNativePurchaseRuntimeState
     >((ref) {
+      // Ensure matched runtime events are consumed by the processing pipeline.
+      ref.watch(subscriptionNativePurchaseProcessingProvider);
+
       final service = ref.watch(
         subscriptionNativePurchaseRuntimeServiceProvider,
       );
