@@ -147,7 +147,7 @@ class SubscriptionNativePurchaseProcessor {
         await _repository.updateState(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
-          state: PendingPurchaseState.verifiedAwaitingStatusRefresh,
+          state: PendingPurchaseState.nativeCompletedAwaitingStatusRefresh,
           lastError: null,
         );
       }
@@ -216,7 +216,7 @@ class SubscriptionNativePurchaseProcessor {
         await _repository.updateState(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
-          state: PendingPurchaseState.verifiedAwaitingStatusRefresh,
+          state: PendingPurchaseState.nativeCompletedAwaitingStatusRefresh,
           lastError: 'status_refresh_unavailable',
         );
       }

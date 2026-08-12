@@ -9,6 +9,7 @@ import 'pages/main_page.dart';
 import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/subscription_native_purchase_recovery_provider.dart';
 import 'providers/secure_storage_service.dart';
 import 'providers/studio_onboarding_provider.dart';
 import 'utils/app_bootstrap.dart';
@@ -165,6 +166,10 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    if (auth.token?.trim().isNotEmpty ?? false) {
+      // Non-blocking recovery bootstrap for unfinished native subscription flows.
+      ref.watch(subscriptionNativePurchaseRecoveryProvider);
+    }
     // Set default locale to Turkish
     final defaultLocale = const Locale('tr');
     final locale = ref.watch(localeProvider);

@@ -7,6 +7,7 @@ enum PendingPurchaseState {
   verificationFailedRetriable,
   verificationFailedTerminal,
   verifiedAwaitingStatusRefresh,
+  nativeCompletedAwaitingStatusRefresh,
   completed,
   expired,
 }
@@ -54,6 +55,7 @@ class SubscriptionPendingPurchaseIntent {
       case PendingPurchaseState.intentCreated:
       case PendingPurchaseState.verificationFailedRetriable:
       case PendingPurchaseState.verifiedAwaitingStatusRefresh:
+      case PendingPurchaseState.nativeCompletedAwaitingStatusRefresh:
         return true;
       case PendingPurchaseState.verificationFailedTerminal:
       case PendingPurchaseState.completed:
@@ -226,6 +228,8 @@ class SubscriptionPendingPurchaseIntent {
         return 'verification_failed_terminal';
       case PendingPurchaseState.verifiedAwaitingStatusRefresh:
         return 'verified_awaiting_status_refresh';
+      case PendingPurchaseState.nativeCompletedAwaitingStatusRefresh:
+        return 'native_completed_awaiting_status_refresh';
       case PendingPurchaseState.completed:
         return 'completed';
       case PendingPurchaseState.expired:
@@ -243,6 +247,8 @@ class SubscriptionPendingPurchaseIntent {
         return PendingPurchaseState.verificationFailedTerminal;
       case 'verified_awaiting_status_refresh':
         return PendingPurchaseState.verifiedAwaitingStatusRefresh;
+      case 'native_completed_awaiting_status_refresh':
+        return PendingPurchaseState.nativeCompletedAwaitingStatusRefresh;
       case 'completed':
         return PendingPurchaseState.completed;
       case 'expired':
