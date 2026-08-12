@@ -13,6 +13,7 @@ import 'secure_storage_service.dart';
 import 'studio_onboarding_provider.dart';
 import 'subscription_catalog_provider.dart';
 import 'subscription_native_purchase_processing_provider.dart';
+import 'subscription_native_purchase_restore_provider.dart';
 import 'subscription_native_purchase_recovery_provider.dart';
 import 'subscription_native_purchase_runtime_provider.dart';
 import 'subscription_native_purchase_start_provider.dart';
@@ -45,6 +46,8 @@ class SessionLifecycleController {
 
     _invalidateProvider(subscriptionNativePurchaseRecoveryProvider);
     _invalidateProvider(subscriptionNativePurchaseProcessingProvider);
+    _invalidateProvider(subscriptionHistoricalRestoreProvider);
+    _invalidateProvider(subscriptionNativeRestoreStarterProvider);
     _invalidateProvider(subscriptionNativePurchaseStarterProvider);
     _invalidateProvider(subscriptionStatusProvider);
     _invalidateProvider(subscriptionCatalogProvider);

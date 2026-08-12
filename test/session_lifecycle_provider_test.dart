@@ -18,6 +18,7 @@ import 'package:frontend/providers/studio_onboarding_provider.dart';
 import 'package:frontend/providers/subscription_catalog_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_processing_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_recovery_provider.dart';
+import 'package:frontend/providers/subscription_native_purchase_restore_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_runtime_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_start_provider.dart';
 import 'package:frontend/providers/subscription_status_provider.dart';
@@ -173,6 +174,12 @@ String _providerName(Object provider) {
   if (identical(provider, subscriptionNativePurchaseProcessingProvider)) {
     return 'processing';
   }
+  if (identical(provider, subscriptionHistoricalRestoreProvider)) {
+    return 'historicalRestore';
+  }
+  if (identical(provider, subscriptionNativeRestoreStarterProvider)) {
+    return 'restoreStart';
+  }
   if (identical(provider, subscriptionNativePurchaseStarterProvider)) {
     return 'start';
   }
@@ -270,6 +277,8 @@ void main() {
       expect(invalidated, [
         'recovery',
         'processing',
+        'historicalRestore',
+        'restoreStart',
         'start',
         'status',
         'catalog',

@@ -6,6 +6,7 @@ import '../models/subscription_native_purchase_event.dart';
 import '../models/subscription_pending_purchase_correlation.dart';
 import '../services/subscription_native_purchase_runtime_service.dart';
 import 'subscription_native_purchase_processing_provider.dart';
+import 'subscription_native_purchase_restore_provider.dart';
 import 'subscription_pending_purchase_provider.dart';
 
 class RiverpodSubscriptionNativePurchaseCorrelator
@@ -136,6 +137,8 @@ final subscriptionNativePurchaseRuntimeProvider =
     >((ref) {
       // Ensure matched runtime events are consumed by the processing pipeline.
       ref.watch(subscriptionNativePurchaseProcessingProvider);
+      // Ensure explicit historical restore events are consumed by the restore pipeline.
+      ref.watch(subscriptionHistoricalRestoreProvider);
 
       final service = ref.watch(
         subscriptionNativePurchaseRuntimeServiceProvider,

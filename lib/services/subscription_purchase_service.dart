@@ -91,17 +91,58 @@ class SubscriptionPurchaseResult {
   }
 }
 
+enum SubscriptionHistoricalRestoreState {
+  restored,
+  alreadyKnown,
+  unauthenticated,
+  rejected,
+  unavailable,
+  unsupported,
+  failed,
+}
+
+class SubscriptionHistoricalRestoreResult {
+  final SubscriptionHistoricalRestoreState state;
+  final SubscriptionPurchasePlatform platform;
+  final bool statusRefreshRequired;
+  final String? normalizedStatus;
+  final String? provider;
+  final String? errorCode;
+  final String? message;
+  final Map<String, dynamic>? backendPayload;
+
+  const SubscriptionHistoricalRestoreResult({
+    required this.state,
+    required this.platform,
+    required this.statusRefreshRequired,
+    this.normalizedStatus,
+    this.provider,
+    this.errorCode,
+    this.message,
+    this.backendPayload,
+  });
+
+  bool get backendAccepted {
+    return state == SubscriptionHistoricalRestoreState.restored ||
+        state == SubscriptionHistoricalRestoreState.alreadyKnown;
+  }
+}
+
 class SubscriptionBackendEndpoints {
   static Uri get applePurchaseIntent =>
       Uri.parse('${ApiConfig.baseUrl}/subscription/apple/purchase-intent');
   static Uri get appleVerifyPurchase =>
       Uri.parse('${ApiConfig.baseUrl}/subscription/apple/verify-purchase');
+  static Uri get appleRestore =>
+      Uri.parse('${ApiConfig.baseUrl}/subscription/apple/restore');
   static Uri get googlePlayPurchaseIntent => Uri.parse(
     '${ApiConfig.baseUrl}/subscription/google-play/purchase-intent',
   );
   static Uri get googlePlayVerifyPurchase => Uri.parse(
     '${ApiConfig.baseUrl}/subscription/google-play/verify-purchase',
   );
+  static Uri get googlePlayRestore =>
+      Uri.parse('${ApiConfig.baseUrl}/subscription/google-play/restore');
 }
 
 abstract class SubscriptionPurchaseAdapter {
@@ -177,6 +218,7 @@ class SubscriptionPurchaseService {
   final SecureStorageService secureStorageService;
   final String authToken;
   final String scopeKey;
+  final http.Client _httpClient;
 
   SubscriptionPurchaseService({
     required this.appleAdapter,
@@ -184,7 +226,8 @@ class SubscriptionPurchaseService {
     required this.secureStorageService,
     required this.authToken,
     required this.scopeKey,
-  });
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client();
 
   SubscriptionPurchasePlatform get runtimePlatform {
     if (kIsWeb) {
@@ -428,6 +471,236 @@ class SubscriptionPurchaseService {
     return 'verify_purchase_failed';
   }
 
+  String _resolveRestoreErrorCode({
+    required int statusCode,
+    required String? message,
+  }) {
+    if (statusCode == 401) return 'unauthenticated';
+    if (statusCode == 409) return 'restore_ownership_conflict';
+    if (statusCode == 400) return 'invalid_restore_artifact';
+    if (statusCode >= 500) return 'restore_unavailable';
+
+    final normalized = (message ?? '').toLowerCase();
+    if (normalized.contains('already known') ||
+        normalized.contains('already_known')) {
+      return 'restore_already_known';
+    }
+    if (normalized.contains('conflict') || normalized.contains('ownership')) {
+      return 'restore_ownership_conflict';
+    }
+    if (normalized.contains('invalid') || normalized.contains('malformed')) {
+      return 'invalid_restore_artifact';
+    }
+
+    return 'restore_failed';
+  }
+
+  SubscriptionHistoricalRestoreResult _buildUnsupportedRestoreResult({
+    required SubscriptionPurchasePlatform platform,
+    required String errorCode,
+    required String message,
+  }) {
+    return SubscriptionHistoricalRestoreResult(
+      state: SubscriptionHistoricalRestoreState.unsupported,
+      platform: platform,
+      statusRefreshRequired: false,
+      errorCode: errorCode,
+      message: message,
+    );
+  }
+
+  SubscriptionHistoricalRestoreResult _buildFailedRestoreResult({
+    required SubscriptionPurchasePlatform platform,
+    required SubscriptionHistoricalRestoreState state,
+    required String errorCode,
+    required String message,
+    Map<String, dynamic>? backendPayload,
+  }) {
+    return SubscriptionHistoricalRestoreResult(
+      state: state,
+      platform: platform,
+      statusRefreshRequired: false,
+      errorCode: errorCode,
+      message: message,
+      backendPayload: backendPayload,
+    );
+  }
+
+  Future<SubscriptionHistoricalRestoreResult> restoreAppleSubscription({
+    required String signedTransactionInfo,
+  }) {
+    return _restoreHistoricalSubscription(
+      platform: SubscriptionPurchasePlatform.appleAppStore,
+      artifact: signedTransactionInfo,
+      endpoint: SubscriptionBackendEndpoints.appleRestore,
+      requestKey: 'signedTransactionInfo',
+      missingArtifactErrorCode: 'missing_signed_transaction_info',
+      missingArtifactMessage: 'Apple signed transaction info is required.',
+    );
+  }
+
+  Future<SubscriptionHistoricalRestoreResult> restoreGooglePlaySubscription({
+    required String purchaseToken,
+  }) {
+    return _restoreHistoricalSubscription(
+      platform: SubscriptionPurchasePlatform.googlePlay,
+      artifact: purchaseToken,
+      endpoint: SubscriptionBackendEndpoints.googlePlayRestore,
+      requestKey: 'purchaseToken',
+      missingArtifactErrorCode: 'missing_purchase_token',
+      missingArtifactMessage: 'Google Play purchase token is required.',
+    );
+  }
+
+  Future<SubscriptionHistoricalRestoreResult> _restoreHistoricalSubscription({
+    required SubscriptionPurchasePlatform platform,
+    required String artifact,
+    required Uri endpoint,
+    required String requestKey,
+    required String missingArtifactErrorCode,
+    required String missingArtifactMessage,
+  }) async {
+    if (runtimePlatform != platform) {
+      return _buildUnsupportedRestoreResult(
+        platform: runtimePlatform,
+        errorCode: 'platform_not_supported',
+        message: 'Historical restore is unsupported on this platform.',
+      );
+    }
+
+    if (authToken.trim().isEmpty) {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.unauthenticated,
+        errorCode: 'unauthenticated',
+        message: 'Authentication is required to restore subscriptions.',
+      );
+    }
+
+    final normalizedArtifact = artifact.trim();
+    if (normalizedArtifact.isEmpty) {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.failed,
+        errorCode: missingArtifactErrorCode,
+        message: missingArtifactMessage,
+      );
+    }
+
+    try {
+      final response = await _httpClient
+          .post(
+            endpoint,
+            headers: _authHeaders(),
+            body: jsonEncode({requestKey: normalizedArtifact}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      Map<String, dynamic>? payload;
+      if (response.body.trim().isNotEmpty) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map) {
+          return _buildFailedRestoreResult(
+            platform: platform,
+            state: SubscriptionHistoricalRestoreState.unavailable,
+            errorCode: 'restore_invalid_response',
+            message: 'Invalid restore response format.',
+          );
+        }
+        payload = decoded.map((key, value) => MapEntry(key.toString(), value));
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final backendMessage = payload == null
+            ? 'Failed to restore subscription.'
+            : (_extractMessage(payload) ?? 'Failed to restore subscription.');
+        final errorCode = _resolveRestoreErrorCode(
+          statusCode: response.statusCode,
+          message: backendMessage,
+        );
+
+        return _buildFailedRestoreResult(
+          platform: platform,
+          state: response.statusCode == 401
+              ? SubscriptionHistoricalRestoreState.unauthenticated
+              : response.statusCode >= 500
+              ? SubscriptionHistoricalRestoreState.unavailable
+              : SubscriptionHistoricalRestoreState.rejected,
+          errorCode: errorCode,
+          message: backendMessage,
+          backendPayload: payload,
+        );
+      }
+
+      final restored =
+          _extractBoolean(payload ?? const <String, dynamic>{}, const [
+            'restored',
+          ]) ??
+          false;
+      final alreadyKnown =
+          _extractBoolean(payload ?? const <String, dynamic>{}, const [
+            'alreadyKnown',
+          ]) ??
+          false;
+      final statusRefreshRequired =
+          _extractBoolean(payload ?? const <String, dynamic>{}, const [
+            'statusRefreshRequired',
+          ]) ??
+          false;
+      final normalizedStatus = _extractString(
+        payload ?? const <String, dynamic>{},
+        const ['normalizedStatus'],
+      );
+      final provider = _extractString(
+        payload ?? const <String, dynamic>{},
+        const ['provider'],
+      );
+
+      return SubscriptionHistoricalRestoreResult(
+        state: alreadyKnown
+            ? SubscriptionHistoricalRestoreState.alreadyKnown
+            : restored
+            ? SubscriptionHistoricalRestoreState.restored
+            : SubscriptionHistoricalRestoreState.rejected,
+        platform: platform,
+        statusRefreshRequired: statusRefreshRequired,
+        normalizedStatus: normalizedStatus,
+        provider: provider,
+        errorCode: restored || alreadyKnown ? null : 'restore_failed',
+        message: payload == null ? null : _extractMessage(payload),
+        backendPayload: payload,
+      );
+    } on TimeoutException {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.unavailable,
+        errorCode: 'restore_timeout',
+        message: 'Restore request timed out.',
+      );
+    } on SocketException {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.unavailable,
+        errorCode: 'restore_unavailable',
+        message: 'Restore service unavailable.',
+      );
+    } on FormatException {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.unavailable,
+        errorCode: 'restore_invalid_response',
+        message: 'Invalid restore response format.',
+      );
+    } catch (e) {
+      return _buildFailedRestoreResult(
+        platform: platform,
+        state: SubscriptionHistoricalRestoreState.failed,
+        errorCode: 'restore_error',
+        message: e.toString(),
+      );
+    }
+  }
+
   Future<SubscriptionPurchaseResult> verifyPurchase({
     required String purchaseIntentId,
     required SubscriptionNativePurchasePayload nativePayload,
@@ -521,7 +794,7 @@ class SubscriptionPurchaseService {
     }
 
     try {
-      final response = await http
+      final response = await _httpClient
           .post(
             endpoint,
             headers: _authHeaders(),
@@ -656,7 +929,7 @@ class SubscriptionPurchaseService {
     }
 
     try {
-      final response = await http
+      final response = await _httpClient
           .post(
             endpoint,
             headers: _authHeaders(),

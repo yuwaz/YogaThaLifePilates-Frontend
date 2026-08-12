@@ -39,6 +39,7 @@ dependencies:
   flutter_riverpod: ^2.4.9
   http: ^1.6.0
   flutter_secure_storage: ^10.0.0
+  crypto: ^3.0.7
 
   # For charts in ReportsPage
   fl_chart: ^0.66.0
