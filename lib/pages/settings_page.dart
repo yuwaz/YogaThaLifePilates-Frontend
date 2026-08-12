@@ -18,6 +18,7 @@ import '../providers/equipment_provider.dart';
 import '../providers/instructors_provider.dart' show instructorsProvider;
 import '../providers/locale_provider.dart';
 import '../widgets/logout_button.dart';
+import '../widgets/subscription_settings_section.dart';
 
 // Predefined member type colors (must match requirements)
 const List<Color> kMemberTypeColors = [
@@ -37,6 +38,10 @@ const List<String> kMemberTypeColorHexes = [
   "#83A8C3",
 ];
 
+bool canManageBillingSettings(AuthState auth) {
+  return (auth.role ?? '').trim() == 'admin';
+}
+
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({Key? key}) : super(key: key);
 
@@ -48,6 +53,7 @@ class SettingsPage extends ConsumerWidget {
     final permissions = auth.permissions;
     final canManageSettings =
         role == 'admin' || permissions.contains('settings');
+    final canManageBilling = canManageBillingSettings(auth);
 
     final tabs = <Tab>[
       const Tab(text: 'Hesabım'),
@@ -57,6 +63,11 @@ class SettingsPage extends ConsumerWidget {
       const _AccountSection(),
       const _ChangePasswordSection(),
     ];
+
+    if (canManageBilling) {
+      tabs.add(Tab(text: loc?.translate('subscriptionTab') ?? 'Subscription'));
+      tabViews.add(const SubscriptionSettingsSection());
+    }
 
     if (canManageSettings) {
       tabs.addAll([
@@ -861,15 +872,13 @@ void _showInstructorDialog(
                   'Instructor backend response type: ' +
                       resp.runtimeType.toString(),
                 );
-                if (resp is List) {
-                  for (var i = 0; i < resp.length; i++) {
-                    print(
-                      'Instructor backend response[' +
-                          i.toString() +
-                          '] type: ' +
-                          resp[i].runtimeType.toString(),
-                    );
-                  }
+                for (var i = 0; i < resp.length; i++) {
+                  print(
+                    'Instructor backend response[' +
+                        i.toString() +
+                        '] type: ' +
+                        resp[i].runtimeType.toString(),
+                  );
                 }
                 if (err == null) {
                   if (context.mounted) {
@@ -1201,15 +1210,13 @@ void _showLessonPackageDialog(
                   'LessonPackage backend response type: ' +
                       resp.runtimeType.toString(),
                 );
-                if (resp is List) {
-                  for (var i = 0; i < resp.length; i++) {
-                    print(
-                      'LessonPackage backend response[' +
-                          i.toString() +
-                          '] type: ' +
-                          resp[i].runtimeType.toString(),
-                    );
-                  }
+                for (var i = 0; i < resp.length; i++) {
+                  print(
+                    'LessonPackage backend response[' +
+                        i.toString() +
+                        '] type: ' +
+                        resp[i].runtimeType.toString(),
+                  );
                 }
                 final err = ref.read(lessonPackagesProvider).error;
                 if (err == null) {
