@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../models/subscription_pending_purchase_correlation.dart';
 import '../models/subscription_pending_purchase_intent.dart';
 import '../models/subscription_purchase_scope.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SecureStorageService {
   static const _permissionsKey = 'user_permissions';
@@ -397,3 +398,7 @@ class SecureStorageService {
     );
   }
 }
+
+final secureStorageServiceProvider = Provider<SecureStorageService>((ref) {
+  return SecureStorageService();
+});

@@ -152,6 +152,7 @@ class _FakePurchaseService extends SubscriptionPurchaseService {
     required this.result,
     required this.trace,
     this.delayMs = 0,
+    this.onStart,
   }) : super(
          appleAdapter: AppleAppStorePurchaseAdapter(),
          googlePlayAdapter: GooglePlayPurchaseAdapter(),
@@ -164,6 +165,7 @@ class _FakePurchaseService extends SubscriptionPurchaseService {
   final SubscriptionPurchaseResult result;
   final List<String> trace;
   final int delayMs;
+  final void Function()? onStart;
   int startCalls = 0;
 
   @override
@@ -175,6 +177,7 @@ class _FakePurchaseService extends SubscriptionPurchaseService {
     if (delayMs > 0) {
       await Future<void>.delayed(Duration(milliseconds: delayMs));
     }
+    onStart?.call();
     return result;
   }
 }
@@ -261,6 +264,11 @@ SubscriptionNativePurchaseStarter _buildStarter({
   required _FakeRepository repository,
   required _FakeLauncher launcher,
   required bool bootstrap,
+  String? currentScopeKey,
+  String Function()? readCurrentScopeKey,
+  int expectedSessionGeneration = 1,
+  int Function()? readCurrentSessionGeneration,
+  bool Function()? isSessionTransitioning,
 }) {
   return SubscriptionNativePurchaseStarter(
     bootstrapRuntimePipeline: () {
@@ -272,6 +280,12 @@ SubscriptionNativePurchaseStarter _buildStarter({
     catalogService: catalogService,
     purchaseService: purchaseService,
     repository: repository,
+    expectedSessionGeneration: expectedSessionGeneration,
+    readCurrentScopeKey:
+        readCurrentScopeKey ?? () => currentScopeKey ?? purchaseService.scope,
+    readCurrentSessionGeneration:
+        readCurrentSessionGeneration ?? () => expectedSessionGeneration,
+    isSessionTransitioning: isSessionTransitioning ?? () => false,
     launcher: launcher,
   );
 }
@@ -724,4 +738,156 @@ void main() {
       SubscriptionNativePurchaseStartState.alreadyInProgress,
     );
   });
+
+  test(
+    'logout during start before intent -> no intent and no launch',
+    () async {
+      final trace = <String>[];
+      final launcher = _FakeLauncher(shouldReturn: true, trace: trace);
+      final starter = _buildStarter(
+        runtimeService: _TracingRuntimeService(
+          trace: trace,
+          startState: SubscriptionNativePurchaseRuntimeStartState.started,
+          platform: SubscriptionStorePlatform.appleAppStore,
+        ),
+        catalogService: _FakeCatalogService(
+          match: SubscriptionStoreProductMatchResult(
+            status: SubscriptionStoreProductMatchStatus.matched,
+            platform: SubscriptionStorePlatform.appleAppStore,
+            planCode: 'basic',
+            productDetails: _appleProduct(),
+          ),
+        ),
+        purchaseService: _FakePurchaseService(
+          scope: stableScope,
+          result: const SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.pending,
+            platform: SubscriptionPurchasePlatform.appleAppStore,
+            purchaseIntentId: 'intent-1',
+          ),
+          trace: trace,
+        ),
+        repository: _FakeRepository(
+          recoverable: const [],
+          persisted: _appleIntent(stableScope),
+          trace: trace,
+        ),
+        launcher: launcher,
+        bootstrap: true,
+        isSessionTransitioning: () => true,
+      );
+
+      final result = await starter.startPurchase('basic');
+
+      expect(result.state, SubscriptionNativePurchaseStartState.failed);
+      expect(result.errorCode, 'session_changed');
+      expect(trace, isEmpty);
+      expect(launcher.calls, 0);
+    },
+  );
+
+  test(
+    'logout after intent persisted before launch -> no native launch',
+    () async {
+      final trace = <String>[];
+      var currentGeneration = 1;
+      final launcher = _FakeLauncher(shouldReturn: true, trace: trace);
+      final starter = _buildStarter(
+        runtimeService: _TracingRuntimeService(
+          trace: trace,
+          startState: SubscriptionNativePurchaseRuntimeStartState.started,
+          platform: SubscriptionStorePlatform.appleAppStore,
+        ),
+        catalogService: _FakeCatalogService(
+          match: SubscriptionStoreProductMatchResult(
+            status: SubscriptionStoreProductMatchStatus.matched,
+            platform: SubscriptionStorePlatform.appleAppStore,
+            planCode: 'basic',
+            productDetails: _appleProduct(),
+          ),
+        ),
+        purchaseService: _FakePurchaseService(
+          scope: stableScope,
+          result: const SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.pending,
+            platform: SubscriptionPurchasePlatform.appleAppStore,
+            purchaseIntentId: 'intent-1',
+          ),
+          trace: trace,
+          onStart: () {
+            currentGeneration = 2;
+          },
+        ),
+        repository: _FakeRepository(
+          recoverable: const [],
+          persisted: _appleIntent(stableScope),
+          trace: trace,
+        ),
+        launcher: launcher,
+        bootstrap: true,
+        expectedSessionGeneration: 1,
+        readCurrentSessionGeneration: () => currentGeneration,
+      );
+
+      final result = await starter.startPurchase('basic');
+
+      expect(result.state, SubscriptionNativePurchaseStartState.failed);
+      expect(result.errorCode, 'session_changed');
+      expect(result.purchaseIntentId, 'intent-1');
+      expect(launcher.calls, 0);
+    },
+  );
+
+  test(
+    'account switch during initiation -> no launch under new account',
+    () async {
+      final trace = <String>[];
+      var currentScope = stableScope;
+      final launcher = _FakeLauncher(shouldReturn: true, trace: trace);
+      final starter = _buildStarter(
+        runtimeService: _TracingRuntimeService(
+          trace: trace,
+          startState: SubscriptionNativePurchaseRuntimeStartState.started,
+          platform: SubscriptionStorePlatform.appleAppStore,
+        ),
+        catalogService: _FakeCatalogService(
+          match: SubscriptionStoreProductMatchResult(
+            status: SubscriptionStoreProductMatchStatus.matched,
+            platform: SubscriptionStorePlatform.appleAppStore,
+            planCode: 'basic',
+            productDetails: _appleProduct(),
+          ),
+        ),
+        purchaseService: _FakePurchaseService(
+          scope: stableScope,
+          result: const SubscriptionPurchaseResult(
+            state: SubscriptionPurchaseState.pending,
+            platform: SubscriptionPurchasePlatform.appleAppStore,
+            purchaseIntentId: 'intent-1',
+          ),
+          trace: trace,
+          onStart: () {
+            currentScope = buildSubscriptionPurchaseScopeKey(
+              studioId: 7,
+              userId: 8,
+            );
+          },
+        ),
+        repository: _FakeRepository(
+          recoverable: const [],
+          persisted: _appleIntent(stableScope),
+          trace: trace,
+        ),
+        launcher: launcher,
+        bootstrap: true,
+        readCurrentScopeKey: () => currentScope,
+      );
+
+      final result = await starter.startPurchase('basic');
+
+      expect(result.state, SubscriptionNativePurchaseStartState.failed);
+      expect(result.errorCode, 'session_changed');
+      expect(launcher.calls, 0);
+    },
+  );
 }

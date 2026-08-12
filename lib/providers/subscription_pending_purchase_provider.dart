@@ -185,9 +185,17 @@ final subscriptionPendingPurchaseCorrelatorProvider =
     );
 
 final currentSubscriptionPurchaseScopeKeyProvider = Provider<String>((ref) {
-  final authToken = ref.watch(authProvider.select((auth) => auth.token ?? ''));
+  final authSnapshot = ref.watch(
+    authProvider.select(
+      (auth) => (auth.token ?? '', auth.isSessionTransitioning),
+    ),
+  );
 
-  return resolveSubscriptionPurchaseScopeKeyFromAuthToken(authToken);
+  if (authSnapshot.$2) {
+    return '';
+  }
+
+  return resolveSubscriptionPurchaseScopeKeyFromAuthToken(authSnapshot.$1);
 });
 
 final recoverablePendingPurchaseIntentsProvider =

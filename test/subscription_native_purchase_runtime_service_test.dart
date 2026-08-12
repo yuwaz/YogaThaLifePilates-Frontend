@@ -147,6 +147,42 @@ void main() {
       },
     );
 
+    test(
+      'stop twice is safe and start after stop creates a fresh listener',
+      () async {
+        final controller = StreamController<List<PurchaseDetails>>.broadcast();
+        final service = SubscriptionNativePurchaseRuntimeService(
+          correlator: _FakeCorrelator(
+            appleResult:
+                const SubscriptionPendingPurchaseCorrelationResult.noMatch(),
+            googleResult:
+                const SubscriptionPendingPurchaseCorrelationResult.noMatch(),
+          ),
+          runtimeClient: _FakeRuntimeClient(controller),
+          isWeb: false,
+          targetPlatform: TargetPlatform.iOS,
+        );
+
+        final first = await service.start();
+        await service.stop();
+        await service.stop();
+        final second = await service.start();
+
+        expect(
+          first.state,
+          SubscriptionNativePurchaseRuntimeStartState.started,
+        );
+        expect(
+          second.state,
+          SubscriptionNativePurchaseRuntimeStartState.started,
+        );
+        expect(service.isStarted, isTrue);
+
+        await service.dispose();
+        await controller.close();
+      },
+    );
+
     test('web is unsupported and does not start', () async {
       final controller = StreamController<List<PurchaseDetails>>.broadcast();
       final service = SubscriptionNativePurchaseRuntimeService(

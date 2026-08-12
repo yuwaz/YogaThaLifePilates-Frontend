@@ -7,6 +7,8 @@ class AuthState {
   final List<int> assignedSalonIds;
   final List<String> permissions;
   final bool isLoading;
+  final int sessionGeneration;
+  final bool isSessionTransitioning;
   final String? error;
 
   const AuthState({
@@ -15,6 +17,8 @@ class AuthState {
     this.assignedSalonIds = const [],
     this.permissions = const [],
     this.isLoading = false,
+    this.sessionGeneration = 0,
+    this.isSessionTransitioning = false,
     this.error,
   });
 
@@ -24,6 +28,8 @@ class AuthState {
     List<int>? assignedSalonIds,
     List<String>? permissions,
     bool? isLoading,
+    int? sessionGeneration,
+    bool? isSessionTransitioning,
     String? error,
   }) {
     return AuthState(
@@ -32,6 +38,9 @@ class AuthState {
       assignedSalonIds: assignedSalonIds ?? this.assignedSalonIds,
       permissions: permissions ?? this.permissions,
       isLoading: isLoading ?? this.isLoading,
+      sessionGeneration: sessionGeneration ?? this.sessionGeneration,
+      isSessionTransitioning:
+          isSessionTransitioning ?? this.isSessionTransitioning,
       error: error,
     );
   }
@@ -42,6 +51,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void setLoading(bool loading) => state = state.copyWith(isLoading: loading);
   void setError(String? error) => state = state.copyWith(error: error);
+
+  void beginSessionTransition() {
+    state = state.copyWith(
+      sessionGeneration: state.sessionGeneration + 1,
+      isSessionTransitioning: true,
+      error: null,
+    );
+  }
 
   void setAuth({
     required String token,
@@ -54,11 +71,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       role: role,
       assignedSalonIds: assignedSalonIds,
       permissions: permissions,
+      sessionGeneration: state.sessionGeneration + 1,
+      isSessionTransitioning: false,
     );
   }
 
   Future<void> logout() async {
-    state = const AuthState();
+    state = AuthState(
+      sessionGeneration: state.sessionGeneration,
+      isSessionTransitioning: false,
+    );
     // Also clear permissions from secure storage
     final storage = SecureStorageService();
     await storage.savePermissions([]);

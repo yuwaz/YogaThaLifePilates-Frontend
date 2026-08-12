@@ -46,6 +46,10 @@ class SubscriptionNativePurchaseRecoveryCoordinator {
   final SubscriptionPendingPurchaseRepository _repository;
   final SubscriptionStatusNotifier _statusNotifier;
   final SubscriptionStatusState Function() _readStatusState;
+  final int _expectedSessionGeneration;
+  final String Function() _readCurrentScopeKey;
+  final int Function() _readCurrentSessionGeneration;
+  final bool Function() _isSessionTransitioning;
 
   const SubscriptionNativePurchaseRecoveryCoordinator({
     required SubscriptionNativePurchaseRuntimeNotifier runtimeNotifier,
@@ -53,17 +57,25 @@ class SubscriptionNativePurchaseRecoveryCoordinator {
     required SubscriptionPendingPurchaseRepository repository,
     required SubscriptionStatusNotifier statusNotifier,
     required SubscriptionStatusState Function() readStatusState,
+    required int expectedSessionGeneration,
+    required String Function() readCurrentScopeKey,
+    required int Function() readCurrentSessionGeneration,
+    required bool Function() isSessionTransitioning,
   }) : _runtimeNotifier = runtimeNotifier,
        _runtimeService = runtimeService,
        _repository = repository,
        _statusNotifier = statusNotifier,
-       _readStatusState = readStatusState;
+       _readStatusState = readStatusState,
+       _expectedSessionGeneration = expectedSessionGeneration,
+       _readCurrentScopeKey = readCurrentScopeKey,
+       _readCurrentSessionGeneration = readCurrentSessionGeneration,
+       _isSessionTransitioning = isSessionTransitioning;
 
   Future<SubscriptionNativePurchaseRecoveryState> recover({
     required String scopeKey,
     required bool isAuthenticated,
   }) async {
-    if (!isAuthenticated || !isStableSubscriptionPurchaseScopeKey(scopeKey)) {
+    if (!isAuthenticated || !_isExpectedSessionActive(scopeKey)) {
       return const SubscriptionNativePurchaseRecoveryState(
         state: SubscriptionNativePurchaseRecoveryStateKind.unauthenticated,
       );
@@ -92,15 +104,24 @@ class SubscriptionNativePurchaseRecoveryCoordinator {
       );
     }
 
-    final statusRefreshCandidates = recoverable.where((record) {
-      return record.state ==
-          PendingPurchaseState.nativeCompletedAwaitingStatusRefresh;
-    }).toList(growable: false);
+    final statusRefreshCandidates = recoverable
+        .where((record) {
+          return record.state ==
+              PendingPurchaseState.nativeCompletedAwaitingStatusRefresh;
+        })
+        .toList(growable: false);
 
     if (statusRefreshCandidates.isEmpty) {
       return SubscriptionNativePurchaseRecoveryState(
         state: SubscriptionNativePurchaseRecoveryStateKind.waitingForStoreEvent,
         recoverablePendingCount: recoverable.length,
+      );
+    }
+
+    if (!_isExpectedSessionActive(scopeKey)) {
+      return SubscriptionNativePurchaseRecoveryState(
+        state: SubscriptionNativePurchaseRecoveryStateKind.unauthenticated,
+        recoverablePendingCount: statusRefreshCandidates.length,
       );
     }
 
@@ -112,10 +133,17 @@ class SubscriptionNativePurchaseRecoveryCoordinator {
 
     if (!loaded) {
       return SubscriptionNativePurchaseRecoveryState(
-        state:
-            SubscriptionNativePurchaseRecoveryStateKind.statusRefreshUnavailable,
+        state: SubscriptionNativePurchaseRecoveryStateKind
+            .statusRefreshUnavailable,
         recoverablePendingCount: statusRefreshCandidates.length,
         message: 'Subscription status refresh is unavailable.',
+      );
+    }
+
+    if (!_isExpectedSessionActive(scopeKey)) {
+      return SubscriptionNativePurchaseRecoveryState(
+        state: SubscriptionNativePurchaseRecoveryStateKind.unauthenticated,
+        recoverablePendingCount: statusRefreshCandidates.length,
       );
     }
 
@@ -137,6 +165,19 @@ class SubscriptionNativePurchaseRecoveryCoordinator {
           : SubscriptionNativePurchaseRecoveryStateKind.statusRefreshRecovered,
       recoverablePendingCount: remaining,
     );
+  }
+
+  bool _isExpectedSessionActive(String expectedScopeKey) {
+    if (_isSessionTransitioning()) {
+      return false;
+    }
+
+    if (!isStableSubscriptionPurchaseScopeKey(expectedScopeKey)) {
+      return false;
+    }
+
+    return _readCurrentSessionGeneration() == _expectedSessionGeneration &&
+        _readCurrentScopeKey() == expectedScopeKey;
   }
 }
 
@@ -166,33 +207,51 @@ class SubscriptionNativePurchaseRecoveryNotifier
       isAuthenticated: _isAuthenticated,
     );
   }
-
 }
 
 final subscriptionNativePurchaseRecoveryCoordinatorProvider =
     Provider.autoDispose<SubscriptionNativePurchaseRecoveryCoordinator>((ref) {
+      final expectedSessionGeneration = ref.watch(
+        authProvider.select((auth) => auth.sessionGeneration),
+      );
+
       return SubscriptionNativePurchaseRecoveryCoordinator(
-        runtimeNotifier: ref.read(subscriptionNativePurchaseRuntimeProvider.notifier),
-        runtimeService: ref.read(subscriptionNativePurchaseRuntimeServiceProvider),
+        runtimeNotifier: ref.read(
+          subscriptionNativePurchaseRuntimeProvider.notifier,
+        ),
+        runtimeService: ref.read(
+          subscriptionNativePurchaseRuntimeServiceProvider,
+        ),
         repository: ref.read(subscriptionPendingPurchaseRepositoryProvider),
         statusNotifier: ref.read(subscriptionStatusProvider.notifier),
         readStatusState: () => ref.read(subscriptionStatusProvider),
+        expectedSessionGeneration: expectedSessionGeneration,
+        readCurrentScopeKey: () =>
+            ref.read(currentSubscriptionPurchaseScopeKeyProvider),
+        readCurrentSessionGeneration: () =>
+            ref.read(authProvider.select((auth) => auth.sessionGeneration)),
+        isSessionTransitioning: () => ref.read(
+          authProvider.select((auth) => auth.isSessionTransitioning),
+        ),
       );
     });
 
-final subscriptionNativePurchaseRecoveryProvider = StateNotifierProvider.autoDispose<
-  SubscriptionNativePurchaseRecoveryNotifier,
-  SubscriptionNativePurchaseRecoveryState
->((ref) {
-  final token = ref.watch(authProvider.select((auth) => auth.token ?? ''));
-  final scopeKey = ref.watch(currentSubscriptionPurchaseScopeKeyProvider);
-  final isAuthenticated = token.trim().isNotEmpty;
+final subscriptionNativePurchaseRecoveryProvider =
+    StateNotifierProvider.autoDispose<
+      SubscriptionNativePurchaseRecoveryNotifier,
+      SubscriptionNativePurchaseRecoveryState
+    >((ref) {
+      final token = ref.watch(authProvider.select((auth) => auth.token ?? ''));
+      final scopeKey = ref.watch(currentSubscriptionPurchaseScopeKeyProvider);
+      final isAuthenticated = token.trim().isNotEmpty;
 
-  final coordinator = ref.watch(subscriptionNativePurchaseRecoveryCoordinatorProvider);
+      final coordinator = ref.watch(
+        subscriptionNativePurchaseRecoveryCoordinatorProvider,
+      );
 
-  return SubscriptionNativePurchaseRecoveryNotifier(
-    coordinator: coordinator,
-    scopeKey: scopeKey,
-    isAuthenticated: isAuthenticated,
-  );
-});
+      return SubscriptionNativePurchaseRecoveryNotifier(
+        coordinator: coordinator,
+        scopeKey: scopeKey,
+        isAuthenticated: isAuthenticated,
+      );
+    });

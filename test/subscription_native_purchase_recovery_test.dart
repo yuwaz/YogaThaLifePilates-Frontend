@@ -48,8 +48,8 @@ class _TracingRuntimeService extends SubscriptionNativePurchaseRuntimeService {
          targetPlatform: platform == SubscriptionStorePlatform.googlePlay
              ? TargetPlatform.android
              : platform == SubscriptionStorePlatform.appleAppStore
-                 ? TargetPlatform.iOS
-                 : TargetPlatform.macOS,
+             ? TargetPlatform.iOS
+             : TargetPlatform.macOS,
        );
 
   final SubscriptionNativePurchaseRuntimeStartState startState;
@@ -64,7 +64,8 @@ class _TracingRuntimeService extends SubscriptionNativePurchaseRuntimeService {
   Future<SubscriptionNativePurchaseRuntimeStartResult> start() async {
     startCalls += 1;
     if (startState == SubscriptionNativePurchaseRuntimeStartState.started ||
-        startState == SubscriptionNativePurchaseRuntimeStartState.alreadyStarted) {
+        startState ==
+            SubscriptionNativePurchaseRuntimeStartState.alreadyStarted) {
       startedFlag = true;
     }
     return SubscriptionNativePurchaseRuntimeStartResult(
@@ -112,7 +113,7 @@ class _FakeRepository extends SubscriptionPendingPurchaseRepository {
 }
 
 class _FakeStatusNotifier extends SubscriptionStatusNotifier {
-  _FakeStatusNotifier({required this.stateAfterRefresh})
+  _FakeStatusNotifier({required this.stateAfterRefresh, this.onRefresh})
     : super(token: '', scopeKey: 'status') {
     state = SubscriptionStatusState(
       fetchState: SubscriptionFetchState.loading,
@@ -121,11 +122,13 @@ class _FakeStatusNotifier extends SubscriptionStatusNotifier {
   }
 
   final SubscriptionStatusState stateAfterRefresh;
+  final void Function()? onRefresh;
   int refreshCalls = 0;
 
   @override
   Future<void> refresh() async {
     refreshCalls += 1;
+    onRefresh?.call();
     state = stateAfterRefresh;
   }
 }
@@ -155,49 +158,66 @@ void main() {
     required _TracingRuntimeService runtimeService,
     required _FakeRepository repository,
     required _FakeStatusNotifier statusNotifier,
+    String? currentScopeKey,
+    int expectedSessionGeneration = 1,
+    int Function()? readCurrentSessionGeneration,
+    bool Function()? isSessionTransitioning,
   }) {
-    final runtimeNotifier = SubscriptionNativePurchaseRuntimeNotifier(runtimeService);
+    final runtimeNotifier = SubscriptionNativePurchaseRuntimeNotifier(
+      runtimeService,
+    );
     return SubscriptionNativePurchaseRecoveryCoordinator(
       runtimeNotifier: runtimeNotifier,
       runtimeService: runtimeService,
       repository: repository,
       statusNotifier: statusNotifier,
       readStatusState: () => statusNotifier.state,
+      expectedSessionGeneration: expectedSessionGeneration,
+      readCurrentScopeKey: () => currentScopeKey ?? stableScope,
+      readCurrentSessionGeneration:
+          readCurrentSessionGeneration ?? () => expectedSessionGeneration,
+      isSessionTransitioning: isSessionTransitioning ?? () => false,
     );
   }
 
-  test('authenticated mobile + no pending -> noPending and runtime started', () async {
-    final runtimeService = _TracingRuntimeService(
-      startState: SubscriptionNativePurchaseRuntimeStartState.started,
-      platform: SubscriptionStorePlatform.appleAppStore,
-    );
-    final repository = _FakeRepository(recoverable: const []);
-    final statusNotifier = _FakeStatusNotifier(
-      stateAfterRefresh: SubscriptionStatusState(
-        fetchState: SubscriptionFetchState.loaded,
-        scopeKey: 'status',
-        subscription: const SubscriptionStatus(
-          rawStatus: 'active',
-          lifecycleStatus: SubscriptionLifecycleStatus.active,
-          rawPayload: <String, dynamic>{},
+  test(
+    'authenticated mobile + no pending -> noPending and runtime started',
+    () async {
+      final runtimeService = _TracingRuntimeService(
+        startState: SubscriptionNativePurchaseRuntimeStartState.started,
+        platform: SubscriptionStorePlatform.appleAppStore,
+      );
+      final repository = _FakeRepository(recoverable: const []);
+      final statusNotifier = _FakeStatusNotifier(
+        stateAfterRefresh: SubscriptionStatusState(
+          fetchState: SubscriptionFetchState.loaded,
+          scopeKey: 'status',
+          subscription: const SubscriptionStatus(
+            rawStatus: 'active',
+            lifecycleStatus: SubscriptionLifecycleStatus.active,
+            rawPayload: <String, dynamic>{},
+          ),
         ),
-      ),
-    );
+      );
 
-    final coordinator = buildCoordinator(
-      runtimeService: runtimeService,
-      repository: repository,
-      statusNotifier: statusNotifier,
-    );
+      final coordinator = buildCoordinator(
+        runtimeService: runtimeService,
+        repository: repository,
+        statusNotifier: statusNotifier,
+      );
 
-    final result = await coordinator.recover(
-      scopeKey: stableScope,
-      isAuthenticated: true,
-    );
+      final result = await coordinator.recover(
+        scopeKey: stableScope,
+        isAuthenticated: true,
+      );
 
-    expect(result.state, SubscriptionNativePurchaseRecoveryStateKind.noPending);
-    expect(runtimeService.startCalls, 1);
-  });
+      expect(
+        result.state,
+        SubscriptionNativePurchaseRecoveryStateKind.noPending,
+      );
+      expect(runtimeService.startCalls, 1);
+    },
+  );
 
   test('in-flight pending -> waitingForStoreEvent', () async {
     final runtimeService = _TracingRuntimeService(
@@ -205,7 +225,12 @@ void main() {
       platform: SubscriptionStorePlatform.appleAppStore,
     );
     final repository = _FakeRepository(
-      recoverable: [_pending(scopeKey: stableScope, state: PendingPurchaseState.intentCreated)],
+      recoverable: [
+        _pending(
+          scopeKey: stableScope,
+          state: PendingPurchaseState.intentCreated,
+        ),
+      ],
     );
     final statusNotifier = _FakeStatusNotifier(
       stateAfterRefresh: SubscriptionStatusState(
@@ -347,7 +372,10 @@ void main() {
       isAuthenticated: false,
     );
 
-    expect(result.state, SubscriptionNativePurchaseRecoveryStateKind.unauthenticated);
+    expect(
+      result.state,
+      SubscriptionNativePurchaseRecoveryStateKind.unauthenticated,
+    );
     expect(runtimeService.startCalls, 0);
   });
 
@@ -380,7 +408,10 @@ void main() {
       isAuthenticated: true,
     );
 
-    expect(result.state, SubscriptionNativePurchaseRecoveryStateKind.unsupported);
+    expect(
+      result.state,
+      SubscriptionNativePurchaseRecoveryStateKind.unsupported,
+    );
     expect(runtimeService.startCalls, 0);
   });
 
@@ -389,7 +420,9 @@ void main() {
       startState: SubscriptionNativePurchaseRuntimeStartState.started,
       platform: SubscriptionStorePlatform.appleAppStore,
     );
-    final runtimeNotifier = SubscriptionNativePurchaseRuntimeNotifier(runtimeService);
+    final runtimeNotifier = SubscriptionNativePurchaseRuntimeNotifier(
+      runtimeService,
+    );
     final repository = _FakeRepository(recoverable: const []);
     final statusNotifier = _FakeStatusNotifier(
       stateAfterRefresh: SubscriptionStatusState(
@@ -408,6 +441,10 @@ void main() {
       repository: repository,
       statusNotifier: statusNotifier,
       readStatusState: () => statusNotifier.state,
+      expectedSessionGeneration: 1,
+      readCurrentScopeKey: () => stableScope,
+      readCurrentSessionGeneration: () => 1,
+      isSessionTransitioning: () => false,
     );
 
     final notifier = SubscriptionNativePurchaseRecoveryNotifier(
@@ -421,5 +458,54 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     expect(runtimeService.stopCalls, 0);
+  });
+
+  test('status-only recovery with changed session -> no cleanup', () async {
+    final runtimeService = _TracingRuntimeService(
+      startState: SubscriptionNativePurchaseRuntimeStartState.started,
+      platform: SubscriptionStorePlatform.appleAppStore,
+    );
+    final repository = _FakeRepository(
+      recoverable: [
+        _pending(
+          scopeKey: stableScope,
+          state: PendingPurchaseState.nativeCompletedAwaitingStatusRefresh,
+        ),
+      ],
+    );
+    var currentGeneration = 1;
+    final statusNotifier = _FakeStatusNotifier(
+      stateAfterRefresh: SubscriptionStatusState(
+        fetchState: SubscriptionFetchState.loaded,
+        scopeKey: 'status',
+        subscription: const SubscriptionStatus(
+          rawStatus: 'active',
+          lifecycleStatus: SubscriptionLifecycleStatus.active,
+          rawPayload: <String, dynamic>{},
+        ),
+      ),
+      onRefresh: () {
+        currentGeneration = 2;
+      },
+    );
+
+    final coordinator = buildCoordinator(
+      runtimeService: runtimeService,
+      repository: repository,
+      statusNotifier: statusNotifier,
+      expectedSessionGeneration: 1,
+      readCurrentSessionGeneration: () => currentGeneration,
+    );
+
+    final result = await coordinator.recover(
+      scopeKey: stableScope,
+      isAuthenticated: true,
+    );
+
+    expect(
+      result.state,
+      SubscriptionNativePurchaseRecoveryStateKind.unauthenticated,
+    );
+    expect(repository.calls, ['readRecoverable']);
   });
 }

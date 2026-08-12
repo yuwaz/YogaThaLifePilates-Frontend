@@ -107,17 +107,21 @@ class _FakeRepository extends SubscriptionPendingPurchaseRepository {
 }
 
 class _FakePurchaseService extends SubscriptionPurchaseService {
-  _FakePurchaseService({required this.verifyResult, required this.scope})
-    : super(
-        appleAdapter: AppleAppStorePurchaseAdapter(),
-        googlePlayAdapter: GooglePlayPurchaseAdapter(),
-        secureStorageService: SecureStorageService(),
-        authToken: 'token',
-        scopeKey: scope,
-      );
+  _FakePurchaseService({
+    required this.verifyResult,
+    required this.scope,
+    this.onVerify,
+  }) : super(
+         appleAdapter: AppleAppStorePurchaseAdapter(),
+         googlePlayAdapter: GooglePlayPurchaseAdapter(),
+         secureStorageService: SecureStorageService(),
+         authToken: 'token',
+         scopeKey: scope,
+       );
 
   final SubscriptionPurchaseResult verifyResult;
   final String scope;
+  final void Function()? onVerify;
   int verifyCalls = 0;
 
   @override
@@ -126,6 +130,7 @@ class _FakePurchaseService extends SubscriptionPurchaseService {
     required SubscriptionNativePurchasePayload nativePayload,
   }) async {
     verifyCalls += 1;
+    onVerify?.call();
     return verifyResult;
   }
 }
@@ -150,7 +155,7 @@ class _FakeCompleter implements SubscriptionNativePurchaseCompleter {
 }
 
 class _FakeStatusNotifier extends SubscriptionStatusNotifier {
-  _FakeStatusNotifier({required this.stateAfterRefresh})
+  _FakeStatusNotifier({required this.stateAfterRefresh, this.onRefresh})
     : super(token: '', scopeKey: 'status') {
     state = SubscriptionStatusState(
       fetchState: SubscriptionFetchState.loading,
@@ -159,11 +164,13 @@ class _FakeStatusNotifier extends SubscriptionStatusNotifier {
   }
 
   final SubscriptionStatusState stateAfterRefresh;
+  final void Function()? onRefresh;
   int refreshCalls = 0;
 
   @override
   Future<void> refresh() async {
     refreshCalls += 1;
+    onRefresh?.call();
     state = stateAfterRefresh;
   }
 }
@@ -229,12 +236,21 @@ SubscriptionNativePurchaseProcessor _buildProcessor({
   required _FakeRepository repository,
   required _FakeStatusNotifier statusNotifier,
   required _FakeCompleter completer,
+  String? currentScopeKey,
+  int expectedSessionGeneration = 1,
+  int Function()? readCurrentSessionGeneration,
+  bool Function()? isSessionTransitioning,
 }) {
   return SubscriptionNativePurchaseProcessor(
     purchaseService: purchaseService,
     repository: repository,
     statusNotifier: statusNotifier,
     readStatusState: () => statusNotifier.state,
+    expectedSessionGeneration: expectedSessionGeneration,
+    readCurrentScopeKey: () => currentScopeKey ?? purchaseService.scope,
+    readCurrentSessionGeneration:
+        readCurrentSessionGeneration ?? () => expectedSessionGeneration,
+    isSessionTransitioning: isSessionTransitioning ?? () => false,
     completer: completer,
   );
 }
@@ -777,10 +793,184 @@ void main() {
       ),
     );
 
-    expect(
-      result.state,
-      SubscriptionNativePurchaseProcessingState.verifyFailed,
-    );
+    expect(result.state, SubscriptionNativePurchaseProcessingState.ignored);
+    expect(result.errorCode, 'session_changed');
     expect(repository.calls, isEmpty);
   });
+
+  test(
+    'apple matched event with changed scope before verify -> no verify',
+    () async {
+      final repository = _FakeRepository();
+      final purchaseService = _FakePurchaseService(
+        verifyResult: const SubscriptionPurchaseResult(
+          state: SubscriptionPurchaseState.purchased,
+          platform: SubscriptionPurchasePlatform.appleAppStore,
+        ),
+        scope: stableScope,
+      );
+      final completer = _FakeCompleter();
+      final statusNotifier = loadedStatus();
+
+      final processor = _buildProcessor(
+        purchaseService: purchaseService,
+        repository: repository,
+        statusNotifier: statusNotifier,
+        completer: completer,
+        currentScopeKey: buildSubscriptionPurchaseScopeKey(
+          studioId: 9,
+          userId: 9,
+        ),
+      );
+
+      final result = await processor.processEvent(
+        _matchedAppleEvent(
+          status: PurchaseStatus.purchased,
+          pendingComplete: true,
+        ),
+      );
+
+      expect(result.state, SubscriptionNativePurchaseProcessingState.ignored);
+      expect(result.errorCode, 'session_changed');
+      expect(purchaseService.verifyCalls, 0);
+      expect(completer.calls, 0);
+      expect(repository.calls, isEmpty);
+    },
+  );
+
+  test(
+    'google matched event with changed generation before verify -> no verify',
+    () async {
+      final repository = _FakeRepository();
+      final purchaseService = _FakePurchaseService(
+        verifyResult: const SubscriptionPurchaseResult(
+          state: SubscriptionPurchaseState.purchased,
+          platform: SubscriptionPurchasePlatform.googlePlay,
+        ),
+        scope: stableScope,
+      );
+      final completer = _FakeCompleter();
+      final statusNotifier = loadedStatus();
+
+      final processor = _buildProcessor(
+        purchaseService: purchaseService,
+        repository: repository,
+        statusNotifier: statusNotifier,
+        completer: completer,
+        expectedSessionGeneration: 1,
+        readCurrentSessionGeneration: () => 2,
+      );
+
+      final result = await processor.processEvent(
+        _matchedGoogleEvent(
+          status: PurchaseStatus.purchased,
+          pendingComplete: true,
+        ),
+      );
+
+      expect(result.state, SubscriptionNativePurchaseProcessingState.ignored);
+      expect(result.errorCode, 'session_changed');
+      expect(purchaseService.verifyCalls, 0);
+      expect(completer.calls, 0);
+      expect(repository.calls, isEmpty);
+    },
+  );
+
+  test('session changes after verify -> no complete and no mutation', () async {
+    final repository = _FakeRepository();
+    var currentGeneration = 1;
+    final purchaseService = _FakePurchaseService(
+      verifyResult: const SubscriptionPurchaseResult(
+        state: SubscriptionPurchaseState.purchased,
+        platform: SubscriptionPurchasePlatform.appleAppStore,
+      ),
+      scope: stableScope,
+      onVerify: () {
+        currentGeneration = 2;
+      },
+    );
+    final completer = _FakeCompleter();
+    final statusNotifier = loadedStatus();
+
+    final processor = _buildProcessor(
+      purchaseService: purchaseService,
+      repository: repository,
+      statusNotifier: statusNotifier,
+      completer: completer,
+      expectedSessionGeneration: 1,
+      readCurrentSessionGeneration: () => currentGeneration,
+    );
+
+    final result = await processor.processEvent(
+      _matchedAppleEvent(
+        status: PurchaseStatus.purchased,
+        pendingComplete: true,
+      ),
+    );
+
+    expect(result.state, SubscriptionNativePurchaseProcessingState.ignored);
+    expect(result.errorCode, 'session_changed');
+    expect(completer.calls, 0);
+    expect(repository.calls, isEmpty);
+  });
+
+  test(
+    'session changes during status refresh -> no cross-session cleanup',
+    () async {
+      final repository = _FakeRepository();
+      var currentGeneration = 1;
+      final purchaseService = _FakePurchaseService(
+        verifyResult: const SubscriptionPurchaseResult(
+          state: SubscriptionPurchaseState.purchased,
+          platform: SubscriptionPurchasePlatform.appleAppStore,
+        ),
+        scope: stableScope,
+      );
+      final completer = _FakeCompleter();
+      final statusNotifier = _FakeStatusNotifier(
+        stateAfterRefresh: SubscriptionStatusState(
+          fetchState: SubscriptionFetchState.loaded,
+          scopeKey: 'status',
+          subscription: const SubscriptionStatus(
+            rawStatus: 'active',
+            lifecycleStatus: SubscriptionLifecycleStatus.active,
+            rawPayload: <String, dynamic>{},
+          ),
+        ),
+        onRefresh: () {
+          currentGeneration = 2;
+        },
+      );
+
+      final processor = _buildProcessor(
+        purchaseService: purchaseService,
+        repository: repository,
+        statusNotifier: statusNotifier,
+        completer: completer,
+        expectedSessionGeneration: 1,
+        readCurrentSessionGeneration: () => currentGeneration,
+      );
+
+      final result = await processor.processEvent(
+        _matchedAppleEvent(
+          status: PurchaseStatus.purchased,
+          pendingComplete: true,
+        ),
+      );
+
+      expect(
+        result.state,
+        SubscriptionNativePurchaseProcessingState
+            .verifySucceededCompletionSucceededStatusRefreshed,
+      );
+      expect(
+        repository.calls.where((call) => call.startsWith('markCompleted')),
+        isEmpty,
+      );
+      expect(
+        repository.calls.where((call) => call.startsWith('remove')),
+        isEmpty,
+      );
+    },
+  );
 }

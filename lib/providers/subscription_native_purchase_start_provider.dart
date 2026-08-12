@@ -12,6 +12,7 @@ import '../models/subscription_store_product_match.dart';
 import '../services/subscription_native_purchase_runtime_service.dart';
 import '../services/subscription_purchase_service.dart';
 import '../services/subscription_store_catalog_service.dart';
+import 'auth_provider.dart';
 import 'subscription_native_purchase_runtime_provider.dart';
 import 'subscription_pending_purchase_provider.dart';
 
@@ -72,6 +73,10 @@ class SubscriptionNativePurchaseStarter {
   final SubscriptionStoreCatalogService _catalogService;
   final SubscriptionPurchaseService _purchaseService;
   final SubscriptionPendingPurchaseRepository _repository;
+  final int _expectedSessionGeneration;
+  final String Function() _readCurrentScopeKey;
+  final int Function() _readCurrentSessionGeneration;
+  final bool Function() _isSessionTransitioning;
   final SubscriptionNativePurchaseLauncher _launcher;
   final Set<String> _inFlightScopes = <String>{};
 
@@ -81,12 +86,20 @@ class SubscriptionNativePurchaseStarter {
     required SubscriptionStoreCatalogService catalogService,
     required SubscriptionPurchaseService purchaseService,
     required SubscriptionPendingPurchaseRepository repository,
+    required int expectedSessionGeneration,
+    required String Function() readCurrentScopeKey,
+    required int Function() readCurrentSessionGeneration,
+    required bool Function() isSessionTransitioning,
     SubscriptionNativePurchaseLauncher? launcher,
   }) : _bootstrapRuntimePipeline = bootstrapRuntimePipeline,
        _runtimeService = runtimeService,
        _catalogService = catalogService,
        _purchaseService = purchaseService,
        _repository = repository,
+       _expectedSessionGeneration = expectedSessionGeneration,
+       _readCurrentScopeKey = readCurrentScopeKey,
+       _readCurrentSessionGeneration = readCurrentSessionGeneration,
+       _isSessionTransitioning = isSessionTransitioning,
        _launcher = launcher ?? InAppSubscriptionNativePurchaseLauncher();
 
   Future<SubscriptionNativePurchaseStartResult> startPurchase(
@@ -139,11 +152,31 @@ class SubscriptionNativePurchaseStarter {
 
     _inFlightScopes.add(scopeKey);
     try {
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed before runtime start.',
+        );
+      }
+
       final runtimeStart = await _ensureRuntimeStarted(
         planCode: normalizedPlan,
       );
       if (runtimeStart != null) {
         return runtimeStart;
+      }
+
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed after runtime start.',
+        );
       }
 
       final recoverable = await _repository.readRecoverableForScope(scopeKey);
@@ -163,11 +196,31 @@ class SubscriptionNativePurchaseStarter {
         );
       }
 
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed before catalog discovery.',
+        );
+      }
+
       final match = await _catalogService.discoverApprovedProductForPlan(
         normalizedPlan,
       );
       if (!match.isMatched || match.productDetails == null) {
         return _resultFromMatchFailure(match, normalizedPlan);
+      }
+
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed before intent creation.',
+        );
       }
 
       final intentResult = await _purchaseService.startPurchase(
@@ -182,6 +235,17 @@ class SubscriptionNativePurchaseStarter {
           planCode: normalizedPlan,
           errorCode: intentResult.errorCode ?? 'purchase_intent_failed',
           message: intentResult.message,
+        );
+      }
+
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed after intent creation.',
         );
       }
 
@@ -213,6 +277,17 @@ class SubscriptionNativePurchaseStarter {
           purchaseIntentId: purchaseIntentId,
           errorCode: 'invalid_correlation',
           message: 'Required purchase correlation metadata is missing.',
+        );
+      }
+
+      if (!_isExpectedSessionActive(scopeKey)) {
+        return SubscriptionNativePurchaseStartResult(
+          state: SubscriptionNativePurchaseStartState.failed,
+          platform: platform,
+          planCode: normalizedPlan,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase session changed before native launch.',
         );
       }
 
@@ -252,6 +327,15 @@ class SubscriptionNativePurchaseStarter {
     } finally {
       _inFlightScopes.remove(scopeKey);
     }
+  }
+
+  bool _isExpectedSessionActive(String expectedScopeKey) {
+    if (_isSessionTransitioning()) {
+      return false;
+    }
+
+    return _readCurrentSessionGeneration() == _expectedSessionGeneration &&
+        _readCurrentScopeKey() == expectedScopeKey;
   }
 
   Future<SubscriptionNativePurchaseStartResult?> _ensureRuntimeStarted({
@@ -379,6 +463,10 @@ class SubscriptionNativePurchaseStarter {
 
 final subscriptionNativePurchaseStarterProvider =
     Provider.autoDispose<SubscriptionNativePurchaseStarter>((ref) {
+      final expectedSessionGeneration = ref.watch(
+        authProvider.select((auth) => auth.sessionGeneration),
+      );
+
       return SubscriptionNativePurchaseStarter(
         bootstrapRuntimePipeline: () {
           ref.read(subscriptionNativePurchaseRuntimeProvider);
@@ -389,5 +477,13 @@ final subscriptionNativePurchaseStarterProvider =
         catalogService: ref.read(subscriptionStoreCatalogServiceProvider),
         purchaseService: ref.read(subscriptionPurchaseServiceProvider),
         repository: ref.read(subscriptionPendingPurchaseRepositoryProvider),
+        expectedSessionGeneration: expectedSessionGeneration,
+        readCurrentScopeKey: () =>
+            ref.read(currentSubscriptionPurchaseScopeKeyProvider),
+        readCurrentSessionGeneration: () =>
+            ref.read(authProvider.select((auth) => auth.sessionGeneration)),
+        isSessionTransitioning: () => ref.read(
+          authProvider.select((auth) => auth.isSessionTransitioning),
+        ),
       );
     });

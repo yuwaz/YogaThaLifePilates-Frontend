@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
+import '../providers/session_lifecycle_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
 import '../utils/app_bootstrap.dart';
 import 'entry_page.dart';
@@ -180,9 +181,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               );
               return;
             case OnboardingGateDecision.unauthorized:
-              await storage.clearAuthData();
-              await ref.read(authProvider.notifier).logout();
-              ref.invalidate(studioOnboardingProvider);
+              await ref.read(sessionLifecycleControllerProvider).logout();
 
               if (!mounted) return;
               final sessionExpiredMessage =

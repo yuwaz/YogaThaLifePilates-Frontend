@@ -8,6 +8,7 @@ import '../models/subscription_pending_purchase_intent.dart';
 import '../models/subscription_purchase_scope.dart';
 import '../models/subscription_store_product_match.dart';
 import '../services/subscription_purchase_service.dart';
+import 'auth_provider.dart';
 import 'subscription_native_purchase_runtime_provider.dart';
 import 'subscription_pending_purchase_provider.dart';
 import 'subscription_status_provider.dart';
@@ -56,6 +57,10 @@ class SubscriptionNativePurchaseProcessor {
   final SubscriptionPendingPurchaseRepository _repository;
   final SubscriptionStatusNotifier _statusNotifier;
   final SubscriptionStatusState Function() _readStatusState;
+  final int _expectedSessionGeneration;
+  final String Function() _readCurrentScopeKey;
+  final int Function() _readCurrentSessionGeneration;
+  final bool Function() _isSessionTransitioning;
   final SubscriptionNativePurchaseCompleter _completer;
   final Set<String> _inFlightIntentIds = <String>{};
 
@@ -64,11 +69,19 @@ class SubscriptionNativePurchaseProcessor {
     required SubscriptionPendingPurchaseRepository repository,
     required SubscriptionStatusNotifier statusNotifier,
     required SubscriptionStatusState Function() readStatusState,
+    required int expectedSessionGeneration,
+    required String Function() readCurrentScopeKey,
+    required int Function() readCurrentSessionGeneration,
+    required bool Function() isSessionTransitioning,
     SubscriptionNativePurchaseCompleter? completer,
   }) : _purchaseService = purchaseService,
        _repository = repository,
        _statusNotifier = statusNotifier,
        _readStatusState = readStatusState,
+       _expectedSessionGeneration = expectedSessionGeneration,
+       _readCurrentScopeKey = readCurrentScopeKey,
+       _readCurrentSessionGeneration = readCurrentSessionGeneration,
+       _isSessionTransitioning = isSessionTransitioning,
        _completer = completer ?? InAppSubscriptionNativePurchaseCompleter();
 
   Future<SubscriptionNativePurchaseProcessingResult> processEvent(
@@ -102,6 +115,15 @@ class SubscriptionNativePurchaseProcessor {
 
     _inFlightIntentIds.add(purchaseIntentId);
     try {
+      if (!_isExpectedSessionActive()) {
+        return SubscriptionNativePurchaseProcessingResult(
+          state: SubscriptionNativePurchaseProcessingState.ignored,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase processing session changed before verification.',
+        );
+      }
+
       final payload = _buildVerifyPayload(
         event,
         purchaseDetails,
@@ -123,7 +145,7 @@ class SubscriptionNativePurchaseProcessor {
 
       final verifySucceeded = _isVerifySucceeded(verifyResult);
       if (!verifySucceeded) {
-        if (_isValidScopeForMutation(_purchaseService.scopeKey)) {
+        if (_canMutateExpectedScope()) {
           final terminal = _isTerminalVerificationFailure(
             verifyResult.errorCode,
           );
@@ -143,12 +165,30 @@ class SubscriptionNativePurchaseProcessor {
         );
       }
 
-      if (_isValidScopeForMutation(_purchaseService.scopeKey)) {
+      if (!_isExpectedSessionActive()) {
+        return SubscriptionNativePurchaseProcessingResult(
+          state: SubscriptionNativePurchaseProcessingState.ignored,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase processing session changed after verification.',
+        );
+      }
+
+      if (_canMutateExpectedScope()) {
         await _repository.updateState(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
-          state: PendingPurchaseState.nativeCompletedAwaitingStatusRefresh,
+          state: PendingPurchaseState.verifiedAwaitingStatusRefresh,
           lastError: null,
+        );
+      }
+
+      if (!_isExpectedSessionActive()) {
+        return SubscriptionNativePurchaseProcessingResult(
+          state: SubscriptionNativePurchaseProcessingState.ignored,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase processing session changed before completion.',
         );
       }
 
@@ -158,7 +198,7 @@ class SubscriptionNativePurchaseProcessor {
       );
 
       if (!completionSatisfied) {
-        if (_isValidScopeForMutation(_purchaseService.scopeKey)) {
+        if (_canMutateExpectedScope()) {
           await _repository.incrementPendingPurchaseRetryCount(
             scopeKey: _purchaseService.scopeKey,
             purchaseIntentId: purchaseIntentId,
@@ -177,11 +217,20 @@ class SubscriptionNativePurchaseProcessor {
         );
       }
 
-      if (_isValidScopeForMutation(_purchaseService.scopeKey)) {
+      if (!_isExpectedSessionActive()) {
+        return SubscriptionNativePurchaseProcessingResult(
+          state: SubscriptionNativePurchaseProcessingState.ignored,
+          purchaseIntentId: purchaseIntentId,
+          errorCode: 'session_changed',
+          message: 'Purchase processing session changed before status refresh.',
+        );
+      }
+
+      if (_canMutateExpectedScope()) {
         await _repository.updateState(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
-          state: PendingPurchaseState.verifiedAwaitingStatusRefresh,
+          state: PendingPurchaseState.nativeCompletedAwaitingStatusRefresh,
           lastError: null,
         );
       }
@@ -193,7 +242,7 @@ class SubscriptionNativePurchaseProcessor {
           refreshedStatus.fetchState == SubscriptionFetchState.loaded &&
           refreshedStatus.subscription != null;
 
-      if (_isValidScopeForMutation(_purchaseService.scopeKey) && statusLoaded) {
+      if (_canMutateExpectedScope() && statusLoaded) {
         await _repository.markCompleted(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
@@ -212,7 +261,7 @@ class SubscriptionNativePurchaseProcessor {
         );
       }
 
-      if (_isValidScopeForMutation(_purchaseService.scopeKey)) {
+      if (_canMutateExpectedScope()) {
         await _repository.updateState(
           scopeKey: _purchaseService.scopeKey,
           purchaseIntentId: purchaseIntentId,
@@ -231,6 +280,28 @@ class SubscriptionNativePurchaseProcessor {
     } finally {
       _inFlightIntentIds.remove(purchaseIntentId);
     }
+  }
+
+  bool _isExpectedSessionActive() {
+    if (_isSessionTransitioning()) {
+      return false;
+    }
+
+    final expectedScopeKey = _purchaseService.scopeKey;
+    if (!isStableSubscriptionPurchaseScopeKey(expectedScopeKey)) {
+      return false;
+    }
+
+    return _readCurrentSessionGeneration() == _expectedSessionGeneration &&
+        _readCurrentScopeKey() == expectedScopeKey;
+  }
+
+  bool _canMutateExpectedScope() {
+    if (!_isExpectedSessionActive()) {
+      return false;
+    }
+
+    return isStableSubscriptionPurchaseScopeKey(_purchaseService.scopeKey);
   }
 
   SubscriptionNativePurchasePayload? _buildVerifyPayload(
@@ -301,10 +372,6 @@ class SubscriptionNativePurchaseProcessor {
       default:
         return false;
     }
-  }
-
-  bool _isValidScopeForMutation(String scopeKey) {
-    return isStableSubscriptionPurchaseScopeKey(scopeKey);
   }
 
   Future<bool> _completePurchaseIfRequired(
@@ -385,11 +452,23 @@ class SubscriptionNativePurchaseProcessingNotifier
 
 final subscriptionNativePurchaseProcessorProvider =
     Provider<SubscriptionNativePurchaseProcessor>((ref) {
+      final expectedSessionGeneration = ref.watch(
+        authProvider.select((auth) => auth.sessionGeneration),
+      );
+
       return SubscriptionNativePurchaseProcessor(
         purchaseService: ref.watch(subscriptionPurchaseServiceProvider),
         repository: ref.watch(subscriptionPendingPurchaseRepositoryProvider),
         statusNotifier: ref.watch(subscriptionStatusProvider.notifier),
         readStatusState: () => ref.read(subscriptionStatusProvider),
+        expectedSessionGeneration: expectedSessionGeneration,
+        readCurrentScopeKey: () =>
+            ref.read(currentSubscriptionPurchaseScopeKeyProvider),
+        readCurrentSessionGeneration: () =>
+            ref.read(authProvider.select((auth) => auth.sessionGeneration)),
+        isSessionTransitioning: () => ref.read(
+          authProvider.select((auth) => auth.isSessionTransitioning),
+        ),
       );
     });
 

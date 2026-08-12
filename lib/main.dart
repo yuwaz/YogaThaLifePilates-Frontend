@@ -9,6 +9,7 @@ import 'pages/main_page.dart';
 import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/session_lifecycle_provider.dart';
 import 'providers/subscription_native_purchase_recovery_provider.dart';
 import 'providers/secure_storage_service.dart';
 import 'providers/studio_onboarding_provider.dart';
@@ -96,9 +97,7 @@ class _AuthInitState extends ConsumerState<AuthInit> {
             });
             break;
           case OnboardingGateDecision.unauthorized:
-            await storage.clearAuthData();
-            await ref.read(authProvider.notifier).logout();
-            ref.invalidate(studioOnboardingProvider);
+            await ref.read(sessionLifecycleControllerProvider).logout();
             _startupDestination = StartupDestination.entry;
             break;
         }
