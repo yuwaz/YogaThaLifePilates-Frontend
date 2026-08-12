@@ -709,6 +709,7 @@ class _PlanCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
+    SubscriptionStoreProductMatchResult? matchResult;
     String? localizedPrice;
     if (isMobilePlatform) {
       final storeMatch = ref.watch(
@@ -718,10 +719,18 @@ class _PlanCard extends ConsumerWidget {
         data: (value) => value,
         orElse: () => null,
       );
+      matchResult = result;
       if (result != null && result.isMatched && result.productDetails != null) {
         localizedPrice = result.productDetails!.price;
       }
     }
+
+    final canPurchase =
+        isMobilePlatform &&
+        matchResult != null &&
+        matchResult.isMatched &&
+        matchResult.productDetails != null &&
+        onPurchase != null;
 
     return Card(
       child: Padding(
@@ -769,7 +778,7 @@ class _PlanCard extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 12),
-            if (isMobilePlatform)
+            if (canPurchase)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

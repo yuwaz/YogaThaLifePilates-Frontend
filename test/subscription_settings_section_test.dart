@@ -263,6 +263,27 @@ SubscriptionCatalogState _loadedCatalog(List<String> plans) {
   );
 }
 
+SubscriptionStoreProductMatchResult _matchedStoreResult(
+  SubscriptionStorePlatform platform,
+  String planCode,
+) {
+  return SubscriptionStoreProductMatchResult(
+    status: SubscriptionStoreProductMatchStatus.matched,
+    platform: platform,
+    planCode: planCode,
+    productDetails: ProductDetails(
+      id: platform == SubscriptionStorePlatform.googlePlay
+          ? 'gp.product'
+          : 'apple.product',
+      title: 'Plan $planCode',
+      description: 'Subscription plan',
+      price: '\$4.99',
+      rawPrice: 4.99,
+      currencyCode: 'USD',
+    ),
+  );
+}
+
 void main() {
   testWidgets('loaded status renders safely', (tester) async {
     final statusNotifier = _FakeStatusNotifier(_loadedStatus());
@@ -275,6 +296,12 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
@@ -303,6 +330,12 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
@@ -328,6 +361,12 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
@@ -352,6 +391,12 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
@@ -447,13 +492,19 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Choose plan').first);
+    await tester.tap(find.byType(ElevatedButton).first);
     await tester.pumpAndSettle();
 
     expect(starter.calls, 1);
@@ -481,17 +532,63 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.googlePlay,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.googlePlay,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Choose plan').first);
+    await tester.tap(find.byType(ElevatedButton).first);
     await tester.pumpAndSettle();
 
     expect(starter.calls, 1);
     expect(starter.lastPlanCode, 'basic');
+  });
+
+  testWidgets('mobile hides purchase action when store match is unavailable', (
+    tester,
+  ) async {
+    final statusNotifier = _FakeStatusNotifier(_loadedStatus());
+    final catalogNotifier = _FakeCatalogNotifier(_loadedCatalog(['basic']));
+    final starter = _FakePurchaseStarter(
+      handler: (planCode) async => SubscriptionNativePurchaseStartResult(
+        state: SubscriptionNativePurchaseStartState.started,
+        platform: SubscriptionStorePlatform.appleAppStore,
+        planCode: planCode,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _buildHarness([
+        subscriptionStatusProvider.overrideWith((ref) => statusNotifier),
+        subscriptionCatalogProvider.overrideWith((ref) => catalogNotifier),
+        subscriptionNativePurchaseStarterProvider.overrideWith(
+          (ref) => starter,
+        ),
+        subscriptionStoreCatalogServiceProvider.overrideWith(
+          (ref) => _FakeStoreCatalogService(
+            platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': const SubscriptionStoreProductMatchResult(
+                status: SubscriptionStoreProductMatchStatus.unavailable,
+                platform: SubscriptionStorePlatform.appleAppStore,
+                planCode: 'basic',
+              ),
+            },
+          ),
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose plan'), findsNothing);
+    expect(starter.calls, 0);
   });
 
   testWidgets(
@@ -561,6 +658,12 @@ void main() {
         subscriptionStoreCatalogServiceProvider.overrideWith(
           (ref) => _FakeStoreCatalogService(
             platform: SubscriptionStorePlatform.appleAppStore,
+            results: {
+              'basic': _matchedStoreResult(
+                SubscriptionStorePlatform.appleAppStore,
+                'basic',
+              ),
+            },
           ),
         ),
       ]),
@@ -650,13 +753,19 @@ void main() {
           subscriptionStoreCatalogServiceProvider.overrideWith(
             (ref) => _FakeStoreCatalogService(
               platform: SubscriptionStorePlatform.appleAppStore,
+              results: {
+                'basic': _matchedStoreResult(
+                  SubscriptionStorePlatform.appleAppStore,
+                  'basic',
+                ),
+              },
             ),
           ),
         ]),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Choose plan').first);
+      await tester.tap(find.byType(ElevatedButton).first);
       await tester.pumpAndSettle();
 
       expect(find.text('Unknown status'), findsOneWidget);
