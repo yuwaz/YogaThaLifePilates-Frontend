@@ -270,5 +270,11 @@
 "subscriptionStatusIncompleteExpired": "Incomplete expired",
 "subscriptionStatusPaused": "Paused",
 "subscriptionStatusGracePeriod": "Grace period",
-"subscriptionSessionChanged": "Your session changed. Please try again."
+"subscriptionSessionChanged": "Your session changed. Please try again.",
+"subscriptionRequiredTitle": "Subscription required",
+"subscriptionRequiredAdminDescription": "Your session is active, but operational access is unavailable until subscription access is restored. Use Subscription settings to recover access.",
+"subscriptionRequiredInstructorDescription": "Operational access is unavailable because your studio subscription requires administrator action.",
+"subscriptionAdministratorActionRequired": "Please contact your studio administrator to restore subscription access.",
+"subscriptionCheckUnavailableTitle": "Subscription check temporarily unavailable",
+"subscriptionCheckUnavailableDescription": "We could not verify subscription access right now. Please retry."
 }

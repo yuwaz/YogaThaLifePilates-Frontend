@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/member.dart';
+import '../models/subscription_enforcement_signal.dart';
+import 'subscription_enforcement_provider.dart';
 
 enum MemberStatus { initial, loading, loaded, error }
 
@@ -135,10 +137,24 @@ class MemberState {
 }
 
 final memberProvider = StateNotifierProvider<MemberNotifier, MemberState>(
-  (ref) => MemberNotifier(),
+  (ref) => MemberNotifier(ref),
 );
 
 class MemberNotifier extends StateNotifier<MemberState> {
+  final Ref _ref;
+
+  void _reportSignal(http.Response response) {
+    final signal = classifySubscriptionEnforcementResponse(response);
+    if (signal == null) return;
+    _ref
+        .read(subscriptionEnforcementProvider.notifier)
+        .reportSignal(signal: signal, source: 'members');
+  }
+
+  void _clearSignal() {
+    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+  }
+
   Future<Member?> fetchMemberDetail(int memberId, String token) async {
     try {
       final url = '$BASE_URL/$memberId';
@@ -187,7 +203,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
     }
   }
 
-  MemberNotifier() : super(MemberState(members: []));
+  MemberNotifier(this._ref) : super(MemberState(members: []));
 
   Future<void> fetchAllMembers(String token) async {
     // Fetch all members, including inactive (admin only)
@@ -260,6 +276,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
       );
 
       if (response.statusCode == 200) {
+        _clearSignal();
         List data;
         try {
           data = json.decode(response.body) as List;
@@ -291,6 +308,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
           error: null,
         );
       } else {
+        _reportSignal(response);
         print(
           '[PERF] members fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
         );

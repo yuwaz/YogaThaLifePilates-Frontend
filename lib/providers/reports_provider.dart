@@ -2,9 +2,11 @@ import '../api_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../models/subscription_enforcement_signal.dart';
+import 'subscription_enforcement_provider.dart';
 
 final reportsProvider = StateNotifierProvider<ReportsNotifier, ReportsState>(
-  (ref) => ReportsNotifier(),
+  (ref) => ReportsNotifier(ref),
 );
 
 class ReportsState {
@@ -27,7 +29,21 @@ class ReportsState {
 }
 
 class ReportsNotifier extends StateNotifier<ReportsState> {
-  ReportsNotifier() : super(ReportsState());
+  final Ref _ref;
+
+  ReportsNotifier(this._ref) : super(ReportsState());
+
+  void _reportSignal(http.Response response) {
+    final signal = classifySubscriptionEnforcementResponse(response);
+    if (signal == null) return;
+    _ref
+        .read(subscriptionEnforcementProvider.notifier)
+        .reportSignal(signal: signal, source: 'reports');
+  }
+
+  void _clearSignal() {
+    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+  }
 
   int _safeInt(dynamic value) {
     if (value is int) return value;
@@ -100,6 +116,7 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
       );
       print('[ReportsPage] REPORTS RESPONSE STATUS: ${response.statusCode}');
       if (response.statusCode == 200) {
+        _clearSignal();
         final data = _normalizeReportsData(
           json.decode(response.body) as Map<String, dynamic>,
         );
@@ -108,6 +125,7 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
         );
         state = state.copyWith(loading: false, data: data);
       } else {
+        _reportSignal(response);
         print(
           '[ReportsPage] reports fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
         );

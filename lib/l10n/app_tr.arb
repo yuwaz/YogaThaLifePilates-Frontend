@@ -271,5 +271,11 @@
 "subscriptionStatusIncompleteExpired": "Tamamlanmamış süresi dolmuş",
 "subscriptionStatusPaused": "Duraklatılmış",
 "subscriptionStatusGracePeriod": "Ek süre",
-"subscriptionSessionChanged": "Oturumunuz değişti. Lütfen tekrar deneyin."
+"subscriptionSessionChanged": "Oturumunuz değişti. Lütfen tekrar deneyin.",
+"subscriptionRequiredTitle": "Abonelik gerekli",
+"subscriptionRequiredAdminDescription": "Oturumunuz açık, ancak abonelik erişimi geri yüklenene kadar operasyonel erişim kullanılamıyor. Erişimi geri kazanmak için Abonelik ayarlarını kullanın.",
+"subscriptionRequiredInstructorDescription": "Stüdyo aboneliği için yönetici işlemi gerektiğinden operasyonel erişim kullanılamıyor.",
+"subscriptionAdministratorActionRequired": "Abonelik erişimini geri yüklemek için lütfen stüdyo yöneticinizle iletişime geçin.",
+"subscriptionCheckUnavailableTitle": "Abonelik kontrolü geçici olarak kullanılamıyor",
+"subscriptionCheckUnavailableDescription": "Abonelik erişimini şu anda doğrulayamadık. Lütfen tekrar deneyin."
 }

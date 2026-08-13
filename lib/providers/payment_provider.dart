@@ -3,14 +3,30 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/payment.dart';
+import '../models/subscription_enforcement_signal.dart';
+import 'subscription_enforcement_provider.dart';
 
 final paymentProvider =
     StateNotifierProvider<PaymentNotifier, AsyncValue<List<Payment>>>(
-      (ref) => PaymentNotifier(),
+      (ref) => PaymentNotifier(ref),
     );
 
 class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
-  PaymentNotifier() : super(const AsyncValue.loading());
+  final Ref _ref;
+
+  PaymentNotifier(this._ref) : super(const AsyncValue.loading());
+
+  void _reportSignal(http.Response response) {
+    final signal = classifySubscriptionEnforcementResponse(response);
+    if (signal == null) return;
+    _ref
+        .read(subscriptionEnforcementProvider.notifier)
+        .reportSignal(signal: signal, source: 'payments');
+  }
+
+  void _clearSignal() {
+    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+  }
 
   static String get baseUrl => '${ApiConfig.baseUrl}/settings/payments';
 
@@ -39,6 +55,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       );
 
       if (response.statusCode == 200) {
+        _clearSignal();
         final decoded = json.decode(response.body);
 
         if (decoded is List) {
@@ -56,6 +73,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       }
 
       String errorMsg = 'Failed to fetch payments';
+      _reportSignal(response);
 
       try {
         final decoded = json.decode(response.body);

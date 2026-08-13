@@ -3,13 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/attendance.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../models/subscription_enforcement_signal.dart';
+import 'subscription_enforcement_provider.dart';
 
 final attendanceProvider =
     StateNotifierProvider<AttendanceNotifier, AsyncValue<List<Attendance>>>(
-      (ref) => AttendanceNotifier(),
+      (ref) => AttendanceNotifier(ref),
     );
 
 class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
+  final Ref _ref;
+
+  void _reportSignal(http.Response response) {
+    final signal = classifySubscriptionEnforcementResponse(response);
+    if (signal == null) return;
+    _ref
+        .read(subscriptionEnforcementProvider.notifier)
+        .reportSignal(signal: signal, source: 'attendance');
+  }
+
+  void _clearSignal() {
+    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+  }
+
   bool _isFetching = false;
   bool _hasLoadedOnce = false;
 
@@ -55,7 +71,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
   }
 
   String? lastError;
-  AttendanceNotifier() : super(const AsyncValue.loading());
+  AttendanceNotifier(this._ref) : super(const AsyncValue.loading());
 
   static String get baseUrl => '${ApiConfig.baseUrl}/settings/attendances';
 
@@ -79,6 +95,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
           .get(Uri.parse(url), headers: headers)
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
+        _clearSignal();
         final List data = json.decode(response.body);
         _hasLoadedOnce = true;
         state = AsyncValue.data(
@@ -88,6 +105,7 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
           '[PERF] attendance fetch done: ${data.length} items, ${stopwatch.elapsedMilliseconds}ms',
         );
       } else {
+        _reportSignal(response);
         print(
           '[PERF] attendance fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
         );

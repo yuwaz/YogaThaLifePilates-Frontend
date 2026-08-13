@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reservation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../models/subscription_enforcement_signal.dart';
+import 'subscription_enforcement_provider.dart';
 
 final reservationsProvider =
     StateNotifierProvider<ReservationsNotifier, ReservationsState>(
-      (ref) => ReservationsNotifier(),
+      (ref) => ReservationsNotifier(ref),
     );
 
 class ReservationsState {
@@ -34,9 +36,23 @@ class ReservationsState {
 }
 
 class ReservationsNotifier extends StateNotifier<ReservationsState> {
+  final Ref _ref;
+
+  void _reportSignal(http.Response response) {
+    final signal = classifySubscriptionEnforcementResponse(response);
+    if (signal == null) return;
+    _ref
+        .read(subscriptionEnforcementProvider.notifier)
+        .reportSignal(signal: signal, source: 'reservations');
+  }
+
+  void _clearSignal() {
+    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+  }
+
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/reservations';
 
-  ReservationsNotifier() : super(ReservationsState(reservations: []));
+  ReservationsNotifier(this._ref) : super(ReservationsState(reservations: []));
 
   Future<void> fetchReservations(
     String token, {
@@ -64,6 +80,7 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final reservations = data.map((e) => Reservation.fromJson(e)).toList();
 
@@ -77,6 +94,7 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
           '[PERF] reservations fetch done: ${reservations.length} items, ${stopwatch.elapsedMilliseconds}ms',
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load reservations',

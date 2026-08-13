@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/subscription_enforcement_signal.dart';
 import '../providers/auth_provider.dart';
+import '../providers/subscription_enforcement_provider.dart';
 import 'members_page.dart';
 import 'reservations_page.dart';
 import 'payments_page.dart';
@@ -8,6 +10,7 @@ import 'attendance_page.dart';
 import 'reports_page.dart';
 import 'settings_page.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/subscription_settings_section.dart';
 
 const kBrandTextColor = Color(0xFF116478);
 const kBrandBackgroundColor = Color(0xFFF6F6D7);
@@ -97,9 +100,21 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final enforcementState = ref.watch(subscriptionEnforcementProvider);
     _role = auth.role ?? '';
     _token = auth.token ?? '';
     _assignedSalonIds = auth.assignedSalonIds;
+    final isAdmin = _role == 'admin';
+
+    if (enforcementState.signal != null) {
+      return _SubscriptionRecoveryScaffold(
+        isAdmin: isAdmin,
+        isCheckUnavailable:
+            enforcementState.signal!.kind ==
+            SubscriptionEnforcementSignalKind.checkUnavailable,
+      );
+    }
+
     final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
@@ -168,4 +183,111 @@ class _NavItem {
   final Widget page;
   final String permissionKey;
   _NavItem(this.label, this.icon, this.page, {required this.permissionKey});
+}
+
+class _SubscriptionRecoveryScaffold extends ConsumerWidget {
+  final bool isAdmin;
+  final bool isCheckUnavailable;
+
+  const _SubscriptionRecoveryScaffold({
+    required this.isAdmin,
+    required this.isCheckUnavailable,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
+
+    final title = isCheckUnavailable
+        ? (loc?.translate('subscriptionCheckUnavailableTitle') ??
+              'Subscription check temporarily unavailable')
+        : (loc?.translate('subscriptionRequiredTitle') ??
+              'Subscription required');
+
+    final description = isCheckUnavailable
+        ? (loc?.translate('subscriptionCheckUnavailableDescription') ??
+              'We could not verify subscription access right now. Please retry.')
+        : isAdmin
+        ? (loc?.translate('subscriptionRequiredAdminDescription') ??
+              'Your session is active, but operational access is unavailable until subscription access is restored. Use Subscription settings to recover access.')
+        : (loc?.translate('subscriptionRequiredInstructorDescription') ??
+              'Operational access is unavailable because your studio subscription requires administrator action.');
+
+    return Scaffold(
+      backgroundColor: kBrandBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: kBrandBackgroundColor,
+        foregroundColor: kBrandTextColor,
+        elevation: 0,
+        title: Text(loc?.translate('settings') ?? 'Settings'),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(description),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(
+                                    subscriptionEnforcementProvider.notifier,
+                                  )
+                                  .clearSignal();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: Text(loc?.translate('retry') ?? 'Retry'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (isAdmin) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: SubscriptionSettingsSection(),
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      loc?.translate(
+                            'subscriptionAdministratorActionRequired',
+                          ) ??
+                          'Please contact your studio administrator to restore subscription access.',
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
