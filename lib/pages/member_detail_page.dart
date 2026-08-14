@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/reservation_provider.dart';
+import '../providers/subscription_enforcement_provider.dart';
 import '../api_config.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -198,6 +199,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       );
       print('[MemberDetailPage] Delete response body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 204) {
+        clearSubscriptionEnforcementSignal(ref.read);
         await fetchDetail();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -210,6 +212,11 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
           );
         }
       } else {
+        reportSubscriptionEnforcementResponse(
+          read: ref.read,
+          response: response,
+          source: 'members',
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -341,6 +348,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       print('[MemberDetailPage] Response status: ${response.statusCode}');
       print('[MemberDetailPage] Response body: ${response.body}');
       if (response.statusCode == 200) {
+        clearSubscriptionEnforcementSignal(ref.read);
         try {
           final data = json.decode(response.body);
           print('[MemberDetailPage] JSON parsed successfully');
@@ -361,6 +369,11 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
           });
         }
       } else {
+        reportSubscriptionEnforcementResponse(
+          read: ref.read,
+          response: response,
+          source: 'members',
+        );
         print(
           '[MemberDetailPage] Request failed with status: ${response.statusCode}',
         );

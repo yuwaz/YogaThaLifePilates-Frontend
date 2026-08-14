@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../api_config.dart';
 import '../models/manual_card_usage.dart';
+import 'subscription_enforcement_provider.dart';
 
 class ManualCardUsageState {
   final List<ManualCardUsage> items;
@@ -32,11 +33,25 @@ class ManualCardUsageState {
 
 final manualCardUsageProvider =
     StateNotifierProvider<ManualCardUsageNotifier, ManualCardUsageState>(
-      (ref) => ManualCardUsageNotifier(),
+      (ref) => ManualCardUsageNotifier(ref),
     );
 
 class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
-  ManualCardUsageNotifier() : super(const ManualCardUsageState());
+  final Ref _ref;
+
+  ManualCardUsageNotifier(this._ref) : super(const ManualCardUsageState());
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'manualCardUsages',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
+  }
 
   static String get _baseUrl =>
       '${ApiConfig.baseUrl}/settings/manual-card-usages';
@@ -111,11 +126,13 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
       );
 
       if (response.statusCode == 200) {
+        _clearSignal();
         final items = _parseListResponse(response.body);
         state = state.copyWith(items: items, isLoading: false, error: null);
         return;
       }
 
+      _reportSignal(response);
       state = state.copyWith(
         isLoading: false,
         error: _extractErrorMessage(
@@ -140,6 +157,7 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        _clearSignal();
         final created = _parseSingleResponse(response.body);
         if (created != null) {
           state = state.copyWith(items: [created, ...state.items], error: null);
@@ -147,6 +165,7 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
         return null;
       }
 
+      _reportSignal(response);
       final message = _extractErrorMessage(
         response,
         'Manuel kullanım eklenemedi',
@@ -172,6 +191,7 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
       );
 
       if (response.statusCode == 200) {
+        _clearSignal();
         final updated = _parseSingleResponse(response.body) ?? usage;
         final next = state.items
             .map((item) => item.id == updated.id ? updated : item)
@@ -180,6 +200,7 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
         return null;
       }
 
+      _reportSignal(response);
       final message = _extractErrorMessage(
         response,
         'Manuel kullanım güncellenemedi',
@@ -201,11 +222,13 @@ class ManualCardUsageNotifier extends StateNotifier<ManualCardUsageState> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
         final next = state.items.where((item) => item.id != id).toList();
         state = state.copyWith(items: next, error: null);
         return null;
       }
 
+      _reportSignal(response);
       final message = _extractErrorMessage(
         response,
         'Manuel kullanım silinemedi',

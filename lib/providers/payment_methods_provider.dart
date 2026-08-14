@@ -3,6 +3,7 @@ import 'secure_storage_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'subscription_enforcement_provider.dart';
 
 class PaymentMethod {
   final String id;
@@ -21,7 +22,7 @@ class PaymentMethod {
 
 final paymentMethodsProvider =
     StateNotifierProvider<PaymentMethodsProvider, PaymentMethodsState>(
-      (ref) => PaymentMethodsProvider(),
+      (ref) => PaymentMethodsProvider(ref),
     );
 
 class PaymentMethodsState {
@@ -49,6 +50,8 @@ class PaymentMethodsState {
 }
 
 class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
+  final Ref _ref;
+
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/paymentMethods';
 
   final SecureStorageService _storage = SecureStorageService();
@@ -61,8 +64,21 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
     };
   }
 
-  PaymentMethodsProvider() : super(PaymentMethodsState(paymentMethods: [])) {
+  PaymentMethodsProvider(this._ref)
+    : super(PaymentMethodsState(paymentMethods: [])) {
     fetchPaymentMethods();
+  }
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'paymentMethods',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   Future<void> fetchPaymentMethods() async {
@@ -73,6 +89,7 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
         headers: await _authHeaders(),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final paymentMethods = data
             .map((e) => PaymentMethod.fromJson(e))
@@ -83,6 +100,7 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
           error: null,
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load payment methods',
@@ -104,8 +122,10 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
         body: json.encode(body),
       );
       if (response.statusCode == 201) {
+        _clearSignal();
         fetchPaymentMethods();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -134,8 +154,10 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
         body: json.encode(body),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         fetchPaymentMethods();
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to update payment method',
@@ -161,10 +183,12 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
       print('PaymentMethod delete response status: ${response.statusCode}');
       print('PaymentMethod delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         throw Exception(
           'Failed to delete payment method: ${response.statusCode} ${response.body}',
         );
       }
+      _clearSignal();
       await fetchPaymentMethods();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

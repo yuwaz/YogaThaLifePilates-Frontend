@@ -164,4 +164,59 @@ void main() {
     );
     expect(_findAnyText(const ['Retry', 'Tekrar Dene']), findsWidgets);
   });
+
+  testWidgets('repeated same enforcement signal stays deduplicated', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container
+        .read(authProvider.notifier)
+        .setAuth(
+          token: 'token',
+          role: 'admin',
+          assignedSalonIds: const [],
+          permissions: const ['settings'],
+        );
+
+    final notifier = container.read(subscriptionEnforcementProvider.notifier);
+    notifier.reportSignal(
+      signal: const SubscriptionEnforcementSignal(
+        kind: SubscriptionEnforcementSignalKind.required,
+        statusCode: 402,
+        code: 'SUBSCRIPTION_REQUIRED',
+        subscriptionStatus: 'cancelled',
+        normalizedStatus: 'expired',
+        trialExpired: true,
+        recoveryAllowed: true,
+      ),
+      source: 'members',
+    );
+    final first = container.read(subscriptionEnforcementProvider).sequence;
+
+    notifier.reportSignal(
+      signal: const SubscriptionEnforcementSignal(
+        kind: SubscriptionEnforcementSignalKind.required,
+        statusCode: 402,
+        code: 'SUBSCRIPTION_REQUIRED',
+        subscriptionStatus: 'cancelled',
+        normalizedStatus: 'expired',
+        trialExpired: true,
+        recoveryAllowed: true,
+      ),
+      source: 'members',
+    );
+    final second = container.read(subscriptionEnforcementProvider).sequence;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MyApp(startupDestination: StartupDestination.main),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(first, second);
+  });
 }

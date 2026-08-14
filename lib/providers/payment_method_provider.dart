@@ -2,6 +2,7 @@ import '../api_config.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'subscription_enforcement_provider.dart';
 
 final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   ref,
@@ -27,6 +28,11 @@ final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   );
 
   if (response.statusCode != 200) {
+    reportSubscriptionEnforcementResponse(
+      read: ref.read,
+      response: response,
+      source: 'paymentMethods',
+    );
     String errorMsg = 'Failed to fetch payment methods';
 
     try {
@@ -48,6 +54,7 @@ final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   }
 
   final decoded = json.decode(response.body);
+  clearSubscriptionEnforcementSignal(ref.read);
 
   if (decoded is List) {
     final methods = decoded.map<String>((item) {

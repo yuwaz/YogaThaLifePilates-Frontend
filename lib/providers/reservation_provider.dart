@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reservation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/subscription_enforcement_signal.dart';
 import 'subscription_enforcement_provider.dart';
 
 final reservationsProvider =
@@ -39,15 +38,15 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
   final Ref _ref;
 
   void _reportSignal(http.Response response) {
-    final signal = classifySubscriptionEnforcementResponse(response);
-    if (signal == null) return;
-    _ref
-        .read(subscriptionEnforcementProvider.notifier)
-        .reportSignal(signal: signal, source: 'reservations');
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'reservations',
+    );
   }
 
   void _clearSignal() {
-    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/reservations';
@@ -155,12 +154,14 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       print('[ReservationProvider] CREATE RESPONSE BODY: ${response.body}');
 
       if (response.statusCode == 201) {
+        _clearSignal();
         state = state.copyWith(isLoading: false, error: null);
         print(
           '[ReservationProvider] addReservation: reservation count after create = ${state.reservations.length}',
         );
         return null;
       } else {
+        _reportSignal(response);
         final error = json.decode(response.body);
         final message = error['error'] ?? error['message'];
         state = state.copyWith(
@@ -220,9 +221,11 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       print('[ReservationProvider] UPDATE RESPONSE BODY: ${response.body}');
 
       if (response.statusCode == 200) {
+        _clearSignal();
         state = state.copyWith(isLoading: false, error: null);
         return null;
       } else {
+        _reportSignal(response);
         final error = json.decode(response.body);
         final message = error['error'] ?? error['message'];
         state = state.copyWith(
@@ -255,6 +258,7 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
         if (deleteScope == 'single') {
           final remaining = state.reservations
               .where((r) => r.id != id)
@@ -269,6 +273,7 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
         }
         return null;
       } else {
+        _reportSignal(response);
         final error = json.decode(response.body);
         final errorMessage =
             error['error'] ??

@@ -5,14 +5,29 @@ import 'package:http/http.dart' as http;
 
 import '../api_config.dart';
 import '../models/expense.dart';
+import 'subscription_enforcement_provider.dart';
 
 final expenseProvider =
     StateNotifierProvider<ExpenseNotifier, AsyncValue<List<Expense>>>(
-      (ref) => ExpenseNotifier(),
+      (ref) => ExpenseNotifier(ref),
     );
 
 class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
-  ExpenseNotifier() : super(const AsyncValue.loading());
+  final Ref _ref;
+
+  ExpenseNotifier(this._ref) : super(const AsyncValue.loading());
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'expenses',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
+  }
 
   static String get baseUrl => '${ApiConfig.baseUrl}/settings/expenses';
 
@@ -41,6 +56,7 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       );
 
       if (response.statusCode == 200) {
+        _clearSignal();
         final decoded = json.decode(response.body);
 
         if (decoded is List) {
@@ -60,6 +76,7 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       }
 
       String errorMsg = 'Failed to fetch expenses';
+      _reportSignal(response);
 
       try {
         final decoded = json.decode(response.body);
@@ -100,9 +117,12 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       print('[expenseProvider][addExpense] Body: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        _clearSignal();
         await fetchExpenses(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);
@@ -149,9 +169,12 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       print('[expenseProvider][updateExpense] Body: ${response.body}');
 
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchExpenses(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);
@@ -193,9 +216,12 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       print('[expenseProvider][deleteExpense] Body: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
+        _clearSignal();
         await fetchExpenses(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);

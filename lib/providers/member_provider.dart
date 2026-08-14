@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/member.dart';
-import '../models/subscription_enforcement_signal.dart';
 import 'subscription_enforcement_provider.dart';
 
 enum MemberStatus { initial, loading, loaded, error }
@@ -144,15 +143,15 @@ class MemberNotifier extends StateNotifier<MemberState> {
   final Ref _ref;
 
   void _reportSignal(http.Response response) {
-    final signal = classifySubscriptionEnforcementResponse(response);
-    if (signal == null) return;
-    _ref
-        .read(subscriptionEnforcementProvider.notifier)
-        .reportSignal(signal: signal, source: 'members');
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'members',
+    );
   }
 
   void _clearSignal() {
-    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   Future<Member?> fetchMemberDetail(int memberId, String token) async {
@@ -163,6 +162,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final data = json.decode(response.body);
         final member = Member.fromJson(data);
         // Optionally update state if you want to keep detail in list
@@ -189,9 +189,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
         },
       );
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
         await fetchMembers(token);
         return null;
       } else {
+        _reportSignal(response);
         final error = response.body.isNotEmpty
             ? jsonDecode(response.body)
             : <String, dynamic>{};
@@ -214,6 +216,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List data = json.decode(response.body);
         final List<Member> parsedMembers = [];
         for (final item in data) {
@@ -228,6 +231,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
           error: null,
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           status: MemberStatus.error,
           error: 'Failed to fetch all members',
@@ -250,9 +254,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
         },
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchAllMembers(token);
         return null;
       } else {
+        _reportSignal(response);
         final error = response.body.isNotEmpty
             ? jsonDecode(response.body)
             : <String, dynamic>{};
@@ -377,9 +383,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print('[MemberProvider] addMember response body: ${response.body}');
 
       if (response.statusCode == 201) {
+        _clearSignal();
         await fetchMembers(token);
         return null;
       } else {
+        _reportSignal(response);
         final error = jsonDecode(response.body);
         final message =
             error['error'] ?? error['message'] ?? 'Failed to add member';
@@ -446,9 +454,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print('[MemberProvider] updateMember response body: ${response.body}');
 
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchMembers(token);
         return null;
       } else {
+        _reportSignal(response);
         final error = jsonDecode(response.body);
         final message =
             error['error'] ?? error['message'] ?? 'Failed to update member';
@@ -489,11 +499,13 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print('[MemberProvider] deleteMember response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
         // Success: clear loading and refresh
         await fetchMembers(token);
         state = state.copyWith(status: MemberStatus.loaded, error: null);
         return null;
       } else {
+        _reportSignal(response);
         // Error: clear loading and set error
         final error = response.body.isNotEmpty
             ? jsonDecode(response.body)
@@ -559,15 +571,18 @@ class MemberNotifier extends StateNotifier<MemberState> {
       final contentType = response.headers['content-type'] ?? '';
       if (response.statusCode == 200 &&
           contentType.contains('application/json')) {
+        _clearSignal();
         await fetchMembers(token);
         return null;
       } else if (contentType.contains('text/html')) {
+        _reportSignal(response);
         final msg =
             'Assign lesson package failed: server returned HTML error page';
         print('[MemberProvider] $msg');
         state = state.copyWith(status: MemberStatus.error, error: msg);
         return msg;
       } else if (contentType.contains('application/json')) {
+        _reportSignal(response);
         try {
           final error = response.body.isNotEmpty
               ? jsonDecode(response.body)
@@ -583,6 +598,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
           return msg;
         }
       } else {
+        _reportSignal(response);
         final msg =
             'Assign lesson package failed: unexpected response type (${contentType})';
         print('[MemberProvider] $msg');
@@ -607,8 +623,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
     );
 
     if (response.statusCode != 200) {
+      _reportSignal(response);
       throw Exception('Failed to fetch member measurements');
     }
+
+    _clearSignal();
 
     final decoded = jsonDecode(response.body);
     final rawList = decoded is List
@@ -660,8 +679,11 @@ class MemberNotifier extends StateNotifier<MemberState> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        _clearSignal();
         return null;
       }
+
+      _reportSignal(response);
 
       if (response.body.isNotEmpty) {
         final error = jsonDecode(response.body);

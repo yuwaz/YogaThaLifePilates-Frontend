@@ -4,10 +4,11 @@ import '../api_config.dart';
 import 'dart:convert';
 import '../models/equipment.dart';
 import 'secure_storage_service.dart';
+import 'subscription_enforcement_provider.dart';
 
 final equipmentProvider =
     StateNotifierProvider<EquipmentProvider, EquipmentState>(
-      (ref) => EquipmentProvider(),
+      (ref) => EquipmentProvider(ref),
     );
 
 class EquipmentState {
@@ -35,6 +36,8 @@ class EquipmentState {
 }
 
 class EquipmentProvider extends StateNotifier<EquipmentState> {
+  final Ref _ref;
+
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/equipment';
   static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
   final SecureStorageService _storage = SecureStorageService();
@@ -55,7 +58,19 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
     return _deleteFallbackMessage;
   }
 
-  EquipmentProvider() : super(EquipmentState(equipmentList: []));
+  EquipmentProvider(this._ref) : super(EquipmentState(equipmentList: []));
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'equipment',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
+  }
 
   Future<Map<String, String>> _authHeaders() async {
     final token = await _storage.getToken();
@@ -75,6 +90,7 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
         headers: await _authHeaders(),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final equipmentList = data.map((e) => Equipment.fromJson(e)).toList();
         state = state.copyWith(
@@ -86,6 +102,7 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
           '[PERF] equipment fetch done: ${equipmentList.length} items, ${stopwatch.elapsedMilliseconds}ms',
         );
       } else {
+        _reportSignal(response);
         print(
           '[PERF] equipment fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
         );
@@ -115,8 +132,10 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
         body: json.encode(body),
       );
       if (response.statusCode == 201) {
+        _clearSignal();
         fetchEquipment();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -152,8 +171,10 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
         body: json.encode(body),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         fetchEquipment();
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to update equipment',
@@ -179,12 +200,14 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
       print('Equipment delete response status: ${response.statusCode}');
       print('Equipment delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: _extractDeleteErrorMessage(response),
         );
         return;
       }
+      _clearSignal();
       await fetchEquipment();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);

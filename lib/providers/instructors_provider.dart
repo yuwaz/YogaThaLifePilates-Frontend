@@ -4,10 +4,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/instructor.dart' as model;
 import 'secure_storage_service.dart';
+import 'subscription_enforcement_provider.dart';
 
 final instructorsProvider =
     StateNotifierProvider<InstructorsProvider, InstructorsState>(
-      (ref) => InstructorsProvider(),
+      (ref) => InstructorsProvider(ref),
     );
 
 class InstructorsState {
@@ -35,13 +36,27 @@ class InstructorsState {
 }
 
 class InstructorsProvider extends StateNotifier<InstructorsState> {
+  final Ref _ref;
+
   static String get _instructorsBaseUrl =>
       '${ApiConfig.baseUrl}/settings/users/instructors';
   static String get _usersBaseUrl => '${ApiConfig.baseUrl}/settings/users';
   final SecureStorageService _storage = SecureStorageService();
 
-  InstructorsProvider() : super(InstructorsState(instructors: [])) {
+  InstructorsProvider(this._ref) : super(InstructorsState(instructors: [])) {
     fetchInstructors();
+  }
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'users',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   Future<Map<String, String>> _authHeaders() async {
@@ -64,6 +79,7 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       print('[UsersProvider] fetchUsers status: ${response.statusCode}');
       print('[UsersProvider] fetchUsers body: ${response.body}');
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         // Filter for instructors only
         final instructors = <model.Instructor>[];
@@ -91,11 +107,13 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
           error: null,
         );
       } else if (response.statusCode == 403) {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Bu işlem için yetkiniz yok (403 Forbidden)',
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load instructors: ${response.statusCode}',
@@ -130,12 +148,14 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       print('Instructor create response status: ${response.statusCode}');
       print('Instructor create response body: ${response.body}');
       if (response.statusCode == 201) {
+        _clearSignal();
         // Parse single object from response
         final data = json.decode(response.body);
         model.Instructor.fromJson(data);
         // Optionally, you could add created to state.instructors here, but to keep logic consistent, just refresh list
         await fetchInstructors();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -173,8 +193,10 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       print('Instructor update response status: ${response.statusCode}');
       print('Instructor update response body: ${response.body}');
       if (response.statusCode == 200) {
+        _clearSignal();
         fetchInstructors();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -204,10 +226,12 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       print('Instructor delete response status: ${response.statusCode}');
       print('Instructor delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         throw Exception(
           'Failed to delete instructor: ${response.statusCode} ${response.body}',
         );
       }
+      _clearSignal();
       await fetchInstructors();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

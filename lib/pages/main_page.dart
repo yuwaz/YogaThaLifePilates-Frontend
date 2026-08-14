@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/subscription_enforcement_signal.dart';
+import '../models/subscription_status.dart';
 import '../providers/auth_provider.dart';
 import '../providers/subscription_enforcement_provider.dart';
+import '../providers/subscription_status_provider.dart';
 import 'members_page.dart';
 import 'reservations_page.dart';
 import 'payments_page.dart';
@@ -194,6 +196,46 @@ class _SubscriptionRecoveryScaffold extends ConsumerWidget {
     required this.isCheckUnavailable,
   });
 
+  bool _isClearlyEffectiveStatus(SubscriptionStatus status) {
+    final normalized = status.rawStatus.trim().toLowerCase();
+    if (normalized == 'active' ||
+        normalized == 'trial' ||
+        normalized == 'trialing' ||
+        normalized == 'grace_period' ||
+        normalized == 'graceperiod' ||
+        normalized == 'billing_retry' ||
+        normalized == 'billingretry') {
+      return true;
+    }
+
+    if (normalized == 'cancelled' || normalized == 'canceled') {
+      final periodEnd =
+          status.currentPeriodEndsAt ?? status.expiresAt ?? status.renewalAt;
+      if (periodEnd == null) {
+        return false;
+      }
+      return periodEnd.isAfter(DateTime.now());
+    }
+
+    return false;
+  }
+
+  Future<void> _handleRetry(WidgetRef ref) async {
+    await ref.read(subscriptionStatusProvider.notifier).refresh();
+    final refreshed = ref.read(subscriptionStatusProvider);
+    if (refreshed.fetchState == SubscriptionFetchState.loaded &&
+        refreshed.subscription != null &&
+        _isClearlyEffectiveStatus(refreshed.subscription!)) {
+      clearSubscriptionEnforcementSignal(ref.read);
+      return;
+    }
+
+    if (isCheckUnavailable &&
+        refreshed.fetchState == SubscriptionFetchState.loaded) {
+      clearSubscriptionEnforcementSignal(ref.read);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
@@ -248,13 +290,7 @@ class _SubscriptionRecoveryScaffold extends ConsumerWidget {
                         runSpacing: 8,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(
-                                    subscriptionEnforcementProvider.notifier,
-                                  )
-                                  .clearSignal();
-                            },
+                            onPressed: () => _handleRetry(ref),
                             icon: const Icon(Icons.refresh),
                             label: Text(loc?.translate('retry') ?? 'Retry'),
                           ),

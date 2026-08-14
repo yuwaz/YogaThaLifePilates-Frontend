@@ -4,9 +4,10 @@ import '../api_config.dart';
 import 'dart:convert';
 import '../models/salon.dart';
 import 'secure_storage_service.dart';
+import 'subscription_enforcement_provider.dart';
 
 final salonsProvider = StateNotifierProvider<SalonsProvider, SalonsState>(
-  (ref) => SalonsProvider(),
+  (ref) => SalonsProvider(ref),
 );
 
 class SalonsState {
@@ -26,6 +27,8 @@ class SalonsState {
 }
 
 class SalonsProvider extends StateNotifier<SalonsState> {
+  final Ref _ref;
+
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/salons';
   static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
   final SecureStorageService _storage = SecureStorageService();
@@ -46,7 +49,19 @@ class SalonsProvider extends StateNotifier<SalonsState> {
     return _deleteFallbackMessage;
   }
 
-  SalonsProvider() : super(SalonsState(salons: []));
+  SalonsProvider(this._ref) : super(SalonsState(salons: []));
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'salons',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
+  }
 
   Future<Map<String, String>> _authHeaders() async {
     final token = await _storage.getToken();
@@ -66,6 +81,7 @@ class SalonsProvider extends StateNotifier<SalonsState> {
         headers: await _authHeaders(),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final salons = data.map((e) => Salon.fromJson(e)).toList();
         state = state.copyWith(salons: salons, isLoading: false, error: null);
@@ -73,6 +89,7 @@ class SalonsProvider extends StateNotifier<SalonsState> {
           '[PERF] salons fetch done: ${salons.length} items, ${stopwatch.elapsedMilliseconds}ms',
         );
       } else {
+        _reportSignal(response);
         print(
           '[PERF] salons fetch failed: status ${response.statusCode}, ${stopwatch.elapsedMilliseconds}ms',
         );
@@ -98,8 +115,10 @@ class SalonsProvider extends StateNotifier<SalonsState> {
         body: json.encode(body),
       );
       if (response.statusCode == 201) {
+        _clearSignal();
         fetchSalons();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -128,8 +147,10 @@ class SalonsProvider extends StateNotifier<SalonsState> {
         body: json.encode(body),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         fetchSalons();
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to update salon',
@@ -155,12 +176,14 @@ class SalonsProvider extends StateNotifier<SalonsState> {
       print('Salon delete response status: ${response.statusCode}');
       print('Salon delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: _extractDeleteErrorMessage(response),
         );
         return;
       }
+      _clearSignal();
       await fetchSalons();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);

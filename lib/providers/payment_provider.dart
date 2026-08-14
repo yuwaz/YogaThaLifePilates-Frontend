@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/payment.dart';
-import '../models/subscription_enforcement_signal.dart';
 import 'subscription_enforcement_provider.dart';
 
 final paymentProvider =
@@ -17,15 +16,15 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
   PaymentNotifier(this._ref) : super(const AsyncValue.loading());
 
   void _reportSignal(http.Response response) {
-    final signal = classifySubscriptionEnforcementResponse(response);
-    if (signal == null) return;
-    _ref
-        .read(subscriptionEnforcementProvider.notifier)
-        .reportSignal(signal: signal, source: 'payments');
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'payments',
+    );
   }
 
   void _clearSignal() {
-    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   static String get baseUrl => '${ApiConfig.baseUrl}/settings/payments';
@@ -117,9 +116,12 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       print('[paymentProvider][addPayment] Body: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        _clearSignal();
         await fetchPayments(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);
@@ -161,9 +163,12 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       print('[paymentProvider][updatePayment] Body: ${response.body}');
 
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchPayments(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);
@@ -201,9 +206,12 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       print('[paymentProvider][deletePayment] Body: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
+        _clearSignal();
         await fetchPayments(token);
         return null;
       }
+
+      _reportSignal(response);
 
       try {
         final error = json.decode(response.body);

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/attendance.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/subscription_enforcement_signal.dart';
 import 'subscription_enforcement_provider.dart';
 
 final attendanceProvider =
@@ -15,15 +14,15 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
   final Ref _ref;
 
   void _reportSignal(http.Response response) {
-    final signal = classifySubscriptionEnforcementResponse(response);
-    if (signal == null) return;
-    _ref
-        .read(subscriptionEnforcementProvider.notifier)
-        .reportSignal(signal: signal, source: 'attendance');
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'attendance',
+    );
   }
 
   void _clearSignal() {
-    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   bool _isFetching = false;
@@ -53,9 +52,11 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
         }),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchAttendance(token);
         return null;
       } else {
+        _reportSignal(response);
         String errorMsg = 'Failed to update attendance';
         try {
           final body = json.decode(response.body);
@@ -159,9 +160,11 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
       );
       print('[attendance] addAttendance response body: ${response.body}');
       if (response.statusCode == 201) {
+        _clearSignal();
         await fetchAttendance(token);
         return null;
       } else {
+        _reportSignal(response);
         String errorMsg = 'Failed to mark attendance';
         try {
           final respBody = json.decode(response.body);
@@ -186,9 +189,11 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 204) {
+        _clearSignal();
         await fetchAttendance(token);
         return null;
       } else {
+        _reportSignal(response);
         String errorMsg = 'Failed to delete attendance';
         try {
           final body = json.decode(response.body);
@@ -211,9 +216,11 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchAttendance(token);
         return null;
       } else {
+        _reportSignal(response);
         String errorMsg = 'Failed to restore attendance';
         try {
           final body = json.decode(response.body);

@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/subscription_enforcement_signal.dart';
+
+typedef ProviderReader = T Function<T>(ProviderListenable<T> provider);
 
 class SubscriptionEnforcementState {
   final SubscriptionEnforcementSignal? signal;
@@ -67,3 +70,23 @@ final subscriptionEnforcementProvider =
       SubscriptionEnforcementNotifier,
       SubscriptionEnforcementState
     >((ref) => SubscriptionEnforcementNotifier());
+
+bool reportSubscriptionEnforcementResponse({
+  required ProviderReader read,
+  required http.Response response,
+  required String source,
+}) {
+  final signal = classifySubscriptionEnforcementResponse(response);
+  if (signal == null) {
+    return false;
+  }
+
+  read(
+    subscriptionEnforcementProvider.notifier,
+  ).reportSignal(signal: signal, source: source);
+  return true;
+}
+
+void clearSubscriptionEnforcementSignal(ProviderReader read) {
+  read(subscriptionEnforcementProvider.notifier).clearSignal();
+}

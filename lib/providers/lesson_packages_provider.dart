@@ -4,10 +4,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/lesson_package.dart' as model_lesson;
 import 'secure_storage_service.dart';
+import 'subscription_enforcement_provider.dart';
 
 final lessonPackagesProvider =
     StateNotifierProvider<LessonPackagesProvider, LessonPackagesState>(
-      (ref) => LessonPackagesProvider(),
+      (ref) => LessonPackagesProvider(ref),
     );
 
 class LessonPackagesState {
@@ -35,12 +36,27 @@ class LessonPackagesState {
 }
 
 class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
+  final Ref _ref;
+
   Future<String?> getToken() => _storage.getToken();
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/lessonPackages';
   final SecureStorageService _storage = SecureStorageService();
 
-  LessonPackagesProvider() : super(LessonPackagesState(lessonPackages: [])) {
+  LessonPackagesProvider(this._ref)
+    : super(LessonPackagesState(lessonPackages: [])) {
     fetchLessonPackages();
+  }
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'lessonPackages',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   Future<Map<String, String>> _authHeaders() async {
@@ -59,6 +75,7 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
         headers: await _authHeaders(),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final lessonPackages = <model_lesson.LessonPackage>[];
         for (var i = 0; i < data.length; i++) {
@@ -84,6 +101,7 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
           error: null,
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load lesson packages',
@@ -115,12 +133,14 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
       print('LessonPackage create response status: ${response.statusCode}');
       print('LessonPackage create response body: ${response.body}');
       if (response.statusCode == 201) {
+        _clearSignal();
         // Parse single object from response
         final data = json.decode(response.body);
         model_lesson.LessonPackage.fromJson(data);
         // Optionally, you could add created to state.lessonPackages here, but to keep logic consistent, just refresh list
         await fetchLessonPackages();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -156,8 +176,10 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
       print('LessonPackage update response status: ${response.statusCode}');
       print('LessonPackage update response body: ${response.body}');
       if (response.statusCode == 200) {
+        _clearSignal();
         fetchLessonPackages();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -190,10 +212,13 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
       print('LessonPackage delete response body: ${response.body}');
 
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         throw Exception(
           'Failed to delete lesson package: ${response.statusCode} ${response.body}',
         );
       }
+
+      _clearSignal();
 
       await fetchLessonPackages();
     } catch (e) {

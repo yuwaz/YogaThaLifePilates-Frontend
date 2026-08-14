@@ -3,6 +3,7 @@ import 'secure_storage_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'subscription_enforcement_provider.dart';
 
 class MemberType {
   final String id;
@@ -78,7 +79,7 @@ class MemberType {
 
 final memberTypesProvider =
     StateNotifierProvider<MemberTypesProvider, MemberTypesState>(
-      (ref) => MemberTypesProvider(),
+      (ref) => MemberTypesProvider(ref),
     );
 
 class MemberTypesState {
@@ -106,6 +107,8 @@ class MemberTypesState {
 }
 
 class MemberTypesProvider extends StateNotifier<MemberTypesState> {
+  final Ref _ref;
+
   static String get _baseUrl => '${ApiConfig.baseUrl}/settings/memberTypes';
   static const String _deleteFallbackMessage = 'Silme işlemi başarısız oldu.';
 
@@ -135,7 +138,19 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
     };
   }
 
-  MemberTypesProvider() : super(MemberTypesState(memberTypes: []));
+  MemberTypesProvider(this._ref) : super(MemberTypesState(memberTypes: []));
+
+  void _reportSignal(http.Response response) {
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'memberTypes',
+    );
+  }
+
+  void _clearSignal() {
+    clearSubscriptionEnforcementSignal(_ref.read);
+  }
 
   Future<void> fetchMemberTypes() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -145,6 +160,7 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
         headers: await _authHeaders(),
       );
       if (response.statusCode == 200) {
+        _clearSignal();
         final List<dynamic> data = json.decode(response.body);
         final memberTypes = data.map((e) => MemberType.fromJson(e)).toList();
         state = state.copyWith(
@@ -153,6 +169,7 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
           error: null,
         );
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to load member types',
@@ -180,8 +197,10 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
       // ignore: avoid_print
       print('[addMemberType] response: ' + response.body);
       if (response.statusCode == 201) {
+        _clearSignal();
         await fetchMemberTypes();
       } else {
+        _reportSignal(response);
         String backendMsg = '';
         try {
           final resp = json.decode(response.body);
@@ -216,8 +235,10 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
       // ignore: avoid_print
       print('[updateMemberType] response: ' + response.body);
       if (response.statusCode == 200) {
+        _clearSignal();
         await fetchMemberTypes();
       } else {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: 'Failed to update member type',
@@ -243,12 +264,14 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
       print('MemberType delete response status: ${response.statusCode}');
       print('MemberType delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
+        _reportSignal(response);
         state = state.copyWith(
           isLoading: false,
           error: _extractDeleteErrorMessage(response),
         );
         return;
       }
+      _clearSignal();
       await fetchMemberTypes();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _deleteFallbackMessage);

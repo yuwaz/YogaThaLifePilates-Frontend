@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/salons_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/member_provider.dart';
+import '../providers/subscription_enforcement_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../l10n/app_localizations.dart';
 
@@ -1234,7 +1235,16 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
 
-      if (response.statusCode != 200) return;
+      if (response.statusCode != 200) {
+        reportSubscriptionEnforcementResponse(
+          read: ref.read,
+          response: response,
+          source: 'users',
+        );
+        return;
+      }
+
+      clearSubscriptionEnforcementSignal(ref.read);
 
       final decoded = jsonDecode(response.body);
       if (decoded is! List) return;

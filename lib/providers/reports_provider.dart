@@ -2,7 +2,6 @@ import '../api_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/subscription_enforcement_signal.dart';
 import 'subscription_enforcement_provider.dart';
 
 final reportsProvider = StateNotifierProvider<ReportsNotifier, ReportsState>(
@@ -34,15 +33,15 @@ class ReportsNotifier extends StateNotifier<ReportsState> {
   ReportsNotifier(this._ref) : super(ReportsState());
 
   void _reportSignal(http.Response response) {
-    final signal = classifySubscriptionEnforcementResponse(response);
-    if (signal == null) return;
-    _ref
-        .read(subscriptionEnforcementProvider.notifier)
-        .reportSignal(signal: signal, source: 'reports');
+    reportSubscriptionEnforcementResponse(
+      read: _ref.read,
+      response: response,
+      source: 'reports',
+    );
   }
 
   void _clearSignal() {
-    _ref.read(subscriptionEnforcementProvider.notifier).clearSignal();
+    clearSubscriptionEnforcementSignal(_ref.read);
   }
 
   int _safeInt(dynamic value) {
