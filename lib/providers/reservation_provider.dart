@@ -139,8 +139,6 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       });
 
       print('[ReservationProvider] CREATE REQUEST URL: $_baseUrl');
-      print('[ReservationProvider] CREATE REQUEST HEADERS: $headers');
-      print('[ReservationProvider] CREATE REQUEST BODY: $body');
 
       final response = await http.post(
         Uri.parse(_baseUrl),
@@ -151,7 +149,6 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       print(
         '[ReservationProvider] CREATE RESPONSE STATUS: ${response.statusCode}',
       );
-      print('[ReservationProvider] CREATE RESPONSE BODY: ${response.body}');
 
       if (response.statusCode == 201) {
         _clearSignal();
@@ -204,7 +201,6 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
         'updateScope': updateScope,
       });
       print('[ReservationProvider] UPDATE REQUEST URL: $url');
-      print('[ReservationProvider] UPDATE REQUEST BODY: $body');
 
       final response = await http.put(
         Uri.parse(url),
@@ -218,7 +214,6 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
       print(
         '[ReservationProvider] UPDATE RESPONSE STATUS: ${response.statusCode}',
       );
-      print('[ReservationProvider] UPDATE RESPONSE BODY: ${response.body}');
 
       if (response.statusCode == 200) {
         _clearSignal();

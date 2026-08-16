@@ -174,7 +174,6 @@ class SalonsProvider extends StateNotifier<SalonsState> {
         },
       );
       print('Salon delete response status: ${response.statusCode}');
-      print('Salon delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
         state = state.copyWith(

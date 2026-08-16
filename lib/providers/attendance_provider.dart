@@ -148,8 +148,6 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
         'date': _formatDateOnly(attendance.date),
       });
       print('[attendance] addAttendance URL: $url');
-      print('[attendance] addAttendance headers: $headers');
-      print('[attendance] addAttendance body: $body');
       final response = await http.post(
         Uri.parse(url),
         headers: headers,
@@ -158,7 +156,6 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
       print(
         '[attendance] addAttendance response status: ${response.statusCode}',
       );
-      print('[attendance] addAttendance response body: ${response.body}');
       if (response.statusCode == 201) {
         _clearSignal();
         await fetchAttendance(token);

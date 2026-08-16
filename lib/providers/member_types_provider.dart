@@ -195,7 +195,6 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
       );
       // Debug log response
       // ignore: avoid_print
-      print('[addMemberType] response: ' + response.body);
       if (response.statusCode == 201) {
         _clearSignal();
         await fetchMemberTypes();
@@ -233,7 +232,6 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
       );
       // Debug log response
       // ignore: avoid_print
-      print('[updateMemberType] response: ' + response.body);
       if (response.statusCode == 200) {
         _clearSignal();
         await fetchMemberTypes();
@@ -262,7 +260,6 @@ class MemberTypesProvider extends StateNotifier<MemberTypesState> {
         },
       );
       print('MemberType delete response status: ${response.statusCode}');
-      print('MemberType delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
         state = state.copyWith(

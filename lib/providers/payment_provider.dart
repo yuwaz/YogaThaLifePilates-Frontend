@@ -33,7 +33,6 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
 
   Future<void> fetchPayments(String token) async {
     print('[paymentProvider] GET $baseUrl');
-    print('[paymentProvider] Headers: Authorization: Bearer $token');
 
     state = const AsyncValue.loading();
     lastError = null;
@@ -48,7 +47,6 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       );
 
       print('[paymentProvider] Status: ${response.statusCode}');
-      print('[paymentProvider] Body: ${response.body}');
       print(
         '[paymentProvider] Content-Type: ${response.headers['content-type']}',
       );
@@ -113,7 +111,6 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       );
 
       print('[paymentProvider][addPayment] Status: ${response.statusCode}');
-      print('[paymentProvider][addPayment] Body: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         _clearSignal();
@@ -160,7 +157,6 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       );
 
       print('[paymentProvider][updatePayment] Status: ${response.statusCode}');
-      print('[paymentProvider][updatePayment] Body: ${response.body}');
 
       if (response.statusCode == 200) {
         _clearSignal();
@@ -203,7 +199,6 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
       );
 
       print('[paymentProvider][deletePayment] Status: ${response.statusCode}');
-      print('[paymentProvider][deletePayment] Body: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         _clearSignal();

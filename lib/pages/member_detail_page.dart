@@ -197,7 +197,6 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       print(
         '[MemberDetailPage] Delete response status: ${response.statusCode}',
       );
-      print('[MemberDetailPage] Delete response body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 204) {
         clearSubscriptionEnforcementSignal(ref.read);
         await fetchDetail();
@@ -339,14 +338,12 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     final baseUrl = ApiConfig.baseUrl;
     final url = '$baseUrl/settings/members/${widget.member.id}';
     print('[MemberDetailPage] Fetching detail URL: $url');
-    print('[MemberDetailPage] Using token: ${widget.token}');
     try {
       final response = await http.get(
         Uri.parse(url),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       print('[MemberDetailPage] Response status: ${response.statusCode}');
-      print('[MemberDetailPage] Response body: ${response.body}');
       if (response.statusCode == 200) {
         clearSubscriptionEnforcementSignal(ref.read);
         try {

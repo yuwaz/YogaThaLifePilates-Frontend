@@ -11,7 +11,6 @@ final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   final String url = '${ApiConfig.baseUrl}/settings/paymentMethods';
 
   print('[paymentMethodProvider] GET $url');
-  print('[paymentMethodProvider] Headers: Authorization: Bearer $token');
 
   final response = await http.get(
     Uri.parse(url),
@@ -22,7 +21,6 @@ final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   );
 
   print('[paymentMethodProvider] Status: ${response.statusCode}');
-  print('[paymentMethodProvider] Body: ${response.body}');
   print(
     '[paymentMethodProvider] Content-Type: ${response.headers['content-type']}',
   );

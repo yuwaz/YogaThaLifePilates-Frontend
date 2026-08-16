@@ -366,7 +366,6 @@ class MemberNotifier extends StateNotifier<MemberState> {
       }
       final body = jsonEncode(bodyMap);
       print('[MemberProvider] addMember URL: $BASE_URL');
-      print('[MemberProvider] normalized addMember body: $body');
 
       final response = await http.post(
         Uri.parse(BASE_URL),
@@ -380,7 +379,6 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print(
         '[MemberProvider] addMember response status: ${response.statusCode}',
       );
-      print('[MemberProvider] addMember response body: ${response.body}');
 
       if (response.statusCode == 201) {
         _clearSignal();
@@ -437,7 +435,6 @@ class MemberNotifier extends StateNotifier<MemberState> {
       }
       final body = jsonEncode(bodyMap);
       print('[MemberProvider] updateMember URL: $url');
-      print('[MemberProvider] normalized updateMember body: $body');
 
       final response = await http.put(
         Uri.parse(url),
@@ -451,7 +448,6 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print(
         '[MemberProvider] updateMember response status: ${response.statusCode}',
       );
-      print('[MemberProvider] updateMember response body: ${response.body}');
 
       if (response.statusCode == 200) {
         _clearSignal();
@@ -496,7 +492,6 @@ class MemberNotifier extends StateNotifier<MemberState> {
       print(
         '[MemberProvider] deleteMember response status: ${response.statusCode}',
       );
-      print('[MemberProvider] deleteMember response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         _clearSignal();

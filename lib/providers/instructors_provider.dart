@@ -77,7 +77,6 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
         headers: await _authHeaders(),
       );
       print('[UsersProvider] fetchUsers status: ${response.statusCode}');
-      print('[UsersProvider] fetchUsers body: ${response.body}');
       if (response.statusCode == 200) {
         _clearSignal();
         final List<dynamic> data = json.decode(response.body);
@@ -87,7 +86,6 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
           try {
             final user = data[i];
             if ((user['role'] ?? '') == 'instructor') {
-              print('[fetchInstructors] raw JSON item $i: ' + user.toString());
               final parsed = model.Instructor.fromJson(user);
               print(
                 '[fetchInstructors] parsed object $i: ' +
@@ -139,14 +137,12 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
         'individualSessionFee': instructor.individualSessionFee,
       };
       print('Instructor create request url: $url');
-      print('Instructor create request body: ' + json.encode(body));
       final response = await http.post(
         Uri.parse(url),
         headers: await _authHeaders(),
         body: json.encode(body),
       );
       print('Instructor create response status: ${response.statusCode}');
-      print('Instructor create response body: ${response.body}');
       if (response.statusCode == 201) {
         _clearSignal();
         // Parse single object from response
@@ -184,14 +180,12 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       };
       final url = '$_usersBaseUrl/${instructor.id}';
       print('Instructor update request url: $url');
-      print('Instructor update request body: ' + json.encode(body));
       final response = await http.put(
         Uri.parse(url),
         headers: await _authHeaders(),
         body: json.encode(body),
       );
       print('Instructor update response status: ${response.statusCode}');
-      print('Instructor update response body: ${response.body}');
       if (response.statusCode == 200) {
         _clearSignal();
         fetchInstructors();
@@ -224,7 +218,6 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
         },
       );
       print('Instructor delete response status: ${response.statusCode}');
-      print('Instructor delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
         throw Exception(

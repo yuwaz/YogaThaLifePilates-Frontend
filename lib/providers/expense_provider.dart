@@ -35,7 +35,6 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
 
   Future<void> fetchExpenses(String token) async {
     print('[expenseProvider] GET $baseUrl');
-    print('[expenseProvider] Headers: Authorization: Bearer $token');
 
     state = const AsyncValue.loading();
     lastError = null;
@@ -50,7 +49,6 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       );
 
       print('[expenseProvider] Status: ${response.statusCode}');
-      print('[expenseProvider] Body: ${response.body}');
       print(
         '[expenseProvider] Content-Type: ${response.headers['content-type']}',
       );
@@ -114,7 +112,6 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       );
 
       print('[expenseProvider][addExpense] Status: ${response.statusCode}');
-      print('[expenseProvider][addExpense] Body: ${response.body}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         _clearSignal();
@@ -166,7 +163,6 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       );
 
       print('[expenseProvider][updateExpense] Status: ${response.statusCode}');
-      print('[expenseProvider][updateExpense] Body: ${response.body}');
 
       if (response.statusCode == 200) {
         _clearSignal();
@@ -213,7 +209,6 @@ class ExpenseNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
       );
 
       print('[expenseProvider][deleteExpense] Status: ${response.statusCode}');
-      print('[expenseProvider][deleteExpense] Body: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         _clearSignal();

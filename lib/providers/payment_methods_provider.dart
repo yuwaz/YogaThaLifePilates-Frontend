@@ -181,7 +181,6 @@ class PaymentMethodsProvider extends StateNotifier<PaymentMethodsState> {
         },
       );
       print('PaymentMethod delete response status: ${response.statusCode}');
-      print('PaymentMethod delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
         throw Exception(

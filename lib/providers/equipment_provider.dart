@@ -198,7 +198,6 @@ class EquipmentProvider extends StateNotifier<EquipmentState> {
         },
       );
       print('Equipment delete response status: ${response.statusCode}');
-      print('Equipment delete response body: ${response.body}');
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
         state = state.copyWith(

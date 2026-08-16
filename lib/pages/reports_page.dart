@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import '../providers/reports_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
@@ -45,7 +44,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   DateTimeRange? _dateRange;
   String _rangeType = 'monthly';
   int? _selectedSalonId;
-  int? _selectedInstructorId;
   int _activeMemberCount = 0;
   int _passiveMemberCount = 0;
 
@@ -940,13 +938,6 @@ class InstructorSessionDetailPage extends StatelessWidget {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  double _safeDouble(dynamic value) {
-    if (value is int) return value.toDouble();
-    if (value is double) return value;
-    if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
   String _formatTurkishDate(dynamic value) {
     final raw = value?.toString().trim() ?? '';
     if (raw.isEmpty) return '-';
@@ -1143,56 +1134,6 @@ class _SummaryCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChartSection extends StatelessWidget {
-  final String title;
-  final List<FlSpot> spots;
-  final Color color;
-  const _ChartSection({
-    required this.title,
-    required this.spots,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 180,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: color,
-                      barWidth: 3,
-                      dotData: FlDotData(show: false),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

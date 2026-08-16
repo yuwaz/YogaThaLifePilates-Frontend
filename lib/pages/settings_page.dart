@@ -856,10 +856,6 @@ void _showInstructorDialog(
                   groupSessionFee: groupSessionFee,
                   individualSessionFee: individualSessionFee,
                 );
-                print(
-                  '[Instructor] request body: ' +
-                      newInstructor.toJson().toString(),
-                );
                 if (isEdit) {
                   await instructorsNotifier.updateInstructor(newInstructor);
                 } else {
@@ -904,42 +900,6 @@ void _showInstructorDialog(
                 print('EXCEPTION in Instructor create: ' + e.toString());
                 print('STACKTRACE in Instructor create: ' + stack.toString());
                 print('FILE: settings_page.dart (Instructor create)');
-                print('FINAL request body:');
-                print(
-                  '  username: ' + usernameController.text.trim().toString(),
-                );
-                print(
-                  '  password: ' + passwordController.text.trim().toString(),
-                );
-                print('  role: instructor');
-                print(
-                  '  assignedSalonIds: ' +
-                      selectedSalonIds.toString() +
-                      ' type: ' +
-                      selectedSalonIds.runtimeType.toString(),
-                );
-                for (var i = 0; i < selectedSalonIds.length; i++) {
-                  print(
-                    '    assignedSalonIds[' +
-                        i.toString() +
-                        '] type: ' +
-                        selectedSalonIds[i].runtimeType.toString(),
-                  );
-                }
-                print(
-                  '  permissions: ' +
-                      permissions.toString() +
-                      ' type: ' +
-                      permissions.runtimeType.toString(),
-                );
-                for (var i = 0; i < permissions.length; i++) {
-                  print(
-                    '    permissions[' +
-                        i.toString() +
-                        '] type: ' +
-                        permissions[i].runtimeType.toString(),
-                  );
-                }
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

@@ -131,7 +131,6 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
         body: json.encode(body),
       );
       print('LessonPackage create response status: ${response.statusCode}');
-      print('LessonPackage create response body: ${response.body}');
       if (response.statusCode == 201) {
         _clearSignal();
         // Parse single object from response
@@ -174,7 +173,6 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
         body: json.encode(body),
       );
       print('LessonPackage update response status: ${response.statusCode}');
-      print('LessonPackage update response body: ${response.body}');
       if (response.statusCode == 200) {
         _clearSignal();
         fetchLessonPackages();
@@ -209,7 +207,6 @@ class LessonPackagesProvider extends StateNotifier<LessonPackagesState> {
       );
 
       print('LessonPackage delete response status: ${response.statusCode}');
-      print('LessonPackage delete response body: ${response.body}');
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         _reportSignal(response);
