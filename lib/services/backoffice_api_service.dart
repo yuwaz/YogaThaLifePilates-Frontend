@@ -246,6 +246,91 @@ class BackofficeApiService {
     if (data is Map) return Map<String, dynamic>.from(data);
     throw const FormatException('Subscription response was not an object.');
   }
+
+  Future<Map<String, dynamic>> suspendStudio({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) {
+    return _postStudioAction(
+      token: token,
+      path: '/backoffice/studios/$studioId/suspend',
+      body: {'reason': reason},
+    );
+  }
+
+  Future<Map<String, dynamic>> reactivateStudio({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) {
+    return _postStudioAction(
+      token: token,
+      path: '/backoffice/studios/$studioId/reactivate',
+      body: {'reason': reason},
+    );
+  }
+
+  Future<Map<String, dynamic>> setManualSubscriptionOverride({
+    required String token,
+    required int studioId,
+    required String subscriptionPlan,
+    required String subscriptionStatus,
+    String? effectiveFrom,
+    String? expiresAt,
+    required String reason,
+  }) {
+    final body = <String, dynamic>{
+      'subscriptionPlan': subscriptionPlan,
+      'subscriptionStatus': subscriptionStatus,
+      'reason': reason,
+    };
+    if (effectiveFrom != null) body['effectiveFrom'] = effectiveFrom;
+    if (expiresAt != null) body['expiresAt'] = expiresAt;
+    return _postStudioAction(
+      token: token,
+      path: '/backoffice/studios/$studioId/subscription/manual-override',
+      body: body,
+    );
+  }
+
+  Future<Map<String, dynamic>> revokeManualSubscriptionOverride({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) {
+    return _postStudioAction(
+      token: token,
+      path: '/backoffice/studios/$studioId/subscription/manual-override/revoke',
+      body: {'reason': reason},
+    );
+  }
+
+  Future<Map<String, dynamic>> _postStudioAction({
+    required String token,
+    required String path,
+    required Map<String, dynamic> body,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('${ApiConfig.baseUrl}$path'),
+      headers: _authHeaders(token),
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 401) {
+      throw const UnauthorizedException();
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException(
+        'Backoffice studio action failed (${response.statusCode})',
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const FormatException('Studio action response was not an object.');
+  }
 }
 
 class HttpException implements Exception {

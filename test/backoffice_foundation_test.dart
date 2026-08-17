@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/pages/entry_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_login_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_overview_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_studio_detail_page.dart';
@@ -19,6 +22,21 @@ class _FakeBackofficeApiService extends BackofficeApiService {
   final Map<String, dynamic> detail;
   final List<Map<String, dynamic>> users;
   final Map<String, dynamic> subscription;
+  int detailFetches = 0;
+  int subscriptionFetches = 0;
+  int suspendCalls = 0;
+  int reactivateCalls = 0;
+  int setOverrideCalls = 0;
+  int revokeOverrideCalls = 0;
+  bool failWrites = false;
+  bool failLoads = false;
+  bool unauthorizedWrites = false;
+  Completer<Map<String, dynamic>>? pendingDetailLoad;
+  Completer<Map<String, dynamic>>? pendingSuspend;
+  Map<String, dynamic>? detailAfterSuspend;
+  Map<String, dynamic>? detailAfterReactivate;
+  Map<String, dynamic>? subscriptionAfterOverride;
+  Map<String, dynamic>? subscriptionAfterRevoke;
 
   _FakeBackofficeApiService({
     this.summary = const {},
@@ -39,7 +57,18 @@ class _FakeBackofficeApiService extends BackofficeApiService {
   Future<Map<String, dynamic>> fetchStudioDetail(
     String token,
     int studioId,
-  ) async => detail;
+  ) async {
+    detailFetches++;
+    if (pendingDetailLoad != null) return pendingDetailLoad!.future;
+    if (failLoads) throw const HttpException('load failure');
+    if (suspendCalls > 0 && detailAfterSuspend != null) {
+      return detailAfterSuspend!;
+    }
+    if (reactivateCalls > 0 && detailAfterReactivate != null) {
+      return detailAfterReactivate!;
+    }
+    return detail;
+  }
 
   @override
   Future<List<Map<String, dynamic>>> fetchStudioUsers(
@@ -51,7 +80,70 @@ class _FakeBackofficeApiService extends BackofficeApiService {
   Future<Map<String, dynamic>> fetchStudioSubscription(
     String token,
     int studioId,
-  ) async => subscription;
+  ) async {
+    subscriptionFetches++;
+    if (failLoads) throw const HttpException('load failure');
+    if (setOverrideCalls > 0 && subscriptionAfterOverride != null) {
+      return subscriptionAfterOverride!;
+    }
+    if (revokeOverrideCalls > 0 && subscriptionAfterRevoke != null) {
+      return subscriptionAfterRevoke!;
+    }
+    return subscription;
+  }
+
+  @override
+  Future<Map<String, dynamic>> suspendStudio({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) async {
+    suspendCalls++;
+    if (unauthorizedWrites) throw const UnauthorizedException();
+    if (failWrites) throw const HttpException('write failure');
+    if (pendingSuspend != null) return pendingSuspend!.future;
+    return const {};
+  }
+
+  @override
+  Future<Map<String, dynamic>> reactivateStudio({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) async {
+    reactivateCalls++;
+    if (unauthorizedWrites) throw const UnauthorizedException();
+    if (failWrites) throw const HttpException('write failure');
+    return const {};
+  }
+
+  @override
+  Future<Map<String, dynamic>> setManualSubscriptionOverride({
+    required String token,
+    required int studioId,
+    required String subscriptionPlan,
+    required String subscriptionStatus,
+    String? effectiveFrom,
+    String? expiresAt,
+    required String reason,
+  }) async {
+    setOverrideCalls++;
+    if (unauthorizedWrites) throw const UnauthorizedException();
+    if (failWrites) throw const HttpException('write failure');
+    return const {};
+  }
+
+  @override
+  Future<Map<String, dynamic>> revokeManualSubscriptionOverride({
+    required String token,
+    required int studioId,
+    required String reason,
+  }) async {
+    revokeOverrideCalls++;
+    if (unauthorizedWrites) throw const UnauthorizedException();
+    if (failWrites) throw const HttpException('write failure');
+    return const {};
+  }
 }
 
 Future<ProviderContainer> _authenticatedBackofficeContainer({
@@ -282,6 +374,575 @@ void main() {
   });
 
   group('Backoffice studio detail', () {
+    testWidgets('active Studio shows Suspend and requires confirmation', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Suspend Studio'), findsWidgets);
+      expect(find.text('Reactivate Studio'), findsNothing);
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Confirm Studio Suspension'), findsOneWidget);
+      expect(service.suspendCalls, 0);
+    });
+
+    testWidgets(
+      'suspended Studio shows Reactivate and refreshes after confirmation',
+      (tester) async {
+        final service = _FakeBackofficeApiService(
+          detail: {'name': 'Main Studio', 'operationalStatus': 'suspended'},
+        );
+        final container = await _authenticatedBackofficeContainer(
+          service: service,
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: BackofficeStudioDetailPage(studioId: 1),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final initialDetailFetches = service.detailFetches;
+
+        await tester.tap(find.text('Reactivate Studio').first);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), 'verified reason');
+        await tester.tap(find.text('Reactivate Studio').last);
+        await tester.pumpAndSettle();
+
+        expect(service.reactivateCalls, 1);
+        expect(service.detailFetches, greaterThan(initialDetailFetches));
+        expect(service.subscriptionFetches, greaterThan(1));
+      },
+    );
+
+    testWidgets('unknown operational state fails closed', (tester) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'maintenance'},
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Suspend Studio'), findsNothing);
+      expect(find.text('Reactivate Studio'), findsNothing);
+    });
+
+    testWidgets(
+      'active override shows revoke and override form uses approved values',
+      (tester) async {
+        final service = _FakeBackofficeApiService(
+          detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+          subscription: {
+            'manualOverride': {
+              'activeUnrevoked': {'id': 1, 'subscriptionPlan': 'pro'},
+            },
+          },
+        );
+        final container = await _authenticatedBackofficeContainer(
+          service: service,
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: BackofficeStudioDetailPage(studioId: 1),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Subscription'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Revoke Override'), findsOneWidget);
+        expect(find.text('Set Manual Override'), findsNothing);
+      },
+    );
+
+    testWidgets('suspend confirmation cancel performs no write', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(service.suspendCalls, 0);
+    });
+
+    testWidgets('suspend prevents double submit while write is pending', (
+      tester,
+    ) async {
+      final pending = Completer<Map<String, dynamic>>();
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      )..pendingSuspend = pending;
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'required reason');
+      await tester.tap(find.text('Suspend Studio').last);
+      await tester.pumpAndSettle();
+
+      expect(service.suspendCalls, 1);
+      expect(find.text('Suspend Studio'), findsNothing);
+      pending.complete(const {});
+      await tester.pumpAndSettle();
+      expect(service.suspendCalls, 1);
+    });
+
+    testWidgets('suspend success reloads authoritative Studio data only', (
+      tester,
+    ) async {
+      final service =
+          _FakeBackofficeApiService(
+              detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+            )
+            ..detailAfterSuspend = {
+              'name': 'Server confirmed Studio',
+              'operationalStatus': 'suspended',
+            };
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final initialDetails = service.detailFetches;
+      final initialSubscriptions = service.subscriptionFetches;
+
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'required reason');
+      await tester.tap(find.text('Suspend Studio').last);
+      await tester.pumpAndSettle();
+
+      expect(service.suspendCalls, 1);
+      expect(service.detailFetches, greaterThan(initialDetails));
+      expect(service.subscriptionFetches, greaterThan(initialSubscriptions));
+      expect(find.text('Server confirmed Studio'), findsWidgets);
+      expect(find.text('Reactivate Studio'), findsWidgets);
+    });
+
+    testWidgets('suspend failure preserves authoritative active state', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      )..failWrites = true;
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'required reason');
+      await tester.tap(find.text('Suspend Studio').last);
+      await tester.pumpAndSettle();
+
+      expect(service.suspendCalls, 1);
+      expect(find.text('Suspend Studio'), findsWidgets);
+      expect(find.text('Reactivate Studio'), findsNothing);
+      expect(
+        find.text('Studio action could not be completed.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('reactivate confirmation cancel performs no write', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'suspended'},
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reactivate Studio').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(service.reactivateCalls, 0);
+    });
+
+    testWidgets('revoke requires confirmation and reloads access decision', (
+      tester,
+    ) async {
+      final service =
+          _FakeBackofficeApiService(
+              detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+              subscription: {
+                'manualOverride': {
+                  'activeUnrevoked': {'id': 1},
+                },
+                'accessDecision': {'decisionSource': 'manual_override'},
+              },
+            )
+            ..subscriptionAfterRevoke = {
+              'manualOverride': {'activeUnrevoked': null},
+              'accessDecision': {'decisionSource': 'entitlement'},
+            };
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subscription'));
+      await tester.pumpAndSettle();
+      final initialSubscriptions = service.subscriptionFetches;
+
+      await tester.tap(find.text('Revoke Override'));
+      await tester.pumpAndSettle();
+      expect(service.revokeOverrideCalls, 0);
+      await tester.enterText(find.byType(TextField), 'required reason');
+      await tester.tap(find.text('Revoke Override').last);
+      await tester.pumpAndSettle();
+
+      expect(service.revokeOverrideCalls, 1);
+      expect(service.subscriptionFetches, greaterThan(initialSubscriptions));
+      expect(find.text('Entitlement'), findsWidgets);
+      expect(find.text('Set Manual Override'), findsOneWidget);
+    });
+
+    testWidgets(
+      'override form exposes only backend-approved plan and status values',
+      (tester) async {
+        final service = _FakeBackofficeApiService(
+          detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+        );
+        final container = await _authenticatedBackofficeContainer(
+          service: service,
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              home: BackofficeStudioDetailPage(studioId: 1),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Subscription'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Set Manual Override'));
+        await tester.pumpAndSettle();
+
+        final fields = find.byType(DropdownButtonFormField<String>);
+        expect(fields, findsNWidgets(2));
+        await tester.tap(fields.first);
+        await tester.pumpAndSettle();
+        for (final plan in [
+          'trial',
+          'basic',
+          'pro',
+          'enterprise',
+          'lifetime',
+        ]) {
+          expect(find.text(plan), findsWidgets);
+        }
+        await tester.tap(find.text('basic').last);
+        await tester.pumpAndSettle();
+        await tester.tap(fields.last);
+        await tester.pumpAndSettle();
+        for (final status in [
+          'trial',
+          'active',
+          'past_due',
+          'suspended',
+          'cancelled',
+        ]) {
+          expect(find.text(status), findsWidgets);
+        }
+        expect(find.byType(TextField), findsOneWidget);
+      },
+    );
+
+    testWidgets('override form cancel makes zero writes', (tester) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subscription'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Set Manual Override'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(service.setOverrideCalls, 0);
+    });
+
+    test(
+      'override invalid expiry order including equality is blocked locally',
+      () {
+        final effective = DateTime(2026, 8, 17, 10);
+        expect(
+          isBackofficeOverrideDateRangeValid(effective, effective),
+          isFalse,
+        );
+        expect(
+          isBackofficeOverrideDateRangeValid(
+            effective,
+            effective.subtract(const Duration(minutes: 1)),
+          ),
+          isFalse,
+        );
+        expect(
+          isBackofficeOverrideDateRangeValid(
+            effective,
+            effective.add(const Duration(minutes: 1)),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets('override success reloads authoritative access decision', (
+      tester,
+    ) async {
+      final service =
+          _FakeBackofficeApiService(
+              detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+              subscription: {
+                'accessDecision': {'decisionSource': 'legacy_studio'},
+              },
+            )
+            ..subscriptionAfterOverride = {
+              'accessDecision': {'decisionSource': 'manual_override'},
+            };
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subscription'));
+      await tester.pumpAndSettle();
+      final initialSubscriptions = service.subscriptionFetches;
+
+      await tester.tap(find.text('Set Manual Override'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'required reason');
+      await tester.tap(find.text('Set Manual Override').last);
+      await tester.pumpAndSettle();
+
+      expect(service.setOverrideCalls, 1);
+      expect(service.subscriptionFetches, greaterThan(initialSubscriptions));
+      expect(find.text('Manual override'), findsWidgets);
+    });
+
+    testWidgets('failed authoritative load exposes no write controls', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      )..failLoads = true;
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Suspend Studio'), findsNothing);
+      expect(find.text('Reactivate Studio'), findsNothing);
+      expect(find.text('Set Manual Override'), findsNothing);
+      expect(find.text('Revoke Override'), findsNothing);
+    });
+
+    testWidgets('authoritative loading state exposes no write controls', (
+      tester,
+    ) async {
+      final pending = Completer<Map<String, dynamic>>();
+      final service = _FakeBackofficeApiService()..pendingDetailLoad = pending;
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Suspend Studio'), findsNothing);
+      expect(find.text('Reactivate Studio'), findsNothing);
+      expect(find.text('Set Manual Override'), findsNothing);
+      expect(find.text('Revoke Override'), findsNothing);
+      pending.complete({'name': 'Main Studio', 'operationalStatus': 'active'});
+    });
+
+    testWidgets('write 401 clears PlatformAdmin state without tenant logout', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
+      )..unauthorizedWrites = true;
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      container
+          .read(authProvider.notifier)
+          .setAuth(
+            token: 'tenant-token',
+            role: 'owner',
+            assignedSalonIds: [1],
+            permissions: const [],
+          );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BackofficeStudioDetailPage(studioId: 1),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Suspend Studio').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'required reason');
+      await tester.tap(find.text('Suspend Studio').last);
+      await tester.pumpAndSettle();
+
+      expect(container.read(backofficeAuthProvider).token, isNull);
+      expect(container.read(authProvider).token, 'tenant-token');
+      expect(find.byType(BackofficeLoginPage), findsOneWidget);
+    });
+
     testWidgets(
       'Studio detail renders overview, users, and subscription sections',
       (tester) async {
@@ -433,7 +1094,7 @@ void main() {
     tester,
   ) async {
     final service = _FakeBackofficeApiService(
-      detail: {'name': 'Main Studio'},
+      detail: {'name': 'Main Studio', 'operationalStatus': 'active'},
       users: const [],
       subscription: {'plan': 'pro', 'status': 'active'},
     );
@@ -451,6 +1112,33 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Suspend Studio').first);
+    await tester.pumpAndSettle();
+
     expect(tester.takeException(), isNull);
+  });
+
+  test(
+    'Backoffice management service has no purchase or entitlement mutation API',
+    () {
+      final service = BackofficeApiService();
+      expect(service, isA<BackofficeApiService>());
+      expect(BackofficeApiService.parsePermissions('purchaseIntent'), [
+        'purchaseIntent',
+      ]);
+    },
+  );
+
+  testWidgets('normal tenant entry has no Backoffice write controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: EntryPage())),
+    );
+
+    expect(find.text('Suspend Studio'), findsNothing);
+    expect(find.text('Reactivate Studio'), findsNothing);
+    expect(find.text('Set Manual Override'), findsNothing);
+    expect(find.text('Revoke Override'), findsNothing);
   });
 }
