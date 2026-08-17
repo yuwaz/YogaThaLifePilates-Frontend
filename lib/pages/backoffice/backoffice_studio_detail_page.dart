@@ -138,8 +138,25 @@ class _BackofficeStudioDetailPageState
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Studio Detail')),
-        body: Center(child: Text(_error ?? 'Unable to load studio detail.')),
+        appBar: AppBar(
+          title: Text(loc?.translate('studioDetail') ?? 'Studio Detail'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                loc?.translate('unableToLoadStudios') ??
+                    'Unable to load studio detail.',
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _load,
+                child: Text(loc?.translate('retry') ?? 'Retry'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -227,6 +244,7 @@ class _BackofficeStudioDetailPageState
   }
 
   Widget _buildUsers() {
+    final loc = AppLocalizations.of(context);
     if (_users.isEmpty) {
       return const Center(child: Text('No users found.'));
     }
@@ -236,13 +254,35 @@ class _BackofficeStudioDetailPageState
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Username')),
-            DataColumn(label: Text('Role')),
-            DataColumn(label: Text('Permissions')),
+          columns: [
+            DataColumn(label: Text(loc?.translate('username') ?? 'Username')),
+            DataColumn(label: Text(loc?.translate('role') ?? 'Role')),
+            DataColumn(
+              label: Text(
+                loc?.translate('assignedSalons') ?? 'Assigned salons',
+              ),
+            ),
+            DataColumn(
+              label: Text(loc?.translate('permissions') ?? 'Permissions'),
+            ),
+            DataColumn(
+              label: Text(
+                loc?.translate('groupSessionFee') ?? 'Group session fee',
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                loc?.translate('individualSessionFee') ??
+                    'Individual session fee',
+              ),
+            ),
           ],
           rows: _users.map((user) {
             final permissions = parseBackofficePermissions(user['permissions']);
+            final salons = user['assignedSalonIds'];
+            final salonText = salons is List && salons.isNotEmpty
+                ? salons.join(', ')
+                : '—';
             return DataRow(
               cells: [
                 DataCell(
@@ -251,15 +291,24 @@ class _BackofficeStudioDetailPageState
                 DataCell(
                   Text((user['role'] ?? user['userRole'] ?? '-').toString()),
                 ),
+                DataCell(Text(salonText)),
                 DataCell(
                   Text(permissions.isEmpty ? '—' : permissions.join(', ')),
                 ),
+                DataCell(Text(_formatFee(user['groupSessionFee']))),
+                DataCell(Text(_formatFee(user['individualSessionFee']))),
               ],
             );
           }).toList(),
         ),
       ),
     );
+  }
+
+  String _formatFee(dynamic value) {
+    if (value is num) return value.toString();
+    if (value is String && num.tryParse(value) != null) return value;
+    return '—';
   }
 
   Widget _buildSubscription() {
@@ -272,13 +321,15 @@ class _BackofficeStudioDetailPageState
     final manualOverride = _asMap(_subscription['manualOverride']);
     final latestOverride = _asMap(manualOverride['latest']);
     final activeOverride = _asMap(manualOverride['activeUnrevoked']);
+    final apple = _asMap(_subscription['apple']);
+    final googlePlay = _asMap(_subscription['googlePlay']);
     final decisionSource =
         (accessDecision['decisionSource'] ??
                 accessDecision['source'] ??
                 _subscription['decisionSource'])
             .toString();
 
-    final items = <MapEntry<String, dynamic>>[
+    /* final items = <MapEntry<String, dynamic>>[
       MapEntry(
         loc?.translate('subscriptionStatus') ?? 'Subscription status',
         runtime['subscriptionStatus'] ??
@@ -350,7 +401,7 @@ class _BackofficeStudioDetailPageState
         loc?.translate('revokeReason') ?? 'Revoke reason',
         latestOverride['revokeReason'] ?? '-',
       ),
-    ];
+    ]; */
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -359,30 +410,166 @@ class _BackofficeStudioDetailPageState
         runSpacing: 16,
         children: [
           _buildOverrideActions(loc, activeOverride),
-          ...items.map((entry) {
-            return SizedBox(
-              width: 260,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(entry.value.toString()),
-                    ],
-                  ),
-                ),
+          _subscriptionSection(
+            loc?.translate('studioRuntime') ?? 'Studio Runtime',
+            [
+              MapEntry(
+                loc?.translate('subscriptionPlan') ?? 'Subscription plan',
+                runtime['subscriptionPlan'] ??
+                    _subscription['plan'] ??
+                    _subscription['subscriptionPlan'] ??
+                    '-',
               ),
-            );
-          }),
+              MapEntry(
+                loc?.translate('subscriptionStatus') ?? 'Subscription status',
+                runtime['subscriptionStatus'] ??
+                    runtime['status'] ??
+                    _subscription['status'] ??
+                    '-',
+              ),
+              MapEntry(
+                loc?.translate('trialEnd') ?? 'Trial end',
+                runtime['trialEndsAt'] ?? '-',
+              ),
+            ],
+          ),
+          _subscriptionSection(loc?.translate('entitlement') ?? 'Entitlement', [
+            MapEntry(
+              loc?.translate('entitlementSummary') ?? 'Entitlement summary',
+              summary is List && summary.isNotEmpty
+                  ? summary.length
+                  : (loc?.translate('noEntitlementData') ??
+                        'No entitlement data'),
+            ),
+          ]),
+          _subscriptionSection(
+            loc?.translate('manualOverride') ?? 'Manual Override',
+            [
+              MapEntry(
+                loc?.translate('manualOverrideState') ??
+                    'Manual override state',
+                manualOverride['latestState'] ??
+                    (loc?.translate('noManualOverride') ??
+                        'No manual override'),
+              ),
+              MapEntry(
+                loc?.translate('subscriptionPlan') ?? 'Subscription plan',
+                latestOverride['subscriptionPlan'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('subscriptionStatus') ?? 'Subscription status',
+                latestOverride['subscriptionStatus'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('effectiveFrom') ?? 'Effective from',
+                latestOverride['effectiveFrom'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('expiresAt') ?? 'Expires at',
+                latestOverride['expiresAt'] ??
+                    loc?.translate('noExpiry') ??
+                    'No expiry',
+              ),
+              MapEntry(
+                loc?.translate('reason') ?? 'Reason',
+                latestOverride['reason'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('revokedAt') ?? 'Revoked at',
+                latestOverride['revokedAt'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('revokeReason') ?? 'Revoke reason',
+                latestOverride['revokeReason'] ?? '-',
+              ),
+            ],
+          ),
+          _subscriptionSection(
+            loc?.translate('accessDecision') ?? 'Access Decision',
+            [
+              MapEntry(
+                loc?.translate('decisionSource') ?? 'Decision source',
+                _decisionSourceLabel(loc, decisionSource),
+              ),
+              MapEntry(
+                loc?.translate('operationalAccess') ?? 'Operational access',
+                _boolLabel(loc, accessDecision['operationalAccess']),
+              ),
+              MapEntry(
+                loc?.translate('normalizedStatus') ?? 'Normalized status',
+                accessDecision['normalizedStatus'] ?? '-',
+              ),
+              MapEntry(
+                loc?.translate('subscriptionStatus') ?? 'Subscription status',
+                accessDecision['subscriptionStatus'] ?? '-',
+              ),
+            ],
+          ),
+          _providerSection(
+            loc?.translate('apple') ?? 'Apple',
+            apple,
+            loc?.translate('noAppleHistory') ?? 'No Apple subscription history',
+            loc,
+          ),
+          _providerSection(
+            loc?.translate('googlePlay') ?? 'Google Play',
+            googlePlay,
+            loc?.translate('noGoogleHistory') ??
+                'No Google Play subscription history',
+            loc,
+          ),
         ],
       ),
     );
+  }
+
+  Widget _subscriptionSection(
+    String title,
+    List<MapEntry<String, dynamic>> rows,
+  ) {
+    return SizedBox(
+      width: 360,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              ...rows.map(
+                (row) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('${row.key}: ${row.value}'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _providerSection(
+    String title,
+    Map<String, dynamic> provider,
+    String empty,
+    AppLocalizations? loc,
+  ) {
+    final count = provider['transactionCount'];
+    final health = _asMap(provider['notificationInboxHealth']);
+    return _subscriptionSection(title, [
+      MapEntry(
+        loc?.translate('transactions') ?? 'Transactions',
+        count is num && count > 0 ? count : empty,
+      ),
+      MapEntry(
+        loc?.translate('notifications') ?? 'Notifications',
+        health.isEmpty
+            ? (loc?.translate('noNotificationData') ?? 'No notification data')
+            : health.values.join(', '),
+      ),
+    ]);
   }
 
   Widget _buildOperationalActions(AppLocalizations? loc) {

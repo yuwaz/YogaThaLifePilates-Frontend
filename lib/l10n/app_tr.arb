@@ -355,5 +355,27 @@
 "studiosLoadFailed": "Stüdyolar yüklenemedi."
 ,
 "of": "/",
-"onboarding": "Kurulum"
+"onboarding": "Kurulum",
+"totalStudioAdmins": "Toplam Stüdyo yöneticisi",
+"totalInstructors": "Toplam eğitmen",
+"onboardingCompleted": "Kurulumu tamamlananlar",
+"onboardingIncomplete": "Kurulumu tamamlanmayanlar",
+"studiosByPlan": "Plana göre stüdyolar"
+,
+"groupSessionFee": "Grup seans ücreti",
+"individualSessionFee": "Bireysel seans ücreti"
+,
+"role": "Rol"
+,
+"studioRuntime": "Stüdyo çalışma zamanı",
+"entitlement": "Yetkilendirme",
+"noEntitlementData": "Yetkilendirme verisi yok",
+"noManualOverride": "Manuel geçersiz kılma yok",
+"apple": "Apple",
+"googlePlay": "Google Play",
+"noAppleHistory": "Apple abonelik geçmişi yok",
+"noGoogleHistory": "Google Play abonelik geçmişi yok",
+"noNotificationData": "Bildirim verisi yok",
+"transactions": "İşlemler",
+"notifications": "Bildirimler"
 }

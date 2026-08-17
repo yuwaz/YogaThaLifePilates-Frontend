@@ -53,11 +53,11 @@ class _BackofficeOverviewPageState
     }
   }
 
-  int _asInt(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
+  String _metricValue(dynamic value, AppLocalizations? loc) {
+    if (value is int) return value.toString();
+    if (value is num) return value.toInt().toString();
+    if (value is String && int.tryParse(value) != null) return value;
+    return loc?.translate('unavailable') ?? 'Unavailable';
   }
 
   @override
@@ -87,39 +87,62 @@ class _BackofficeOverviewPageState
     final cards = [
       _metricCard(
         label: loc?.translate('totalStudios') ?? 'Total studios',
-        value: _asInt(
+        value: _metricValue(
           _summary['totalStudios'] ?? _summary['total_studios'],
-        ).toString(),
+          loc,
+        ),
       ),
       _metricCard(
         label: loc?.translate('activeStudios') ?? 'Active studios',
-        value: _asInt(
+        value: _metricValue(
           _summary['activeStudios'] ?? _summary['active_studios'],
-        ).toString(),
+          loc,
+        ),
       ),
       _metricCard(
         label: loc?.translate('trialStudios') ?? 'Trial studios',
-        value: _asInt(
+        value: _metricValue(
           _summary['trialStudios'] ?? _summary['trial_studios'],
-        ).toString(),
+          loc,
+        ),
       ),
       _metricCard(
         label: loc?.translate('suspendedStudios') ?? 'Suspended studios',
-        value: _asInt(
+        value: _metricValue(
           _summary['suspendedStudios'] ?? _summary['suspended_studios'],
-        ).toString(),
+          loc,
+        ),
       ),
       _metricCard(
         label: loc?.translate('cancelledStudios') ?? 'Cancelled studios',
-        value: _asInt(
+        value: _metricValue(
           _summary['cancelledStudios'] ?? _summary['cancelled_studios'],
-        ).toString(),
+          loc,
+        ),
       ),
       _metricCard(
         label: loc?.translate('totalUsers') ?? 'Total users',
-        value: _asInt(
-          _summary['totalUsers'] ?? _summary['total_users'],
-        ).toString(),
+        value: _metricValue(
+          _summary['totalTenantUsers'] ?? _summary['totalUsers'],
+          loc,
+        ),
+      ),
+      _metricCard(
+        label: loc?.translate('totalStudioAdmins') ?? 'Total Studio admins',
+        value: _metricValue(_summary['totalStudioAdmins'], loc),
+      ),
+      _metricCard(
+        label: loc?.translate('totalInstructors') ?? 'Total instructors',
+        value: _metricValue(_summary['totalInstructors'], loc),
+      ),
+      _metricCard(
+        label: loc?.translate('onboardingCompleted') ?? 'Onboarding completed',
+        value: _metricValue(_summary['onboardingCompletedCount'], loc),
+      ),
+      _metricCard(
+        label:
+            loc?.translate('onboardingIncomplete') ?? 'Onboarding incomplete',
+        value: _metricValue(_summary['onboardingIncompleteCount'], loc),
       ),
     ];
 
@@ -141,10 +164,32 @@ class _BackofficeOverviewPageState
               maxCrossAxisExtent: 240,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
-              childAspectRatio: 1.7,
+              childAspectRatio: 1.35,
             ),
             itemBuilder: (context, index) => cards[index],
           ),
+          if (_summary['studiosByPlan'] is Map) ...[
+            const SizedBox(height: 24),
+            Text(
+              loc?.translate('studiosByPlan') ?? 'Studios by plan',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children:
+                  (Map<String, dynamic>.from(_summary['studiosByPlan'] as Map))
+                      .entries
+                      .map(
+                        (entry) => _metricCard(
+                          label: entry.key,
+                          value: _metricValue(entry.value, loc),
+                        ),
+                      )
+                      .toList(),
+            ),
+          ],
         ],
       ),
     );

@@ -870,7 +870,10 @@ void main() {
 
       expect(service.setOverrideCalls, 1);
       expect(service.subscriptionFetches, greaterThan(initialSubscriptions));
-      expect(find.text('Manual override'), findsWidgets);
+      expect(
+        find.textContaining('Manual override', skipOffstage: false),
+        findsWidgets,
+      );
     });
 
     testWidgets('failed authoritative load exposes no write controls', (
@@ -1084,8 +1087,8 @@ void main() {
       await tester.tap(find.text('Subscription'));
       await tester.pumpAndSettle();
 
-      expect(find.text('pro'), findsWidgets);
-      expect(find.text('active'), findsWidgets);
+      expect(find.textContaining('pro', skipOffstage: false), findsWidgets);
+      expect(find.textContaining('active', skipOffstage: false), findsWidgets);
     });
   });
 

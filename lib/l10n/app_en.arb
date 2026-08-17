@@ -354,5 +354,27 @@
 "studiosLoadFailed": "Unable to load studios."
 ,
 "of": "of",
-"onboarding": "Onboarding"
+"onboarding": "Onboarding",
+"totalStudioAdmins": "Total Studio admins",
+"totalInstructors": "Total instructors",
+"onboardingCompleted": "Onboarding completed",
+"onboardingIncomplete": "Onboarding incomplete",
+"studiosByPlan": "Studios by plan"
+,
+"groupSessionFee": "Group session fee",
+"individualSessionFee": "Individual session fee"
+,
+"role": "Role"
+,
+"studioRuntime": "Studio Runtime",
+"entitlement": "Entitlement",
+"noEntitlementData": "No entitlement data",
+"noManualOverride": "No manual override",
+"apple": "Apple",
+"googlePlay": "Google Play",
+"noAppleHistory": "No Apple subscription history",
+"noGoogleHistory": "No Google Play subscription history",
+"noNotificationData": "No notification data",
+"transactions": "Transactions",
+"notifications": "Notifications"
 }
