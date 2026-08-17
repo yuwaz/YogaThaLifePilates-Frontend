@@ -5,6 +5,7 @@ import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_login_page.dart';
+import 'backoffice_audit_logs_page.dart';
 import 'backoffice_overview_page.dart';
 import 'backoffice_studios_page.dart';
 
@@ -71,7 +72,11 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(backofficeAuthProvider);
-    final pages = const [BackofficeOverviewPage(), BackofficeStudiosPage()];
+    final pages = const [
+      BackofficeOverviewPage(),
+      BackofficeStudiosPage(),
+      BackofficeAuditLogsPage(),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -110,6 +115,10 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
                     icon: Icon(Icons.business),
                     label: Text('Studios'),
                   ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.history),
+                    label: Text('Audit Logs'),
+                  ),
                 ],
               );
             },
@@ -129,6 +138,10 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.business),
                   label: 'Studios',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.history),
+                  label: 'Audit Logs',
                 ),
               ],
             )

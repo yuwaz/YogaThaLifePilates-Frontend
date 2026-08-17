@@ -378,4 +378,24 @@
 "noNotificationData": "Bildirim verisi yok",
 "transactions": "İşlemler",
 "notifications": "Bildirimler"
+,
+"auditLogs": "Denetim Kayıtları",
+"auditEvent": "Denetim Olayı",
+"applyFilters": "Filtreleri Uygula",
+"targetType": "Hedef türü",
+"studioId": "Stüdyo ID",
+"actorId": "İşlemi yapan ID",
+"noAuditHistory": "Denetim geçmişi yok.",
+"noAuditMatches": "Filtrelerinizle eşleşen denetim kaydı yok.",
+"auditLogsLoadFailed": "Denetim kayıtları yüklenemedi.",
+"actor": "İşlemi yapan",
+"target": "Hedef",
+"action": "İşlem",
+"dateTime": "Tarih/saat"
+,
+"auditAccessDenied": "Denetim erişimi reddedildi.",
+"auditInvalidFilters": "Denetim filtreleri geçersiz.",
+"unavailable": "Kullanılamıyor",
+"studio": "Stüdyo",
+"auditEvent": "Denetim Olayı"
 }

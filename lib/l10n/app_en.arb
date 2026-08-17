@@ -377,4 +377,24 @@
 "noNotificationData": "No notification data",
 "transactions": "Transactions",
 "notifications": "Notifications"
+,
+"auditLogs": "Audit Logs",
+"auditEvent": "Audit Event",
+"applyFilters": "Apply Filters",
+"targetType": "Target type",
+"studioId": "Studio ID",
+"actorId": "Actor ID",
+"noAuditHistory": "No audit history.",
+"noAuditMatches": "No audit logs match your filters.",
+"auditLogsLoadFailed": "Unable to load audit logs.",
+"actor": "Actor",
+"target": "Target",
+"action": "Action",
+"dateTime": "Date/time"
+,
+"auditAccessDenied": "Audit access denied.",
+"auditInvalidFilters": "Invalid audit filters.",
+"unavailable": "Unavailable",
+"studio": "Studio",
+"auditEvent": "Audit Event"
 }

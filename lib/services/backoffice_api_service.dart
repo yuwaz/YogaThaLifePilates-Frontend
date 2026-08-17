@@ -124,6 +124,66 @@ class BackofficeApiService {
     throw const FormatException('Summary response was not an object.');
   }
 
+  Future<BackofficeAuditLogsPageResult> fetchAuditLogsPage(
+    String token, {
+    int page = 1,
+    int limit = 25,
+    int? studioId,
+    int? actorPlatformAdminId,
+    String? action,
+    String? targetType,
+    String? from,
+    String? to,
+  }) async {
+    final query = <String, String>{'page': '$page', 'limit': '$limit'};
+    if (studioId != null) query['studioId'] = '$studioId';
+    if (actorPlatformAdminId != null) {
+      query['actorPlatformAdminId'] = '$actorPlatformAdminId';
+    }
+    if ((action ?? '').trim().isNotEmpty) query['action'] = action!.trim();
+    if ((targetType ?? '').trim().isNotEmpty) {
+      query['targetType'] = targetType!.trim();
+    }
+    if (from != null) query['from'] = from;
+    if (to != null) query['to'] = to;
+    final response = await _httpClient.get(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/backoffice/ops/audit-logs',
+      ).replace(queryParameters: query),
+      headers: _authHeaders(token),
+    );
+    if (response.statusCode == 401) throw const UnauthorizedException();
+    if (response.statusCode == 403) {
+      throw const HttpException('Backoffice audit access denied');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException(
+        'Failed to fetch audit logs (${response.statusCode})',
+      );
+    }
+    final data = jsonDecode(response.body);
+    final map = data is Map
+        ? Map<String, dynamic>.from(data)
+        : const <String, dynamic>{};
+    final rawItems = map['items'] is List ? map['items'] as List : const [];
+    final pagination = map['pagination'] is Map
+        ? Map<String, dynamic>.from(map['pagination'] as Map)
+        : const <String, dynamic>{};
+    return BackofficeAuditLogsPageResult(
+      items: rawItems
+          .map(
+            (item) => item is Map
+                ? Map<String, dynamic>.from(item)
+                : <String, dynamic>{},
+          )
+          .toList(),
+      page: (pagination['page'] as num?)?.toInt() ?? page,
+      limit: (pagination['limit'] as num?)?.toInt() ?? limit,
+      total: (pagination['total'] as num?)?.toInt() ?? 0,
+      totalPages: (pagination['totalPages'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> fetchStudios(String token) async {
     return (await fetchStudiosPage(token)).items;
   }
@@ -384,6 +444,22 @@ class BackofficeStudiosPageResult {
   final int totalPages;
 
   const BackofficeStudiosPageResult({
+    required this.items,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+  });
+}
+
+class BackofficeAuditLogsPageResult {
+  final List<Map<String, dynamic>> items;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+
+  const BackofficeAuditLogsPageResult({
     required this.items,
     required this.page,
     required this.limit,
