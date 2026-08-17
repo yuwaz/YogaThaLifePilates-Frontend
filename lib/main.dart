@@ -1,19 +1,50 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/entry_page.dart';
+import 'pages/backoffice/backoffice_login_page.dart';
 import 'pages/main_page.dart';
 import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
+import 'providers/backoffice_auth_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/session_lifecycle_provider.dart';
 import 'providers/subscription_native_purchase_recovery_provider.dart';
 import 'providers/secure_storage_service.dart';
 import 'providers/studio_onboarding_provider.dart';
+import 'services/backoffice_secure_storage.dart';
+import 'pages/backoffice/backoffice_shell_page.dart';
 import 'utils/app_bootstrap.dart';
+
+enum BackofficeRouteDecision { tenant, backofficeLogin, backofficeShell }
+
+bool isExplicitBackofficeWebRoute([String? path]) {
+  final normalized = (path ?? Uri.base.path).trim();
+  if (normalized.isEmpty) return false;
+  final safePath = normalized.startsWith('/') ? normalized : '/$normalized';
+  return safePath == '/backoffice' || safePath.startsWith('/backoffice/');
+}
+
+BackofficeRouteDecision resolveBackofficeRouteDecision({
+  required bool isWeb,
+  String? path,
+  String? tenantToken,
+  String? backofficeToken,
+}) {
+  if (!isWeb || !isExplicitBackofficeWebRoute(path)) {
+    return BackofficeRouteDecision.tenant;
+  }
+
+  if ((backofficeToken ?? '').trim().isEmpty) {
+    return BackofficeRouteDecision.backofficeLogin;
+  }
+
+  return BackofficeRouteDecision.backofficeShell;
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +59,7 @@ class AuthInit extends ConsumerStatefulWidget {
   ConsumerState<AuthInit> createState() => _AuthInitState();
 }
 
-enum StartupDestination { entry, main, onboarding }
+enum StartupDestination { entry, main, onboarding, backoffice }
 
 class _AuthInitState extends ConsumerState<AuthInit> {
   bool _restoring = true;
@@ -43,12 +74,35 @@ class _AuthInitState extends ConsumerState<AuthInit> {
   Future<void> _restoreAuth() async {
     try {
       final storage = SecureStorageService();
-      final token = await storage.getToken();
+      final backofficeStorage = BackofficeSecureStorage();
+      final tenantToken = await storage.getToken();
       final role = await storage.getRole();
       final assignedSalonIds = await storage.getSalonIds();
       final permissions = await storage.getPermissions();
+      final backofficeToken = await backofficeStorage.getToken();
+      final backofficeRouteDecision = resolveBackofficeRouteDecision(
+        isWeb: kIsWeb,
+        path: Uri.base.path,
+        tenantToken: tenantToken,
+        backofficeToken: backofficeToken,
+      );
 
-      if (token != null && token.isNotEmpty) {
+      if (backofficeRouteDecision == BackofficeRouteDecision.backofficeLogin ||
+          backofficeRouteDecision == BackofficeRouteDecision.backofficeShell) {
+        if ((backofficeToken ?? '').trim().isNotEmpty) {
+          final email = await backofficeStorage.getEmail();
+          await ref
+              .read(backofficeAuthProvider.notifier)
+              .setLoggedIn(
+                token: backofficeToken!,
+                email: email ?? 'platform-admin',
+              );
+        }
+        _startupDestination =
+            backofficeRouteDecision == BackofficeRouteDecision.backofficeShell
+            ? StartupDestination.backoffice
+            : StartupDestination.entry;
+      } else if (tenantToken != null && tenantToken.isNotEmpty) {
         final normalizedRole = (role ?? '').trim();
         final safeRole = normalizedRole.isNotEmpty ? normalizedRole : 'unknown';
         final safeAssignedSalonIds = List<int>.from(assignedSalonIds);
@@ -65,7 +119,7 @@ class _AuthInitState extends ConsumerState<AuthInit> {
         ref
             .read(authProvider.notifier)
             .setAuth(
-              token: token,
+              token: tenantToken,
               role: safeRole,
               assignedSalonIds: safeAssignedSalonIds,
               permissions: safePermissions,
@@ -86,9 +140,8 @@ class _AuthInitState extends ConsumerState<AuthInit> {
               if (!mounted) return;
               unawaited(() async {
                 try {
-                  await preloadEssentialProviders(ref, token);
+                  await preloadEssentialProviders(ref, tenantToken);
                 } catch (e) {
-                  // Keep authenticated state even if preload fails.
                   debugPrint(
                     '[AuthRestore] preload failed but auth kept alive: $e',
                   );
@@ -101,16 +154,10 @@ class _AuthInitState extends ConsumerState<AuthInit> {
             _startupDestination = StartupDestination.entry;
             break;
         }
-
-        debugPrint('[AuthRestore] token restore success.');
-        debugPrint('[AuthRestore] auth restored from storage.');
-        if (safeRole == 'unknown') {
-          debugPrint('[AuthRestore] auth fallback used.');
-        }
       } else {
         _startupDestination = StartupDestination.entry;
         ref.invalidate(studioOnboardingProvider);
-        debugPrint('[AuthRestore] no token found in storage.');
+        debugPrint('[AuthRestore] no tenant token found in storage.');
       }
     } catch (e) {
       _startupDestination = StartupDestination.entry;
@@ -227,12 +274,27 @@ class MyApp extends ConsumerWidget {
         }
         return const Locale('tr');
       },
-      home: _resolveHome(auth),
+      home: _resolveHome(auth, ref),
     );
   }
 
-  Widget _resolveHome(AuthState auth) {
-    if (auth.token == null) {
+  Widget _resolveHome(AuthState auth, WidgetRef ref) {
+    final backofficeAuth = ref.watch(backofficeAuthProvider);
+    final routeDecision = resolveBackofficeRouteDecision(
+      isWeb: kIsWeb,
+      path: Uri.base.path,
+      tenantToken: auth.token,
+      backofficeToken: backofficeAuth.token,
+    );
+
+    if (routeDecision == BackofficeRouteDecision.backofficeLogin) {
+      return const BackofficeLoginPage();
+    }
+    if (routeDecision == BackofficeRouteDecision.backofficeShell) {
+      return const BackofficeShellPage();
+    }
+
+    if (auth.token == null && backofficeAuth.token == null) {
       return const EntryPage();
     }
 
@@ -243,6 +305,8 @@ class MyApp extends ConsumerWidget {
         return const MainPage();
       case StartupDestination.onboarding:
         return const StudioOnboardingPage();
+      case StartupDestination.backoffice:
+        return const BackofficeShellPage();
     }
   }
 }
