@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/api_config.dart';
 import 'package:frontend/pages/entry_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_login_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_overview_page.dart';
@@ -1150,6 +1151,24 @@ void main() {
       expect(BackofficeApiService.parsePermissions('purchaseIntent'), [
         'purchaseIntent',
       ]);
+    },
+  );
+
+  test(
+    'web API base uses same-origin proxy and mobile base remains unchanged',
+    () {
+      const mobileBase = 'http://204.168.168.23:3000';
+
+      expect(ApiConfig.resolveBaseUrl(true), '/api');
+      expect(ApiConfig.resolveBaseUrl(false), mobileBase);
+      expect(
+        '${ApiConfig.resolveBaseUrl(true)}/backoffice/auth/login',
+        '/api/backoffice/auth/login',
+      );
+      expect(
+        '${ApiConfig.resolveBaseUrl(false)}/auth/login',
+        '$mobileBase/auth/login',
+      );
     },
   );
 
