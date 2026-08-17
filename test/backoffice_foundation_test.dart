@@ -1094,6 +1094,30 @@ void main() {
   });
 
   group('Backoffice login and session recovery', () {
+    test(
+      'production accessToken login response parses PlatformAdmin session',
+      () {
+        final response = <String, dynamic>{
+          'accessToken': 'production-platform-admin-token',
+          'platformAdmin': {
+            'id': 1,
+            'email': 'admin@yogathalife.com',
+            'status': 'active',
+            'mfaRequired': false,
+          },
+        };
+
+        expect(
+          parseBackofficeAccessToken(response),
+          'production-platform-admin-token',
+        );
+        expect(
+          parseBackofficeLoginEmail(response, 'fallback@example.com'),
+          'admin@yogathalife.com',
+        );
+      },
+    );
+
     testWidgets('Backoffice login page renders email and password fields', (
       tester,
     ) async {

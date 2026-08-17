@@ -7,6 +7,25 @@ import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_shell_page.dart';
 
+String? parseBackofficeAccessToken(Map<String, dynamic> response) {
+  final token = response['accessToken'] ?? response['token'] ?? response['jwt'];
+  return token is String && token.trim().isNotEmpty ? token : null;
+}
+
+String parseBackofficeLoginEmail(
+  Map<String, dynamic> response,
+  String fallback,
+) {
+  final platformAdmin = response['platformAdmin'];
+  final user = response['user'];
+  final identity = platformAdmin is Map
+      ? platformAdmin
+      : user is Map
+      ? user
+      : const {};
+  return (response['email'] ?? identity['email'] ?? fallback).toString();
+}
+
 class BackofficeLoginPage extends ConsumerStatefulWidget {
   const BackofficeLoginPage({super.key});
 
@@ -41,16 +60,12 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
     try {
       final api = ref.read(backofficeApiServiceProvider);
       final loginBody = await api.postLogin(email: email, password: password);
-      final token = loginBody['token'] ?? loginBody['jwt'];
-      if (token is! String || token.trim().isEmpty) {
+      final token = parseBackofficeAccessToken(loginBody);
+      if (token == null) {
         throw const FormatException('Login response did not contain a token.');
       }
 
-      final user = loginBody['user'] is Map
-          ? loginBody['user'] as Map
-          : const {};
-      final emailValue = (loginBody['email'] ?? user['email'] ?? email)
-          .toString();
+      final emailValue = parseBackofficeLoginEmail(loginBody, email);
 
       final secureStorage = const BackofficeSecureStorage();
       await secureStorage.saveToken(token);
