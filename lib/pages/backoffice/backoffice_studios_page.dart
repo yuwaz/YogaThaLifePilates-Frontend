@@ -220,11 +220,21 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                       value: _onboardingCompleted,
                       hint: Text(loc?.translate('onboarding') ?? 'Onboarding'),
                       items: [
-                        DropdownMenuItem(value: null, child: Text('All')),
-                        DropdownMenuItem(value: true, child: Text('Completed')),
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(loc?.translate('all') ?? 'All'),
+                        ),
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text(
+                            loc?.translate('completed') ?? 'Completed',
+                          ),
+                        ),
                         DropdownMenuItem(
                           value: false,
-                          child: Text('Incomplete'),
+                          child: Text(
+                            loc?.translate('incomplete') ?? 'Incomplete',
+                          ),
                         ),
                       ],
                       onChanged: _loading
@@ -267,14 +277,38 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                         minWidth: tableScrollable ? 760 : 0,
                       ),
                       child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Studio')),
-                          DataColumn(label: Text('Code')),
-                          DataColumn(label: Text('Country')),
-                          DataColumn(label: Text('Currency')),
-                          DataColumn(label: Text('Timezone')),
-                          DataColumn(label: Text('Plan')),
-                          DataColumn(label: Text('Status')),
+                        columns: [
+                          DataColumn(
+                            label: Text(
+                              loc?.translate('studioName') ?? 'Studio',
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(loc?.translate('studioCode') ?? 'Code'),
+                          ),
+                          DataColumn(
+                            label: Text(loc?.translate('country') ?? 'Country'),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              loc?.translate('currency') ?? 'Currency',
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              loc?.translate('timezone') ?? 'Timezone',
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              loc?.translate('subscriptionPlan') ?? 'Plan',
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              loc?.translate('subscriptionStatus') ?? 'Status',
+                            ),
+                          ),
                         ],
                         rows: _studios.map((studio) {
                           final id = studio['id'] ?? studio['studioId'];

@@ -361,6 +361,39 @@ void main() {
       expect(find.textContaining('12'), findsWidgets);
     });
 
+    testWidgets('Overview unwraps the backend summary envelope', (
+      tester,
+    ) async {
+      final service = _FakeBackofficeApiService(
+        summary: {
+          'summary': {
+            'totalStudios': 1,
+            'activeStudios': 1,
+            'trialStudios': 0,
+            'suspendedStudios': 0,
+            'cancelledStudios': 0,
+            'totalTenantUsers': 3,
+          },
+        },
+      );
+      final container = await _authenticatedBackofficeContainer(
+        service: service,
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BackofficeOverviewPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1'), findsWidgets);
+      expect(find.text('3'), findsWidgets);
+      expect(find.text('0'), findsWidgets);
+    });
+
     testWidgets('Studios list renders studio rows', (tester) async {
       final service = _FakeBackofficeApiService(
         studios: [

@@ -37,7 +37,10 @@ class _BackofficeOverviewPageState
 
     try {
       final service = ref.read(backofficeApiServiceProvider);
-      final summary = await service.fetchSummary(token!);
+      final response = await service.fetchSummary(token!);
+      final summary = response['summary'] is Map
+          ? Map<String, dynamic>.from(response['summary'] as Map)
+          : response;
       if (!mounted) return;
       setState(() {
         _summary = summary;
@@ -208,9 +211,16 @@ class _BackofficeOverviewPageState
               style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
