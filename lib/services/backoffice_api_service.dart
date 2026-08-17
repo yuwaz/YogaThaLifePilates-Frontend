@@ -125,8 +125,33 @@ class BackofficeApiService {
   }
 
   Future<List<Map<String, dynamic>>> fetchStudios(String token) async {
+    return (await fetchStudiosPage(token)).items;
+  }
+
+  Future<BackofficeStudiosPageResult> fetchStudiosPage(
+    String token, {
+    int page = 1,
+    int? limit,
+    String? search,
+    String? subscriptionStatus,
+    String? subscriptionPlan,
+    bool? onboardingCompleted,
+    String? country,
+  }) async {
+    final query = <String, String>{'page': '$page'};
+    if (limit != null) query['limit'] = '$limit';
+    if ((search ?? '').trim().isNotEmpty) query['search'] = search!.trim();
+    if (subscriptionStatus != null)
+      query['subscriptionStatus'] = subscriptionStatus;
+    if (subscriptionPlan != null) query['subscriptionPlan'] = subscriptionPlan;
+    if (onboardingCompleted != null) {
+      query['onboardingCompleted'] = '$onboardingCompleted';
+    }
+    if (country != null) query['country'] = country;
     final response = await _httpClient.get(
-      Uri.parse('${ApiConfig.baseUrl}/backoffice/studios'),
+      Uri.parse(
+        '${ApiConfig.baseUrl}/backoffice/studios',
+      ).replace(queryParameters: query),
       headers: _authHeaders(token),
     );
 
@@ -146,16 +171,34 @@ class BackofficeApiService {
           data['items'] ?? data['studios'] ?? data['data'] ?? data['results'];
       items = maybeList is List ? maybeList : const [];
     } else {
-      return const [];
+      return BackofficeStudiosPageResult(
+        items: const [],
+        page: page,
+        limit: limit ?? 25,
+        total: 0,
+        totalPages: 0,
+      );
     }
 
-    return items
+    final studios = items
         .map(
           (item) => item is Map
               ? Map<String, dynamic>.from(item)
               : <String, dynamic>{},
         )
         .toList();
+    final pagination = data is Map ? data['pagination'] : null;
+    final paginationMap = pagination is Map
+        ? Map<String, dynamic>.from(pagination)
+        : const <String, dynamic>{};
+    return BackofficeStudiosPageResult(
+      items: studios,
+      page: (paginationMap['page'] as num?)?.toInt() ?? page,
+      limit:
+          (paginationMap['limit'] as num?)?.toInt() ?? limit ?? studios.length,
+      total: (paginationMap['total'] as num?)?.toInt() ?? studios.length,
+      totalPages: (paginationMap['totalPages'] as num?)?.toInt() ?? 1,
+    );
   }
 
   Future<Map<String, dynamic>> fetchStudioDetail(
@@ -331,6 +374,22 @@ class BackofficeApiService {
     if (data is Map) return Map<String, dynamic>.from(data);
     throw const FormatException('Studio action response was not an object.');
   }
+}
+
+class BackofficeStudiosPageResult {
+  final List<Map<String, dynamic>> items;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+
+  const BackofficeStudiosPageResult({
+    required this.items,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+  });
 }
 
 class HttpException implements Exception {

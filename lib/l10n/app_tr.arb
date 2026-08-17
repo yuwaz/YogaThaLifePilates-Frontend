@@ -341,5 +341,19 @@
 "subscriptionRequiredInstructorDescription": "Stüdyo aboneliği için yönetici işlemi gerektiğinden operasyonel erişim kullanılamıyor.",
 "subscriptionAdministratorActionRequired": "Abonelik erişimini geri yüklemek için lütfen stüdyo yöneticinizle iletişime geçin.",
 "subscriptionCheckUnavailableTitle": "Abonelik kontrolü geçici olarak kullanılamıyor",
-"subscriptionCheckUnavailableDescription": "Abonelik erişimini şu anda doğrulayamadık. Lütfen tekrar deneyin."
+"subscriptionCheckUnavailableDescription": "Abonelik erişimini şu anda doğrulayamadık. Lütfen tekrar deneyin.",
+"searchStudios": "Stüdyolarda ara",
+"clearFilters": "Filtreleri temizle",
+"all": "Tümü",
+"completed": "Tamamlandı",
+"incomplete": "Tamamlanmadı",
+"previous": "Önceki",
+"next": "Sonraki",
+"page": "Sayfa",
+"total": "Toplam",
+"noMatchingStudios": "Filtrelerinizle eşleşen stüdyo yok.",
+"studiosLoadFailed": "Stüdyolar yüklenemedi."
+,
+"of": "/",
+"onboarding": "Kurulum"
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import 'backoffice_studio_detail_page.dart';
@@ -14,9 +15,17 @@ class BackofficeStudiosPage extends ConsumerStatefulWidget {
 }
 
 class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
+  static const _currentLimit = 25;
+  final _searchController = TextEditingController();
   List<Map<String, dynamic>> _studios = const [];
   bool _loading = true;
   String? _error;
+  int _currentPage = 1;
+  int _total = 0;
+  int _totalPages = 1;
+  String? _subscriptionStatus;
+  String? _subscriptionPlan;
+  bool? _onboardingCompleted;
 
   @override
   void initState() {
@@ -24,7 +33,13 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load({int? page}) async {
     final token = ref.read(backofficeAuthProvider).token;
     if ((token ?? '').isEmpty) {
       setState(() {
@@ -36,10 +51,21 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
 
     try {
       final service = ref.read(backofficeApiServiceProvider);
-      final studios = await service.fetchStudios(token!);
+      final result = await service.fetchStudiosPage(
+        token!,
+        page: page ?? _currentPage,
+        limit: _currentLimit,
+        search: _searchController.text.trim(),
+        subscriptionStatus: _subscriptionStatus,
+        subscriptionPlan: _subscriptionPlan,
+        onboardingCompleted: _onboardingCompleted,
+      );
       if (!mounted) return;
       setState(() {
-        _studios = studios;
+        _studios = result.items;
+        _currentPage = result.page;
+        _total = result.total;
+        _totalPages = result.totalPages < 1 ? 1 : result.totalPages;
         _loading = false;
         _error = null;
       });
@@ -54,79 +80,277 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
-      return Center(child: Text(_error ?? 'Unable to load studios.'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              loc?.translate('studiosLoadFailed') ?? 'Unable to load studios.',
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loading ? null : _load,
+              child: Text(loc?.translate('retry') ?? 'Retry'),
+            ),
+          ],
+        ),
+      );
     }
 
     if (_studios.isEmpty) {
-      return const Center(child: Text('No studios found.'));
+      final filtered =
+          _searchController.text.trim().isNotEmpty ||
+          _subscriptionStatus != null ||
+          _subscriptionPlan != null ||
+          _onboardingCompleted != null;
+      return Center(
+        child: Text(
+          filtered
+              ? (loc?.translate('noMatchingStudios') ??
+                    'No studios match your filters.')
+              : (loc?.translate('noStudiosFound') ?? 'No studios found.'),
+        ),
+      );
     }
 
     return Material(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tableScrollable = constraints.maxWidth < 760;
-          return SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: tableScrollable ? 760 : 0,
-                ),
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('Studio')),
-                    DataColumn(label: Text('Code')),
-                    DataColumn(label: Text('Country')),
-                    DataColumn(label: Text('Currency')),
-                    DataColumn(label: Text('Timezone')),
-                    DataColumn(label: Text('Plan')),
-                    DataColumn(label: Text('Status')),
-                  ],
-                  rows: _studios.map((studio) {
-                    final id = studio['id'] ?? studio['studioId'];
-                    final name =
-                        studio['name'] ?? studio['studioName'] ?? 'Unnamed';
-                    final code =
-                        studio['studioCode'] ?? studio['studio_code'] ?? '-';
-                    final country = studio['country'] ?? '-';
-                    final currency = studio['currency'] ?? '-';
-                    final timezone = studio['timezone'] ?? '-';
-                    final plan =
-                        studio['plan'] ?? studio['subscriptionPlan'] ?? '-';
-                    final status =
-                        studio['subscriptionStatus'] ?? studio['status'] ?? '-';
-
-                    return DataRow(
-                      onSelectChanged: (_) {
-                        if (id is int) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  BackofficeStudioDetailPage(studioId: id),
-                            ),
-                          );
-                        }
-                      },
-                      cells: [
-                        DataCell(Text(name.toString())),
-                        DataCell(Text(code.toString())),
-                        DataCell(Text(country.toString())),
-                        DataCell(Text(currency.toString())),
-                        DataCell(Text(timezone.toString())),
-                        DataCell(Text(plan.toString())),
-                        DataCell(Text(status.toString())),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: constraints.maxWidth < 600 ? double.infinity : 260,
+                      child: TextField(
+                        controller: _searchController,
+                        onSubmitted: (_) => _load(page: 1),
+                        decoration: InputDecoration(
+                          labelText:
+                              loc?.translate('searchStudios') ??
+                              'Search studios',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _loading ? null : () => _load(page: 1),
+                      child: Text(loc?.translate('search') ?? 'Search'),
+                    ),
+                    DropdownButton<String>(
+                      value: _subscriptionStatus,
+                      hint: Text(
+                        loc?.translate('subscriptionStatus') ??
+                            'Subscription status',
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(loc?.translate('all') ?? 'All'),
+                        ),
+                        DropdownMenuItem(value: 'trial', child: Text('trial')),
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('active'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'past_due',
+                          child: Text('past_due'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'suspended',
+                          child: Text('suspended'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'cancelled',
+                          child: Text('cancelled'),
+                        ),
                       ],
-                    );
-                  }).toList(),
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              setState(() => _subscriptionStatus = value);
+                              _load(page: 1);
+                            },
+                    ),
+                    DropdownButton<String>(
+                      value: _subscriptionPlan,
+                      hint: Text(
+                        loc?.translate('subscriptionPlan') ??
+                            'Subscription plan',
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(loc?.translate('all') ?? 'All'),
+                        ),
+                        DropdownMenuItem(value: 'trial', child: Text('trial')),
+                        DropdownMenuItem(value: 'basic', child: Text('basic')),
+                        DropdownMenuItem(value: 'pro', child: Text('pro')),
+                        DropdownMenuItem(
+                          value: 'enterprise',
+                          child: Text('enterprise'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'lifetime',
+                          child: Text('lifetime'),
+                        ),
+                      ],
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              setState(() => _subscriptionPlan = value);
+                              _load(page: 1);
+                            },
+                    ),
+                    DropdownButton<bool?>(
+                      value: _onboardingCompleted,
+                      hint: Text(loc?.translate('onboarding') ?? 'Onboarding'),
+                      items: [
+                        DropdownMenuItem(value: null, child: Text('All')),
+                        DropdownMenuItem(value: true, child: Text('Completed')),
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text('Incomplete'),
+                        ),
+                      ],
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              setState(() => _onboardingCompleted = value);
+                              _load(page: 1);
+                            },
+                    ),
+                    if (_searchController.text.trim().isNotEmpty ||
+                        _subscriptionStatus != null ||
+                        _subscriptionPlan != null ||
+                        _onboardingCompleted != null)
+                      TextButton(
+                        onPressed: _loading
+                            ? null
+                            : () {
+                                _searchController.clear();
+                                setState(() {
+                                  _subscriptionStatus = null;
+                                  _subscriptionPlan = null;
+                                  _onboardingCompleted = null;
+                                });
+                                _load(page: 1);
+                              },
+                        child: Text(
+                          loc?.translate('clearFilters') ?? 'Clear filters',
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: tableScrollable ? 760 : 0,
+                      ),
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text('Studio')),
+                          DataColumn(label: Text('Code')),
+                          DataColumn(label: Text('Country')),
+                          DataColumn(label: Text('Currency')),
+                          DataColumn(label: Text('Timezone')),
+                          DataColumn(label: Text('Plan')),
+                          DataColumn(label: Text('Status')),
+                        ],
+                        rows: _studios.map((studio) {
+                          final id = studio['id'] ?? studio['studioId'];
+                          final name =
+                              studio['name'] ??
+                              studio['studioName'] ??
+                              'Unnamed';
+                          final code =
+                              studio['studioCode'] ??
+                              studio['studio_code'] ??
+                              '-';
+                          final country = studio['country'] ?? '-';
+                          final currency = studio['currency'] ?? '-';
+                          final timezone = studio['timezone'] ?? '-';
+                          final plan =
+                              studio['plan'] ??
+                              studio['subscriptionPlan'] ??
+                              '-';
+                          final status =
+                              studio['subscriptionStatus'] ??
+                              studio['status'] ??
+                              '-';
+
+                          return DataRow(
+                            onSelectChanged: (_) {
+                              if (id is int) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => BackofficeStudioDetailPage(
+                                      studioId: id,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            cells: [
+                              DataCell(Text(name.toString())),
+                              DataCell(Text(code.toString())),
+                              DataCell(Text(country.toString())),
+                              DataCell(Text(currency.toString())),
+                              DataCell(Text(timezone.toString())),
+                              DataCell(Text(plan.toString())),
+                              DataCell(Text(status.toString())),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      onPressed: _loading || _currentPage <= 1
+                          ? null
+                          : () => _load(page: _currentPage - 1),
+                      child: Text(loc?.translate('previous') ?? 'Previous'),
+                    ),
+                    Text(
+                      '${loc?.translate('page') ?? 'Page'} $_currentPage ${loc?.translate('of') ?? 'of'} $_totalPages · ${loc?.translate('total') ?? 'Total'} $_total',
+                    ),
+                    OutlinedButton(
+                      onPressed: _loading || _currentPage >= _totalPages
+                          ? null
+                          : () => _load(page: _currentPage + 1),
+                      child: Text(loc?.translate('next') ?? 'Next'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),

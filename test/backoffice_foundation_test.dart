@@ -54,6 +54,27 @@ class _FakeBackofficeApiService extends BackofficeApiService {
       studios;
 
   @override
+  Future<BackofficeStudiosPageResult> fetchStudiosPage(
+    String token, {
+    int page = 1,
+    int? limit,
+    String? search,
+    String? subscriptionStatus,
+    String? subscriptionPlan,
+    bool? onboardingCompleted,
+    String? country,
+  }) async {
+    if (failLoads) throw const HttpException('load failure');
+    return BackofficeStudiosPageResult(
+      items: studios,
+      page: page,
+      limit: limit ?? 25,
+      total: studios.length,
+      totalPages: 1,
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchStudioDetail(
     String token,
     int studioId,

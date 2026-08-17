@@ -340,5 +340,19 @@
 "subscriptionRequiredInstructorDescription": "Operational access is unavailable because your studio subscription requires administrator action.",
 "subscriptionAdministratorActionRequired": "Please contact your studio administrator to restore subscription access.",
 "subscriptionCheckUnavailableTitle": "Subscription check temporarily unavailable",
-"subscriptionCheckUnavailableDescription": "We could not verify subscription access right now. Please retry."
+"subscriptionCheckUnavailableDescription": "We could not verify subscription access right now. Please retry.",
+"searchStudios": "Search studios",
+"clearFilters": "Clear filters",
+"all": "All",
+"completed": "Completed",
+"incomplete": "Incomplete",
+"previous": "Previous",
+"next": "Next",
+"page": "Page",
+"total": "Total",
+"noMatchingStudios": "No studios match your filters.",
+"studiosLoadFailed": "Unable to load studios."
+,
+"of": "of",
+"onboarding": "Onboarding"
 }
