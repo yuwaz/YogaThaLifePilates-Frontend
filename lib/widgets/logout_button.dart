@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../pages/entry_page.dart';
 import '../providers/session_lifecycle_provider.dart';
+import '../theme/app_design_tokens.dart';
 
 class LogoutButton extends ConsumerWidget {
   const LogoutButton({Key? key}) : super(key: key);
@@ -21,7 +22,8 @@ class LogoutButton extends ConsumerWidget {
     }
 
     return IconButton(
-      icon: const Icon(Icons.logout, color: Colors.red),
+      style: IconButton.styleFrom(foregroundColor: AppDesignTokens.destructive),
+      icon: const Icon(Icons.logout),
       tooltip: buttonLabel,
       onPressed: doLogout,
     );

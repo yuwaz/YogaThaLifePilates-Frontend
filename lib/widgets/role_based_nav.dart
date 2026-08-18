@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_design_tokens.dart';
 
 class RoleBasedNav extends StatelessWidget {
   final String role; // 'admin' or 'instructor'
@@ -36,7 +37,7 @@ class RoleBasedNav extends StatelessWidget {
       ),
       _NavItem(
         loc?.translate('payments') ?? 'Payments',
-        Icons.payment,
+        AppIcons.payment,
         '/payments',
         show: role == 'admin',
       ),
@@ -48,7 +49,7 @@ class RoleBasedNav extends StatelessWidget {
       ),
       _NavItem(
         loc?.translate('settings') ?? 'Settings',
-        Icons.settings,
+        AppIcons.settings,
         '/settings',
         show: role == 'admin',
       ),
@@ -63,18 +64,25 @@ class RoleBasedNav extends StatelessWidget {
       child: ListView(
         children: [
           const DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFF8cb2ab)),
+            decoration: BoxDecoration(color: AppDesignTokens.surface),
             child: Text(
               'Fitness Studio',
-              style: TextStyle(color: Color(0xFF116478), fontSize: 24),
+              style: TextStyle(
+                color: AppDesignTokens.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           ...navItems
               .where((item) => item.show)
               .map(
                 (item) => ListTile(
-                  leading: Icon(item.icon),
-                  title: Text(item.label),
+                  leading: Icon(
+                    item.icon,
+                    color: AppDesignTokens.textSecondary,
+                  ),
+                  title: Text(item.label, style: AppTypography.body),
                   onTap: () => onNavigate(item.route),
                 ),
               ),

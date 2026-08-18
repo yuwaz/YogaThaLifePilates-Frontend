@@ -204,6 +204,37 @@ void main() {
       expect(AppTypography.numericKpi.fontSize, 28);
     });
 
+    test('button style roles remain visually distinguishable', () {
+      final primary = AppButtonStyles.primary;
+      final secondary = AppButtonStyles.secondary;
+      final destructive = AppButtonStyles.destructive;
+
+      expect(
+        primary.backgroundColor?.resolve(const {}),
+        AppDesignTokens.primaryAction,
+      );
+      expect(
+        primary.foregroundColor?.resolve(const {}),
+        AppDesignTokens.primaryActionForeground,
+      );
+      expect(
+        secondary.backgroundColor?.resolve(const {}),
+        AppDesignTokens.secondaryAction,
+      );
+      expect(
+        secondary.foregroundColor?.resolve(const {}),
+        AppDesignTokens.secondaryActionForeground,
+      );
+      expect(
+        destructive.backgroundColor?.resolve(const {}),
+        AppDesignTokens.destructive,
+      );
+      expect(
+        destructive.foregroundColor?.resolve(const {}),
+        AppDesignTokens.destructiveForeground,
+      );
+    });
+
     testWidgets('root theme renders a readable primary action', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

@@ -268,6 +268,43 @@ class MyApp extends ConsumerWidget {
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: AppButtonStyles.secondary,
         ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: AppDesignTokens.textPrimary,
+            disabledForegroundColor: AppDesignTokens.disabledForeground,
+            textStyle: AppTypography.button.copyWith(
+              color: AppDesignTokens.textPrimary,
+            ),
+          ),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: AppButtonStyles.compactIcon,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppDesignTokens.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          titleTextStyle: AppTypography.cardTitle,
+          contentTextStyle: AppTypography.body,
+        ),
+        navigationRailTheme: const NavigationRailThemeData(
+          backgroundColor: AppDesignTokens.surface,
+          selectedIconTheme: IconThemeData(
+            color: AppDesignTokens.selectedForeground,
+          ),
+          selectedLabelTextStyle: AppTypography.label,
+          unselectedIconTheme: IconThemeData(color: AppDesignTokens.textMuted),
+          unselectedLabelTextStyle: AppTypography.caption,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: AppDesignTokens.surface,
+          selectedItemColor: AppDesignTokens.selectedForeground,
+          unselectedItemColor: AppDesignTokens.textMuted,
+          selectedLabelStyle: AppTypography.caption,
+          unselectedLabelStyle: AppTypography.caption,
+        ),
         inputDecorationTheme: const InputDecorationTheme(
           filled: true,
           fillColor: AppDesignTokens.surface,
