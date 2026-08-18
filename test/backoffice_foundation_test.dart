@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/api_config.dart';
+import 'package:frontend/theme/app_design_tokens.dart';
 import 'package:frontend/pages/entry_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_login_page.dart';
 import 'package:frontend/pages/backoffice/backoffice_overview_page.dart';
@@ -181,6 +182,45 @@ Future<ProviderContainer> _authenticatedBackofficeContainer({
 }
 
 void main() {
+  group('Design system foundation', () {
+    test('semantic action colors preserve readable foreground pairs', () {
+      expect(AppDesignTokens.primaryActionForeground, Colors.white);
+      expect(
+        AppDesignTokens.secondaryActionForeground,
+        AppDesignTokens.textPrimary,
+      );
+      expect(AppDesignTokens.destructive, isNot(AppDesignTokens.surface));
+      expect(
+        AppDesignTokens.disabledForeground,
+        isNot(AppDesignTokens.surface),
+      );
+    });
+
+    test('central icon mapping and typography tokens exist', () {
+      expect(AppIcons.delete, Icons.delete_outline);
+      expect(AppIcons.search, Icons.search);
+      expect(AppIcons.history, Icons.history);
+      expect(AppTypography.pageTitle.fontSize, 28);
+      expect(AppTypography.numericKpi.fontSize, 28);
+    });
+
+    testWidgets('root theme renders a readable primary action', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: AppButtonStyles.primary,
+            ),
+          ),
+          home: ElevatedButton(onPressed: () {}, child: const Text('Action')),
+        ),
+      );
+
+      expect(find.text('Action'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('Backoffice explicit web route boundary', () {
     test('normal route stays tenant without a PlatformAdmin token', () {
       expect(
@@ -1217,6 +1257,10 @@ void main() {
       const mobileBase = 'http://204.168.168.23:3000';
 
       expect(ApiConfig.resolveBaseUrl(true), '/api');
+      expect(
+        ApiConfig.resolveBaseUrl(true, webDevApi: true),
+        'http://204.168.168.23:3000',
+      );
       expect(ApiConfig.resolveBaseUrl(false), mobileBase);
       expect(
         '${ApiConfig.resolveBaseUrl(true)}/backoffice/auth/login',

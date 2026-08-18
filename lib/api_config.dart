@@ -6,9 +6,16 @@ import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   static const mobileProductionBaseUrl = 'http://204.168.168.23:3000';
+  static const webDevApiEnabled = bool.fromEnvironment(
+    'YOGATHA_WEB_DEV_API',
+    defaultValue: false,
+  );
 
-  static String resolveBaseUrl(bool isWeb) =>
-      isWeb ? '/api' : mobileProductionBaseUrl;
+  static String resolveBaseUrl(bool isWeb, {bool webDevApi = false}) {
+    if (!isWeb) return mobileProductionBaseUrl;
+    return webDevApi ? mobileProductionBaseUrl : '/api';
+  }
 
-  static String get baseUrl => resolveBaseUrl(kIsWeb);
+  static String get baseUrl =>
+      resolveBaseUrl(kIsWeb, webDevApi: webDevApiEnabled);
 }

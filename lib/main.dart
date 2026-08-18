@@ -19,6 +19,7 @@ import 'providers/studio_onboarding_provider.dart';
 import 'services/backoffice_secure_storage.dart';
 import 'pages/backoffice/backoffice_shell_page.dart';
 import 'utils/app_bootstrap.dart';
+import 'theme/app_design_tokens.dart';
 
 enum BackofficeRouteDecision { tenant, backofficeLogin, backofficeShell }
 
@@ -223,38 +224,66 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       title: AppLocalizations.of(context)?.translate('appTitle') ?? 'YogaThApp',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF116478),
-          primary: const Color(0xFF116478),
-          background: const Color(0xFFF6F6D7),
-          secondary: const Color(0xFF8CB2AB),
+        colorScheme: const ColorScheme.light(
+          primary: AppDesignTokens.primaryAction,
+          onPrimary: AppDesignTokens.primaryActionForeground,
+          secondary: AppDesignTokens.secondaryActionForeground,
+          onSecondary: AppDesignTokens.secondaryAction,
+          surface: AppDesignTokens.surface,
+          onSurface: AppDesignTokens.textPrimary,
+          error: AppDesignTokens.error,
+          onError: AppDesignTokens.destructiveForeground,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF6F6D7),
+        scaffoldBackgroundColor: AppDesignTokens.backgroundPrimary,
+        dividerColor: AppDesignTokens.divider,
+        cardTheme: const CardThemeData(
+          color: AppDesignTokens.surface,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          margin: EdgeInsets.zero,
+        ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF6F6D7),
-          iconTheme: IconThemeData(color: Color(0xFF116478)),
+          backgroundColor: AppDesignTokens.surface,
+          foregroundColor: AppDesignTokens.textPrimary,
+          iconTheme: IconThemeData(color: AppDesignTokens.textPrimary),
           titleTextStyle: TextStyle(
-            color: Color(0xFF116478),
+            color: AppDesignTokens.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Color(0xFF116478)),
-          bodyMedium: TextStyle(color: Color(0xFF116478)),
-          bodySmall: TextStyle(color: Color(0xFF116478)),
-          titleLarge: TextStyle(color: Color(0xFF116478)),
-          titleMedium: TextStyle(color: Color(0xFF116478)),
-          titleSmall: TextStyle(color: Color(0xFF116478)),
+          bodyLarge: AppTypography.body,
+          bodyMedium: AppTypography.body,
+          bodySmall: AppTypography.caption,
+          titleLarge: AppTypography.sectionTitle,
+          titleMedium: AppTypography.cardTitle,
+          titleSmall: AppTypography.label,
+          labelLarge: AppTypography.button,
         ),
-        primaryTextTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Color(0xFF116478)),
-        ),
+        primaryTextTheme: const TextTheme(bodyLarge: AppTypography.body),
         elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CB2AB),
-            foregroundColor: Colors.white,
-            textStyle: const TextStyle(fontWeight: FontWeight.bold),
+          style: AppButtonStyles.primary,
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: AppButtonStyles.secondary,
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: AppDesignTokens.surface,
+          labelStyle: AppTypography.label,
+          hintStyle: AppTypography.caption,
+          border: OutlineInputBorder(
+            borderSide: BorderSide(color: AppDesignTokens.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: AppDesignTokens.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: AppDesignTokens.textPrimary,
+              width: 2,
+            ),
           ),
         ),
       ),
