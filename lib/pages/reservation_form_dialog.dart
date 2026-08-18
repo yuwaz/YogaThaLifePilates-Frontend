@@ -1,10 +1,10 @@
-import 'reservations_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reservation.dart';
 import '../models/member.dart';
 import '../providers/reservation_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_design_tokens.dart';
 
 class ReservationFormDialog extends ConsumerStatefulWidget {
   final DateTime? initialDate;
@@ -134,7 +134,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
 
     final selectedMemberId = await showMenu<int>(
       context: context,
-      color: kBrandBackgroundColor,
+      color: AppDesignTokens.surface,
       elevation: 6,
       menuPadding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -340,14 +340,14 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
     }
 
     return AlertDialog(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         widget.initialReservation == null
             ? AppLocalizations.of(context)?.translate('addReservation') ??
                   'Add Reservation'
             : AppLocalizations.of(context)?.translate('editReservation') ??
                   'Edit Reservation',
-        style: const TextStyle(color: kBrandTextColor),
+        style: AppTypography.sectionTitle,
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -362,7 +362,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
               child: InputDecorator(
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: kBrandBackgroundColor,
+                  fillColor: AppDesignTokens.backgroundSecondary,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -374,14 +374,17 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                         selectedMember?.name ?? 'Üye Seç',
                         style: TextStyle(
                           color: selectedMember == null
-                              ? kBrandTextColor.withOpacity(0.8)
-                              : kBrandTextColor,
+                              ? AppDesignTokens.textMuted
+                              : AppDesignTokens.textPrimary,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.arrow_drop_down, color: kBrandTextColor),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      color: AppDesignTokens.textSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -409,7 +412,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                     },
               title: const Text(
                 'Her hafta tekrarla',
-                style: TextStyle(color: kBrandTextColor),
+                style: AppTypography.body,
               ),
               subtitle: isEditingRecurring
                   ? const Text(
@@ -424,7 +427,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
               children: [
                 const Icon(
                   Icons.calendar_today,
-                  color: kBrandAccentColor,
+                  color: AppDesignTokens.textSecondary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -448,17 +451,15 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                         horizontal: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: kBrandBackgroundColor,
-                        border: Border.all(
-                          color: kBrandAccentColor.withOpacity(0.3),
-                        ),
+                        color: AppDesignTokens.backgroundSecondary,
+                        border: Border.all(color: AppDesignTokens.border),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _selectedDate != null
                             ? '${_selectedDate!.year}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.day.toString().padLeft(2, '0')}'
                             : 'Tarih Seç',
-                        style: const TextStyle(color: kBrandTextColor),
+                        style: AppTypography.body,
                       ),
                     ),
                   ),
@@ -471,7 +472,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
               children: [
                 const Icon(
                   Icons.access_time,
-                  color: kBrandAccentColor,
+                  color: AppDesignTokens.textSecondary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -480,10 +481,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                     value: _selectedHour == null
                         ? null
                         : (_selectedHour! * 60 + _selectedMinute),
-                    hint: const Text(
-                      'Saat Seç',
-                      style: TextStyle(color: kBrandTextColor),
-                    ),
+                    hint: const Text('Saat Seç', style: AppTypography.body),
                     items: [
                       for (int h = 7; h <= 22; h++)
                         for (final m in const [0, 15, 30, 45])
@@ -492,7 +490,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                               value: h * 60 + m,
                               child: Text(
                                 '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}',
-                                style: const TextStyle(color: kBrandTextColor),
+                                style: AppTypography.body,
                               ),
                             ),
                     ],
@@ -505,7 +503,7 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
                     },
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: kBrandBackgroundColor,
+                      fillColor: AppDesignTokens.backgroundSecondary,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -526,31 +524,33 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-          child: Text(
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(
             AppLocalizations.of(context)?.translate('cancel') ?? 'Cancel',
-            style: const TextStyle(color: kBrandTextColor),
+            style: AppTypography.bodyStrong,
           ),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: kBrandTextColor,
-          ),
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: (_isSubmitting || !_canSubmit) ? null : _submit,
-          child: _isSubmitting
+          icon: _isSubmitting
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: kBrandTextColor,
+                    color: AppDesignTokens.primaryActionForeground,
                   ),
                 )
+              : const Icon(AppIcons.save, size: 18),
+          label: _isSubmitting
+              ? const Text('')
               : Text(
                   AppLocalizations.of(context)?.translate('save') ?? 'Save',
-                  style: const TextStyle(color: kBrandTextColor),
+                  style: AppTypography.button,
                 ),
         ),
       ],
@@ -609,12 +609,12 @@ class _MemberDropdownSearchContentState
                     _searchText = value;
                   });
                 },
-                style: const TextStyle(color: kBrandTextColor),
+                style: AppTypography.body,
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: 'Üye ara...',
-                  hintStyle: TextStyle(color: kBrandTextColor.withOpacity(0.7)),
-                  prefixIcon: const Icon(Icons.search, size: 18),
+                  hintStyle: AppTypography.caption,
+                  prefixIcon: const Icon(AppIcons.search, size: 18),
                   suffixIcon: _searchText.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 16),
@@ -627,7 +627,7 @@ class _MemberDropdownSearchContentState
                         )
                       : null,
                   filled: true,
-                  fillColor: kBrandBackgroundColor,
+                  fillColor: AppDesignTokens.backgroundSecondary,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -664,13 +664,13 @@ class _MemberDropdownSearchContentState
                           ),
                           title: Text(
                             member.name,
-                            style: const TextStyle(color: kBrandTextColor),
+                            style: AppTypography.body,
                             overflow: TextOverflow.ellipsis,
                           ),
                           trailing: member.id == widget.selectedMemberId
                               ? const Icon(
                                   Icons.check,
-                                  color: kBrandAccentColor,
+                                  color: AppDesignTokens.textPrimary,
                                   size: 18,
                                 )
                               : null,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/reservation.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_design_tokens.dart';
 
 class ReservationDetailDialog extends StatelessWidget {
   final Reservation reservation;
@@ -20,7 +21,7 @@ class ReservationDetailDialog extends StatelessWidget {
       final hex = reservation.memberTypeColor.replaceAll('#', '');
       memberTypeColor = Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      memberTypeColor = const Color(0xFF8CB2AB);
+      memberTypeColor = AppDesignTokens.backgroundSecondary;
     }
     return AlertDialog(
       title: Text(
@@ -32,7 +33,7 @@ class ReservationDetailDialog extends StatelessWidget {
         children: [
           Text(
             '${loc?.translate('member') ?? 'Member'}: ${reservation.memberName}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: AppTypography.bodyStrong,
           ),
           Row(
             children: [
@@ -47,7 +48,7 @@ class ReservationDetailDialog extends StatelessWidget {
               ),
               Text(
                 reservation.memberTypeName,
-                style: TextStyle(
+                style: AppTypography.bodyStrong.copyWith(
                   color: memberTypeColor,
                   fontWeight: FontWeight.bold,
                 ),
@@ -67,11 +68,14 @@ class ReservationDetailDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: onEdit,
-          child: Text(loc?.translate('edit') ?? 'Edit'),
+          icon: const Icon(AppIcons.edit, size: 18),
+          label: Text(loc?.translate('edit') ?? 'Edit'),
         ),
-        TextButton(
+        ElevatedButton.icon(
+          style: AppButtonStyles.destructive,
           onPressed: () async {
             if (reservation.recurrenceGroupId != null &&
                 reservation.recurrenceGroupId!.isNotEmpty) {
@@ -124,7 +128,9 @@ class ReservationDetailDialog extends StatelessWidget {
                       onPressed: () => Navigator.of(ctx).pop(true),
                       child: Text(
                         loc?.translate('delete') ?? 'Delete',
-                        style: const TextStyle(color: Colors.red),
+                        style: AppTypography.button.copyWith(
+                          color: AppDesignTokens.destructive,
+                        ),
                       ),
                     ),
                   ],
@@ -135,14 +141,13 @@ class ReservationDetailDialog extends StatelessWidget {
               }
             }
           },
-          child: Text(
-            loc?.translate('delete') ?? 'Delete',
-            style: const TextStyle(color: Colors.red),
-          ),
+          icon: const Icon(AppIcons.delete, size: 18),
+          label: Text(loc?.translate('delete') ?? 'Delete'),
         ),
-        TextButton(
+        TextButton.icon(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(loc?.translate('close') ?? 'Close'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(loc?.translate('close') ?? 'Close'),
         ),
       ],
     );

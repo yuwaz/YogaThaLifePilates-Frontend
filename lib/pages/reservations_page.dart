@@ -16,10 +16,7 @@ import '../providers/member_provider.dart';
 import '../providers/subscription_enforcement_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../l10n/app_localizations.dart';
-
-const Color kBrandAccentColor = Color(0xFF116478);
-const Color kBrandBackgroundColor = Color(0xFFF6F6D7);
-const Color kBrandTextColor = Color(0xFF1C1C1E);
+import '../theme/app_design_tokens.dart';
 
 const int reservationDurationMinutes = 50;
 const double hourRowHeight = 64;
@@ -293,8 +290,8 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
       child: IgnorePointer(
         child: Container(
           decoration: BoxDecoration(
-            color: kBrandAccentColor.withValues(alpha: 0.2),
-            border: Border.all(color: kBrandAccentColor, width: 2),
+            color: AppDesignTokens.selectedBackground,
+            border: Border.all(color: AppDesignTokens.textPrimary, width: 2),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -475,7 +472,9 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
       child: Text(
         label.length > 6 ? '${label.substring(0, 6)}…' : label,
         style: TextStyle(
-          color: belongsToSelectedInstructor ? kBrandTextColor : Colors.white,
+          color: belongsToSelectedInstructor
+              ? AppDesignTokens.textPrimary
+              : Colors.white,
           fontWeight: FontWeight.bold,
           fontSize: 10,
         ),
@@ -543,7 +542,9 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(message),
-                    backgroundColor: isSuccess ? kBrandAccentColor : Colors.red,
+                    backgroundColor: isSuccess
+                        ? AppDesignTokens.success
+                        : AppDesignTokens.error,
                   ),
                 );
               }
@@ -555,15 +556,19 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                 horizontal: slotHorizontalMargin,
               ),
               decoration: BoxDecoration(
-                color: kBrandBackgroundColor,
-                border: Border.all(color: kBrandAccentColor.withOpacity(0.3)),
+                color: AppDesignTokens.surface,
+                border: Border.all(color: AppDesignTokens.border),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Align(
                 alignment: Alignment.topCenter,
                 child: Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: Icon(Icons.add, color: kBrandAccentColor, size: 16),
+                  child: Icon(
+                    AppIcons.create,
+                    color: AppDesignTokens.textMuted,
+                    size: 16,
+                  ),
                 ),
               ),
             ),
@@ -578,8 +583,8 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
               horizontal: slotHorizontalMargin,
             ),
             decoration: BoxDecoration(
-              color: kBrandBackgroundColor,
-              border: Border.all(color: kBrandAccentColor.withOpacity(0.3)),
+              color: AppDesignTokens.surface,
+              border: Border.all(color: AppDesignTokens.border),
               borderRadius: BorderRadius.circular(6),
             ),
           ),
@@ -646,7 +651,7 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
         String label = 'Busy';
 
         if (belongsToSelectedInstructor) {
-          chipColor = kBrandAccentColor;
+          chipColor = AppDesignTokens.primaryAction;
           label = reservation.memberName.isNotEmpty
               ? reservation.memberName.split(' ').first
               : '-';
@@ -656,7 +661,7 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
               final hex = reservation.memberTypeColor.replaceAll('#', '');
               chipColor = Color(int.parse('FF$hex', radix: 16));
             } catch (_) {
-              chipColor = kBrandAccentColor;
+              chipColor = AppDesignTokens.primaryAction;
             }
           }
         }
@@ -768,8 +773,8 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final separatorColor = kBrandTextColor.withOpacity(0.12);
-    const daySeparatorColor = kBrandAccentColor;
+    const separatorColor = AppDesignTokens.divider;
+    const daySeparatorColor = AppDesignTokens.border;
     const daySeparatorWidth = 2.0;
     final headerHeight = widget.compactLayout ? 52.0 : 64.0;
     final totalGridHeight = hourRowHeight * widget.hours.length;
@@ -814,13 +819,13 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: kBrandAccentColor.withOpacity(0.2),
+                color: AppDesignTokens.backgroundSecondary,
                 border: Border(bottom: BorderSide(color: separatorColor)),
               ),
               child: Text(
                 loc?.translate('hour') ?? 'Hour',
                 style: const TextStyle(
-                  color: kBrandTextColor,
+                  color: AppDesignTokens.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -850,7 +855,7 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                       width: dayColumnWidth,
                       height: headerHeight,
                       decoration: BoxDecoration(
-                        color: kBrandAccentColor.withOpacity(0.2),
+                        color: AppDesignTokens.backgroundSecondary,
                         border: Border(
                           bottom: BorderSide(color: separatorColor),
                         ),
@@ -864,7 +869,7 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: kBrandTextColor,
+                                color: AppDesignTokens.textSecondary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -910,7 +915,7 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                         ),
                         child: Text(
                           '${hour.toString().padLeft(2, '0')}:00',
-                          style: const TextStyle(color: kBrandTextColor),
+                          style: AppTypography.caption,
                           maxLines: 1,
                           overflow: TextOverflow.visible,
                           softWrap: false,
@@ -1348,34 +1353,33 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
           ..sort();
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: isLandscape
           ? null
           : AppBar(
               toolbarHeight: 46,
-              backgroundColor: const Color(0xFF116478),
-              iconTheme: const IconThemeData(color: Colors.white),
+              backgroundColor: AppDesignTokens.surface,
+              foregroundColor: AppDesignTokens.textPrimary,
+              iconTheme: const IconThemeData(
+                color: AppDesignTokens.textPrimary,
+              ),
               title: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   loc?.translate('reservations') ?? 'Reservations',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                  style: AppTypography.sectionTitle,
                   textAlign: TextAlign.left,
                 ),
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  icon: const Icon(Icons.refresh),
                   onPressed: () {
                     _refreshReservationsDataQuick();
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white),
+                  icon: const Icon(AppIcons.create),
                   tooltip:
                       loc?.translate('addReservation') ?? 'Add Reservation',
                   onPressed: () async {
@@ -1417,8 +1421,8 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                         SnackBar(
                           content: Text(message),
                           backgroundColor: isSuccess
-                              ? kBrandAccentColor
-                              : Colors.red,
+                              ? AppDesignTokens.success
+                              : AppDesignTokens.error,
                         ),
                       );
                     }
@@ -1459,7 +1463,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
             ? Center(
                 child: Text(
                   loc?.translate('noSalonFound') ?? 'Salon bulunamadı',
-                  style: const TextStyle(color: kBrandTextColor),
+                  style: AppTypography.body,
                 ),
               )
             : Column(
@@ -1533,7 +1537,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                             isExpanded: true,
                             hint: Text(
                               loc?.translate('selectSalon') ?? 'Select Salon',
-                              style: const TextStyle(color: kBrandTextColor),
+                              style: AppTypography.body,
                             ),
                             items: salons
                                 .map(
@@ -1542,7 +1546,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                                     child: Text(
                                       s.name,
                                       style: const TextStyle(
-                                        color: kBrandTextColor,
+                                        color: AppDesignTokens.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -1561,7 +1565,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                             isDense: true,
                             hint: Text(
                               allLabel,
-                              style: const TextStyle(color: kBrandTextColor),
+                              style: AppTypography.body,
                               overflow: TextOverflow.ellipsis,
                             ),
                             items: [
@@ -1570,7 +1574,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                                 child: Text(
                                   allLabel,
                                   style: const TextStyle(
-                                    color: kBrandTextColor,
+                                    color: AppDesignTokens.textPrimary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1581,7 +1585,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                                   child: Text(
                                     instructorLabel(id),
                                     style: const TextStyle(
-                                      color: kBrandTextColor,
+                                      color: AppDesignTokens.textPrimary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1613,7 +1617,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                           iconSize: 22,
                           icon: const Icon(
                             Icons.chevron_left,
-                            color: kBrandTextColor,
+                            color: AppDesignTokens.textPrimary,
                           ),
                           onPressed: () {
                             setState(() {
@@ -1644,7 +1648,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                                   ? '${_selectedDate.year}/${_selectedDate.month.toString().padLeft(2, '0')}'
                                   : '${_selectedDate.year}/${_selectedDate.month.toString().padLeft(2, '0')}/${_selectedDate.day.toString().padLeft(2, '0')}',
                               style: const TextStyle(
-                                color: kBrandTextColor,
+                                color: AppDesignTokens.textPrimary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
                               ),
@@ -1661,7 +1665,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                           iconSize: 22,
                           icon: const Icon(
                             Icons.chevron_right,
-                            color: kBrandTextColor,
+                            color: AppDesignTokens.textPrimary,
                           ),
                           onPressed: () {
                             setState(() {
@@ -1694,7 +1698,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                         ? Center(
                             child: Text(
                               loc?.translate('selectSalon') ?? 'Select salon',
-                              style: const TextStyle(color: kBrandTextColor),
+                              style: AppTypography.body,
                             ),
                           )
                         : (_viewMode == 'Daily'
