@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_design_tokens.dart';
 import '../models/member.dart';
 import '../models/salon.dart';
 import '../providers/member_provider.dart';
@@ -256,13 +257,13 @@ class _MembersPageState extends ConsumerState<MembersPage> {
   }
 
   ButtonStyle _topActionButtonStyle({required bool isActive}) {
-    return OutlinedButton.styleFrom(
-      minimumSize: const Size.fromHeight(44),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-      side: const BorderSide(color: Color(0xFF116478), width: 1),
-      backgroundColor: isActive ? const Color(0xFF116478) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-    );
+    return (isActive ? AppButtonStyles.primary : AppButtonStyles.secondary)
+        .copyWith(
+          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 14),
+          ),
+        );
   }
 
   Future<void> _showFilterDialog(
@@ -325,10 +326,10 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                           labelText: 'Salon',
                           border: OutlineInputBorder(),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: AppDesignTokens.surface,
                         ),
-                        dropdownColor: Colors.white,
-                        iconEnabledColor: Color(0xFF116478),
+                        dropdownColor: AppDesignTokens.surface,
+                        iconEnabledColor: AppDesignTokens.textPrimary,
                       ),
                       const SizedBox(height: 20),
                       DropdownButtonFormField<String?>(
@@ -360,10 +361,10 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                           labelText: 'Üye Tipi',
                           border: OutlineInputBorder(),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: AppDesignTokens.surface,
                         ),
-                        dropdownColor: Colors.white,
-                        iconEnabledColor: Color(0xFF116478),
+                        dropdownColor: AppDesignTokens.surface,
+                        iconEnabledColor: AppDesignTokens.textPrimary,
                       ),
                       const SizedBox(height: 20),
                       DropdownButtonFormField<String?>(
@@ -395,10 +396,10 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                           labelText: 'Eğitmen',
                           border: OutlineInputBorder(),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: AppDesignTokens.surface,
                         ),
-                        dropdownColor: Colors.white,
-                        iconEnabledColor: Color(0xFF116478),
+                        dropdownColor: AppDesignTokens.surface,
+                        iconEnabledColor: AppDesignTokens.textPrimary,
                       ),
                     ],
                   ),
@@ -420,10 +421,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                   child: const Text('İptal'),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF116478),
-                    foregroundColor: Colors.white,
-                  ),
+                  style: AppButtonStyles.primary,
                   onPressed: () {
                     setState(() {
                       _selectedSalonIds = tempSelectedSalonId == null
@@ -484,20 +482,17 @@ class _MembersPageState extends ConsumerState<MembersPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFf6f6d7),
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         toolbarHeight: 46,
-        backgroundColor: const Color(0xFF116478),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         title: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             l10n?.translate('members') ?? 'Members',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: AppTypography.sectionTitle,
             textAlign: TextAlign.left,
           ),
         ),
@@ -520,14 +515,13 @@ class _MembersPageState extends ConsumerState<MembersPage> {
             },
             child: Text(
               _showInactive ? 'Aktif Üyeler' : 'Pasif Üyeler',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+              style: AppTypography.button.copyWith(
+                color: AppDesignTokens.textPrimary,
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
               _refreshMembers();
             },
@@ -545,10 +539,10 @@ class _MembersPageState extends ConsumerState<MembersPage> {
               child: TextField(
                 decoration: const InputDecoration(
                   hintText: 'Üye ara',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(AppIcons.search),
                   border: OutlineInputBorder(),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppDesignTokens.surface,
                 ),
                 onChanged: (value) {
                   _searchDebounce?.cancel();
@@ -574,19 +568,18 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: Icon(
-                          Icons.filter_list,
+                          AppIcons.filter,
                           color: _hasActiveFilters(availableSalons)
-                              ? Colors.white
-                              : const Color(0xFF116478),
+                              ? AppDesignTokens.primaryActionForeground
+                              : AppDesignTokens.textPrimary,
                         ),
                         label: Text(
                           _filterButtonLabel(availableSalons),
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          style: AppTypography.button.copyWith(
                             color: _hasActiveFilters(availableSalons)
-                                ? Colors.white
-                                : const Color(0xFF116478),
-                            fontWeight: FontWeight.w600,
+                                ? AppDesignTokens.primaryActionForeground
+                                : AppDesignTokens.textPrimary,
                           ),
                         ),
                         style: _topActionButtonStyle(
@@ -611,22 +604,34 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                             _markMembersDirty();
                           });
                         },
-                        itemBuilder: (context) => const [
+                        itemBuilder: (context) => [
                           PopupMenuItem(
                             value: 'created_desc',
-                            child: Text('Kayıt Tarihi Yeni → Eski'),
+                            child: Text(
+                              'Kayıt Tarihi Yeni → Eski',
+                              style: AppTypography.body,
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'created_asc',
-                            child: Text('Kayıt Tarihi Eski → Yeni'),
+                            child: Text(
+                              'Kayıt Tarihi Eski → Yeni',
+                              style: AppTypography.body,
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'remaining_asc',
-                            child: Text('Kalan Ders Artan'),
+                            child: Text(
+                              'Kalan Ders Artan',
+                              style: AppTypography.body,
+                            ),
                           ),
                           PopupMenuItem(
                             value: 'remaining_desc',
-                            child: Text('Kalan Ders Azalan'),
+                            child: Text(
+                              'Kalan Ders Azalan',
+                              style: AppTypography.body,
+                            ),
                           ),
                         ],
                         child: IgnorePointer(
@@ -634,15 +639,14 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                             onPressed: () {},
                             icon: const Icon(
                               Icons.sort,
-                              color: Color(0xFF116478),
+                              color: AppDesignTokens.textSecondary,
                               size: 24,
                             ),
                             label: Text(
                               _sortLabel(),
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF116478),
-                                fontWeight: FontWeight.w600,
+                              style: AppTypography.button.copyWith(
+                                color: AppDesignTokens.textSecondary,
                               ),
                             ),
                             style: _topActionButtonStyle(isActive: false),
@@ -660,7 +664,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                       memberState.members.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFF8cb2ab),
+                        color: AppDesignTokens.primaryAction,
                       ),
                     );
                   }
@@ -668,7 +672,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                       memberTypesState.memberTypes.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFF8cb2ab),
+                        color: AppDesignTokens.primaryAction,
                       ),
                     );
                   }
@@ -696,7 +700,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                         // Removed unused: memberPhone, memberEmail
 
                         return Card(
-                          color: Colors.white,
+                          color: AppDesignTokens.surface,
                           margin: const EdgeInsets.symmetric(
                             vertical: 6,
                             horizontal: 2,
@@ -737,10 +741,10 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                     (l10n?.translate('remainingLessons') ??
                                             'Remaining lessons') +
                                         ': ${member.remainingLessons}',
-                                    style: TextStyle(
+                                    style: AppTypography.body.copyWith(
                                       color: member.remainingLessons <= 3
-                                          ? Colors.red
-                                          : const Color(0xFF116478),
+                                          ? AppDesignTokens.error
+                                          : AppDesignTokens.textSecondary,
                                     ),
                                   ),
                               ],
@@ -749,7 +753,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                 ? IconButton(
                                     icon: const Icon(
                                       Icons.restore,
-                                      color: Color(0xFF116478),
+                                      color: AppDesignTokens.textPrimary,
                                     ),
                                     tooltip:
                                         l10n?.translate('reactivate') ??
@@ -771,11 +775,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                 child: Text('İptal'),
                                               ),
                                               ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Color(
-                                                    0xFF116478,
-                                                  ),
-                                                ),
+                                                style: AppButtonStyles.primary,
                                                 onPressed: () => Navigator.of(
                                                   dialogContext,
                                                 ).pop(true),
@@ -807,9 +807,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                     ) ??
                                                     'Member reactivated successfully',
                                               ),
-                                              backgroundColor: const Color(
-                                                0xFF8cb2ab,
-                                              ),
+                                              backgroundColor:
+                                                  AppDesignTokens.success,
                                             ),
                                           );
                                         } else {
@@ -941,9 +940,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                         ) ??
                                                         'Member updated successfully',
                                                   ),
-                                                  backgroundColor: const Color(
-                                                    0xFF8cb2ab,
-                                                  ),
+                                                  backgroundColor:
+                                                      AppDesignTokens.success,
                                                 ),
                                               );
                                             }
@@ -1182,10 +1180,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                                       ),
                                                                       Text(
                                                                         'Son Fiyat: ₺${finalPrice.toStringAsFixed(2)}',
-                                                                        style: const TextStyle(
-                                                                          fontWeight:
-                                                                              FontWeight.bold,
-                                                                        ),
+                                                                        style: AppTypography
+                                                                            .bodyStrong,
                                                                       ),
                                                                     ],
                                                                     if (errorText !=
@@ -1197,9 +1193,9 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                                         ),
                                                                         child: Text(
                                                                           errorText!,
-                                                                          style: const TextStyle(
+                                                                          style: AppTypography.body.copyWith(
                                                                             color:
-                                                                                Colors.red,
+                                                                                AppDesignTokens.error,
                                                                           ),
                                                                         ),
                                                                       ),
@@ -1325,9 +1321,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                                               'Lesson package assigned!',
                                                                         ),
                                                                         backgroundColor:
-                                                                            const Color(
-                                                                              0xFF8cb2ab,
-                                                                            ),
+                                                                            AppDesignTokens.success,
                                                                       ),
                                                                     );
                                                                   }
@@ -1386,44 +1380,43 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                               return;
                                             }
                                             if (member.remainingLessons > 0) {
-                                              final confirmReset = await showDialog<bool>(
-                                                context: context,
-                                                builder: (dialogContext) {
-                                                  return AlertDialog(
-                                                    title: const Text(
-                                                      'Kalan Dersler Sıfırlanacak',
-                                                    ),
-                                                    content: const Text(
-                                                      'Bu üyenin kalan dersi var. Pasifleştirirseniz kalan dersler sıfırlanacak. Emin misiniz?',
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                              dialogContext,
-                                                            ).pop(false),
-                                                        child: const Text(
-                                                          'İptal',
+                                              final confirmReset =
+                                                  await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (dialogContext) {
+                                                      return AlertDialog(
+                                                        title: const Text(
+                                                          'Kalan Dersler Sıfırlanacak',
                                                         ),
-                                                      ),
-                                                      ElevatedButton(
-                                                        style:
-                                                            ElevatedButton.styleFrom(
-                                                              backgroundColor:
-                                                                  Colors.red,
+                                                        content: const Text(
+                                                          'Bu üyenin kalan dersi var. Pasifleştirirseniz kalan dersler sıfırlanacak. Emin misiniz?',
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.of(
+                                                                  dialogContext,
+                                                                ).pop(false),
+                                                            child: const Text(
+                                                              'İptal',
                                                             ),
-                                                        onPressed: () =>
-                                                            Navigator.of(
-                                                              dialogContext,
-                                                            ).pop(true),
-                                                        child: const Text(
-                                                          'Onayla',
-                                                        ),
-                                                      ),
-                                                    ],
+                                                          ),
+                                                          ElevatedButton(
+                                                            style:
+                                                                AppButtonStyles
+                                                                    .destructive,
+                                                            onPressed: () =>
+                                                                Navigator.of(
+                                                                  dialogContext,
+                                                                ).pop(true),
+                                                            child: const Text(
+                                                              'Onayla',
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
                                                   );
-                                                },
-                                              );
                                               if (confirmReset == true) {
                                                 final deleteResult = await ref
                                                     .read(
@@ -1447,9 +1440,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                             'Member deactivated successfully',
                                                       ),
                                                       backgroundColor:
-                                                          const Color(
-                                                            0xFF8cb2ab,
-                                                          ),
+                                                          AppDesignTokens
+                                                              .success,
                                                     ),
                                                   );
                                                 } else {
@@ -1470,47 +1462,45 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                               return;
                                             }
                                             // Normal deactivate confirmation
-                                            final confirmed = await showDialog<bool>(
-                                              context: context,
-                                              builder: (dialogContext) {
-                                                return AlertDialog(
-                                                  title: Text(
-                                                    'Üyeyi Pasifleştir',
-                                                  ),
-                                                  content: Text(
-                                                    'Bu üyeyi pasifleştirmek istediğinize emin misiniz?',
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            dialogContext,
-                                                          ).pop(false),
-                                                      child: Text(
-                                                        l10n?.translate(
-                                                              'cancel',
-                                                            ) ??
-                                                            'Cancel',
+                                            final confirmed =
+                                                await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (dialogContext) {
+                                                    return AlertDialog(
+                                                      title: Text(
+                                                        'Üyeyi Pasifleştir',
                                                       ),
-                                                    ),
-                                                    ElevatedButton(
-                                                      style:
-                                                          ElevatedButton.styleFrom(
-                                                            backgroundColor:
-                                                                Colors.red,
+                                                      content: Text(
+                                                        'Bu üyeyi pasifleştirmek istediğinize emin misiniz?',
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                dialogContext,
+                                                              ).pop(false),
+                                                          child: Text(
+                                                            l10n?.translate(
+                                                                  'cancel',
+                                                                ) ??
+                                                                'Cancel',
                                                           ),
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            dialogContext,
-                                                          ).pop(true),
-                                                      child: Text(
-                                                        'Pasifleştir',
-                                                      ),
-                                                    ),
-                                                  ],
+                                                        ),
+                                                        ElevatedButton(
+                                                          style: AppButtonStyles
+                                                              .destructive,
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                dialogContext,
+                                                              ).pop(true),
+                                                          child: Text(
+                                                            'Pasifleştir',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
                                                 );
-                                              },
-                                            );
                                             if (confirmed == true) {
                                               final deleteResult = await ref
                                                   .read(memberProvider.notifier)
@@ -1531,7 +1521,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                           'Member deactivated successfully',
                                                     ),
                                                     backgroundColor:
-                                                        const Color(0xFF8cb2ab),
+                                                        AppDesignTokens.success,
                                                   ),
                                                 );
                                               } else {
@@ -1551,7 +1541,20 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                         itemBuilder: (context) => [
                                           PopupMenuItem<String>(
                                             value: 'edit',
-                                            child: Text('Düzenle'),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  AppIcons.edit,
+                                                  color: AppDesignTokens
+                                                      .textSecondary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Düzenle',
+                                                  style: AppTypography.body,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                           PopupMenuItem<String>(
                                             value: 'assign_package',
@@ -1559,7 +1562,20 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                           ),
                                           PopupMenuItem<String>(
                                             value: 'deactivate',
-                                            child: Text('Pasifleştir'),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  AppIcons.delete,
+                                                  color: AppDesignTokens
+                                                      .destructive,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Pasifleştir',
+                                                  style: AppTypography.body,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -1577,8 +1593,11 @@ class _MembersPageState extends ConsumerState<MembersPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF116478),
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: AppDesignTokens.primaryAction,
+        child: const Icon(
+          AppIcons.create,
+          color: AppDesignTokens.primaryActionForeground,
+        ),
         onPressed: () async {
           await showDialog<bool>(
             context: context,
@@ -1603,7 +1622,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                         email: email,
                         memberTypeId: memberTypeId,
                         memberTypeName: '',
-                        memberTypeColor: '#116478',
+                        memberTypeColor: '#171717',
                         assignedSalonIds: assignedSalonIds,
                         assignedEquipmentIds: assignedEquipmentIds,
                         remainingLessons: remainingLessons,
@@ -1621,7 +1640,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                               l10n?.translate('memberAddedSuccessfully') ??
                                   'Member added successfully',
                             ),
-                            backgroundColor: const Color(0xFF8cb2ab),
+                            backgroundColor: AppDesignTokens.success,
                           ),
                         );
                         return null;

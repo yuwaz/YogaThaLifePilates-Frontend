@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'member_measurement_dialog.dart';
 import '../providers/member_provider.dart';
+import '../theme/app_design_tokens.dart';
 
 class MemberMeasurementHistoryPage extends ConsumerStatefulWidget {
   final int memberId;
@@ -21,9 +22,6 @@ class MemberMeasurementHistoryPage extends ConsumerStatefulWidget {
 
 class _MemberMeasurementHistoryPageState
     extends ConsumerState<MemberMeasurementHistoryPage> {
-  static const Color _themeTeal = Color(0xFF116478);
-  static const Color _themeCream = Color(0xFFf6f6d7);
-  static const Color _themeCard = Color(0xFFFFFEF8);
   static const Color _changeGood = Color(0xFF2E7D32);
   static const Color _changeBad = Color(0xFFC62828);
   static const Color _changeNeutral = Color(0xFF6F7F7D);
@@ -257,9 +255,11 @@ class _MemberMeasurementHistoryPageState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppDesignTokens.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x1F116478)),
+        border: const Border.fromBorderSide(
+          BorderSide(color: AppDesignTokens.border),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +267,7 @@ class _MemberMeasurementHistoryPageState
           Text(
             _label(field),
             style: const TextStyle(
-              color: Color(0xFF5A6C6B),
+              color: AppDesignTokens.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -276,7 +276,7 @@ class _MemberMeasurementHistoryPageState
           Text(
             currentText,
             style: const TextStyle(
-              color: _themeTeal,
+              color: AppDesignTokens.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -302,25 +302,20 @@ class _MemberMeasurementHistoryPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _themeCream,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: _themeTeal,
-        title: const Text(
-          'Ölçüm Geçmişi',
-          style: TextStyle(color: _themeCream),
-        ),
+        backgroundColor: AppDesignTokens.surface,
+        title: const Text('Ölçüm Geçmişi', style: AppTypography.cardTitle),
         actions: [
           TextButton.icon(
             onPressed: _handleQuickAddMeasurement,
-            icon: const Icon(Icons.add, color: _themeCream, size: 18),
-            label: const Text(
-              'Yeni Ölçüm',
-              style: TextStyle(color: _themeCream, fontWeight: FontWeight.w600),
-            ),
+            style: AppButtonStyles.secondary,
+            icon: const Icon(AppIcons.create, size: 18),
+            label: const Text('Yeni Ölçüm'),
           ),
           const SizedBox(width: 4),
         ],
-        iconTheme: const IconThemeData(color: _themeCream),
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
       body: _isLoading
@@ -331,10 +326,7 @@ class _MemberMeasurementHistoryPageState
             )
           : _history.isEmpty
           ? const Center(
-              child: Text(
-                'Henüz ölçüm geçmişi yok',
-                style: TextStyle(color: _themeTeal),
-              ),
+              child: Text('Henüz ölçüm geçmişi yok', style: AppTypography.body),
             )
           : ListView.builder(
               controller: _scrollController,
@@ -348,12 +340,12 @@ class _MemberMeasurementHistoryPageState
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  color: _themeCard,
+                  color: AppDesignTokens.surface,
                   elevation: 1,
                   shadowColor: const Color(0x14000000),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0x1F116478)),
+                    side: const BorderSide(color: AppDesignTokens.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,14 +356,14 @@ class _MemberMeasurementHistoryPageState
                           children: [
                             const Icon(
                               Icons.calendar_month,
-                              color: _themeTeal,
+                              color: AppDesignTokens.textPrimary,
                               size: 16,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _formatDateTime(current.measuredAt),
                               style: const TextStyle(
-                                color: _themeTeal,
+                                color: AppDesignTokens.textPrimary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
                               ),

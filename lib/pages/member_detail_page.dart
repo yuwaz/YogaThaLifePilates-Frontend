@@ -17,6 +17,7 @@ import 'member_measurement_dialog.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
+import '../theme/app_design_tokens.dart';
 
 class MemberDetailPage extends ConsumerStatefulWidget {
   final Member member;
@@ -37,10 +38,6 @@ class MemberDetailPage extends ConsumerStatefulWidget {
 }
 
 class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
-  static const Color _themeTeal = Color(0xFF116478);
-  static const Color _themeCream = Color(0xFFf6f6d7);
-  static const Color _themeCard = Color(0xFFFFFEF8);
-
   final GlobalKey _reservationsSectionKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
   bool _reservationsRequested = false;
@@ -410,7 +407,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       child: Text(
         title,
         style: const TextStyle(
-          color: _themeTeal,
+          color: AppDesignTokens.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
@@ -427,7 +424,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _themeCard,
+        color: AppDesignTokens.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
@@ -442,7 +439,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: _themeTeal),
+              Icon(icon, size: 18, color: AppDesignTokens.textPrimary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -464,7 +461,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: valueColor ?? _themeTeal,
+              color: valueColor ?? AppDesignTokens.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -529,7 +526,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       final hex = member.memberTypeColor.replaceAll('#', '');
       memberTypeColor = Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      memberTypeColor = const Color(0xFF116478);
+      memberTypeColor = AppDesignTokens.backgroundSecondary;
     }
     final memberSalons = member.assignedSalonIds.map((id) {
       return widget.salons.firstWhere(
@@ -539,14 +536,16 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: _themeCream,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: _themeTeal,
+        backgroundColor: AppDesignTokens.primaryAction,
         title: Text(
           loc?.translate('memberDetails') ?? 'Member Details',
-          style: const TextStyle(color: _themeCream),
+          style: AppTypography.cardTitle,
         ),
-        iconTheme: const IconThemeData(color: _themeCream),
+        iconTheme: const IconThemeData(
+          color: AppDesignTokens.primaryActionForeground,
+        ),
         elevation: 0,
       ),
       body: Padding(
@@ -557,7 +556,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _themeCard,
+                color: AppDesignTokens.surface,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -595,7 +594,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
-                                color: _themeTeal,
+                                color: AppDesignTokens.textPrimary,
                                 fontWeight: FontWeight.w800,
                               ),
                         ),
@@ -611,13 +610,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0x1A116478),
+                                      color:
+                                          AppDesignTokens.backgroundSecondary,
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Text(
                                       loc?.translate('salon') ?? 'Salon',
                                       style: const TextStyle(
-                                        color: _themeTeal,
+                                        color: AppDesignTokens.textPrimary,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -631,7 +631,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                                           vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF8cb2ab),
+                                          color: AppDesignTokens.textSecondary,
                                           borderRadius: BorderRadius.circular(
                                             999,
                                           ),
@@ -708,7 +708,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: _themeCard,
+                color: AppDesignTokens.surface,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: const [
                   BoxShadow(
@@ -731,28 +731,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                         children: [
                           OutlinedButton.icon(
                             onPressed: _showAddMeasurementRecordDialog,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: _themeTeal),
-                              foregroundColor: _themeTeal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                            icon: const Icon(Icons.add_outlined, size: 18),
+                            style: AppButtonStyles.secondary,
+                            icon: const Icon(AppIcons.create, size: 18),
                             label: const Text('Yeni Ölçüm'),
                           ),
                           OutlinedButton.icon(
                             onPressed: _openMeasurementHistoryPage,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: _themeTeal),
-                              foregroundColor: _themeTeal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                            icon: const Icon(Icons.history, size: 18),
+                            style: AppButtonStyles.secondary,
+                            icon: const Icon(AppIcons.history, size: 18),
                             label: const Text('Ölçüm Geçmişi'),
                           ),
                         ],
@@ -764,20 +750,12 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                           children: [
                             const Text(
                               'Son Ölçüm',
-                              style: TextStyle(
-                                color: _themeTeal,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: AppTypography.sectionTitle,
                             ),
                             const SizedBox(height: 2),
                             Text(
                               _formatDateTime(_latestMeasurementDate),
-                              style: const TextStyle(
-                                color: Color(0xFF5A6C6B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppTypography.caption,
                             ),
                             const SizedBox(height: 10),
                             buttons,
@@ -794,20 +772,12 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                               children: [
                                 const Text(
                                   'Son Ölçüm',
-                                  style: TextStyle(
-                                    color: _themeTeal,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  style: AppTypography.sectionTitle,
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _formatDateTime(_latestMeasurementDate),
-                                  style: const TextStyle(
-                                    color: Color(0xFF5A6C6B),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: AppTypography.caption,
                                 ),
                               ],
                             ),
@@ -843,7 +813,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0x1F116478),
+                                  color: AppDesignTokens.border,
                                 ),
                               ),
                               child: Column(
@@ -861,7 +831,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                                   Text(
                                     measurementValues[entry.key] ?? '-',
                                     style: const TextStyle(
-                                      color: _themeTeal,
+                                      color: AppDesignTokens.textPrimary,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -881,7 +851,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
             Text(
               'Atanan Ders Paketleri',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: _themeTeal,
+                color: AppDesignTokens.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -924,7 +894,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                 final assignedId = pkg is Map ? pkg['id'] : null;
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 6),
-                  color: _themeCard,
+                  color: AppDesignTokens.surface,
                   elevation: 2,
                   shadowColor: const Color(0x17000000),
                   shape: RoundedRectangleBorder(
@@ -962,8 +932,8 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                           right: 0,
                           child: IconButton(
                             icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
+                              AppIcons.delete,
+                              color: AppDesignTokens.destructive,
                             ),
                             tooltip: 'Sil',
                             onPressed: () async {
@@ -1024,7 +994,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                   Text(
                     'Yaklaşan Rezervasyonlar',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: _themeTeal,
+                      color: AppDesignTokens.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1034,17 +1004,17 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                       reservationsState.reservations.isEmpty)
                     const Text(
                       'Rezervasyonlar göründüğünde yüklenecek',
-                      style: TextStyle(color: _themeTeal),
+                      style: AppTypography.body,
                     )
                   else if (reservationsState.isLoading)
                     const Text(
                       'Rezervasyonlar yükleniyor...',
-                      style: TextStyle(color: _themeTeal),
+                      style: AppTypography.body,
                     )
                   else if (topUpcomingReservations.isEmpty)
                     const Text(
                       'Yaklaşan rezervasyon yok',
-                      style: TextStyle(color: _themeTeal),
+                      style: AppTypography.body,
                     )
                   else
                     ...topUpcomingReservations.map((reservation) {
@@ -1081,7 +1051,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                       );
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 5),
-                        color: _themeCard,
+                        color: AppDesignTokens.surface,
                         elevation: 2,
                         shadowColor: const Color(0x17000000),
                         shape: RoundedRectangleBorder(
@@ -1096,7 +1066,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                           title: Text(
                             '$day.$month.$year  $hour:$minute',
                             style: const TextStyle(
-                              color: _themeTeal,
+                              color: AppDesignTokens.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1105,18 +1075,18 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                             children: [
                               Text(
                                 'Salon: ${salon.name}',
-                                style: const TextStyle(color: _themeTeal),
+                                style: AppTypography.body,
                               ),
                               Text(
                                 'Ekipman: ${equipment.name}',
-                                style: const TextStyle(color: _themeTeal),
+                                style: AppTypography.body,
                               ),
                               if (reservation.recurrenceGroupId != null &&
                                   reservation.recurrenceGroupId!.isNotEmpty)
                                 const Text(
                                   'Tekrarlı rezervasyon',
                                   style: TextStyle(
-                                    color: Color(0xFF8cb2ab),
+                                    color: AppDesignTokens.textSecondary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1128,8 +1098,8 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                             children: [
                               IconButton(
                                 icon: const Icon(
-                                  Icons.edit_outlined,
-                                  color: _themeTeal,
+                                  AppIcons.edit,
+                                  color: AppDesignTokens.textPrimary,
                                 ),
                                 tooltip: loc?.translate('edit') ?? 'Edit',
                                 onPressed: () =>
@@ -1137,8 +1107,8 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                               ),
                               IconButton(
                                 icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
+                                  AppIcons.delete,
+                                  color: AppDesignTokens.destructive,
                                 ),
                                 tooltip: loc?.translate('delete') ?? 'Delete',
                                 onPressed: () =>

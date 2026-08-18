@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/member_provider.dart';
+import '../theme/app_design_tokens.dart';
 
 Future<bool> showNewMeasurementDialog({
   required BuildContext context,
@@ -9,8 +10,6 @@ Future<bool> showNewMeasurementDialog({
   required int memberId,
   required String token,
 }) async {
-  const themeTeal = Color(0xFF116478);
-
   final fields = <String>[
     'Boy',
     'Kilo',
@@ -82,15 +81,16 @@ Future<bool> showNewMeasurementDialog({
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.schedule, size: 18, color: themeTeal),
+                    const Icon(
+                      Icons.schedule,
+                      size: 18,
+                      color: AppDesignTokens.textPrimary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Olcum Tarihi: ${formatDateTime(measuredAt)}',
-                        style: const TextStyle(
-                          color: themeTeal,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTypography.bodyStrong,
                       ),
                     ),
                     TextButton(
@@ -179,7 +179,7 @@ Future<bool> showNewMeasurementDialog({
             child: const Text('Vazgec'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: themeTeal),
+            style: AppButtonStyles.primary,
             onPressed: isSubmitting
                 ? null
                 : () async {
@@ -239,7 +239,7 @@ Future<bool> showNewMeasurementDialog({
                       });
                     }
                   },
-            child: const Text('Kaydet', style: TextStyle(color: Colors.white)),
+            child: const Text('Kaydet'),
           ),
         ],
       ),
