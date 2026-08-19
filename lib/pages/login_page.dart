@@ -13,10 +13,7 @@ import '../utils/app_bootstrap.dart';
 import 'entry_page.dart';
 import 'main_page.dart';
 import 'studio_onboarding_page.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorageService());
 
@@ -249,14 +246,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         title: Text(
           AppLocalizations.of(context)?.translate('login') ?? 'Login',
-          style: TextStyle(color: kBrandTextColor),
+          style: AppTypography.sectionTitle,
         ),
-        backgroundColor: kBrandBackgroundColor,
-        iconTheme: const IconThemeData(color: kBrandTextColor),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
       body: SafeArea(
@@ -286,12 +284,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               context,
                             )?.translate('studioCodeHelper') ??
                             'Leave blank if you use the original YogaTha studio.',
-                        labelStyle: const TextStyle(color: kBrandTextColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        labelStyle: AppTypography.label,
                       ),
-                      style: const TextStyle(color: kBrandTextColor),
+                      style: AppTypography.body,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -305,12 +300,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               context,
                             )?.translate('username') ??
                             'Username',
-                        labelStyle: const TextStyle(color: kBrandTextColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        labelStyle: AppTypography.label,
                       ),
-                      style: const TextStyle(color: kBrandTextColor),
+                      style: AppTypography.body,
                       validator: (v) {
                         final loc = AppLocalizations.of(context);
                         return v == null || v.isEmpty
@@ -334,19 +326,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               context,
                             )?.translate('password') ??
                             'Password',
-                        labelStyle: const TextStyle(color: kBrandTextColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        labelStyle: AppTypography.label,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscure ? Icons.visibility : Icons.visibility_off,
-                            color: kBrandTextColor,
+                            color: AppDesignTokens.textPrimary,
                           ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      style: const TextStyle(color: kBrandTextColor),
+                      style: AppTypography.body,
                       validator: (v) {
                         final loc = AppLocalizations.of(context);
                         return v == null || v.isEmpty
@@ -360,16 +349,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           auth.error!,
-                          style: const TextStyle(color: Colors.red),
+                          style: AppTypography.body.copyWith(
+                            color: AppDesignTokens.error,
+                          ),
                         ),
                       ),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kBrandAccentColor,
-                          foregroundColor: Colors.white,
-                        ),
+                        style: AppButtonStyles.primary,
                         onPressed: auth.isLoading ? null : _login,
                         child: auth.isLoading
                             ? const Row(
@@ -400,14 +388,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       const Text(
                         'Bilgiler güncelleniyor...',
                         style: TextStyle(
-                          color: kBrandTextColor,
+                          color: AppDesignTokens.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         'Lütfen bekleyin',
-                        style: TextStyle(color: kBrandTextColor, fontSize: 12),
+                        style: AppTypography.caption,
                       ),
                     ],
                   ],

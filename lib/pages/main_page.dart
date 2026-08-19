@@ -13,10 +13,7 @@ import 'reports_page.dart';
 import 'settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/subscription_settings_section.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -129,11 +126,11 @@ class _MainPageState extends ConsumerState<MainPage> {
     // 0 nav items: show safe message
     if (navItems.isEmpty) {
       return Scaffold(
-        backgroundColor: kBrandBackgroundColor,
+        backgroundColor: AppDesignTokens.backgroundPrimary,
         body: Center(
           child: Text(
             'Bu kullanıcı için yetkili sayfa bulunamadı.',
-            style: const TextStyle(fontSize: 18, color: kBrandTextColor),
+            style: AppTypography.sectionTitle,
             textAlign: TextAlign.center,
           ),
         ),
@@ -143,7 +140,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     // 1 nav item: show only that page, no BottomNavigationBar
     if (navItems.length == 1) {
       return Scaffold(
-        backgroundColor: kBrandBackgroundColor,
+        backgroundColor: AppDesignTokens.backgroundPrimary,
         body: navItems[0].page,
       );
     }
@@ -153,7 +150,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     final hideBottomNavigation =
         isLandscape && selectedItem.permissionKey == 'reservations';
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       body: IndexedStack(
         index: _selectedIndex,
         children: navItems.map((item) => item.page).toList(),
@@ -161,9 +158,12 @@ class _MainPageState extends ConsumerState<MainPage> {
       bottomNavigationBar: (hideBottomNavigation || keyboardVisible)
           ? null
           : BottomNavigationBar(
-              backgroundColor: kBrandBackgroundColor,
-              selectedItemColor: kBrandAccentColor,
-              unselectedItemColor: kBrandTextColor.withOpacity(0.6),
+              backgroundColor: AppDesignTokens.surface,
+              selectedItemColor: AppDesignTokens.selectedForeground,
+              unselectedItemColor: AppDesignTokens.textMuted,
+              type: BottomNavigationBarType.fixed,
+              selectedFontSize: 11,
+              unselectedFontSize: 10,
               currentIndex: _selectedIndex,
               onTap: (index) => setState(() => _selectedIndex = index),
               items: navItems
@@ -256,10 +256,10 @@ class _SubscriptionRecoveryScaffold extends ConsumerWidget {
               'Operational access is unavailable because your studio subscription requires administrator action.');
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: kBrandBackgroundColor,
-        foregroundColor: kBrandTextColor,
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
         elevation: 0,
         title: Text(loc?.translate('settings') ?? 'Settings'),
       ),
@@ -275,21 +275,16 @@ class _SubscriptionRecoveryScaffold extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text(title, style: AppTypography.sectionTitle),
                       const SizedBox(height: 8),
-                      Text(description),
+                      Text(description, style: AppTypography.body),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
                           OutlinedButton.icon(
+                            style: AppButtonStyles.secondary,
                             onPressed: () => _handleRetry(ref),
                             icon: const Icon(Icons.refresh),
                             label: Text(loc?.translate('retry') ?? 'Retry'),

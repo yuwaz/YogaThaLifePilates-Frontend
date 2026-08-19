@@ -175,26 +175,19 @@ class _AuthInitState extends ConsumerState<AuthInit> {
     if (_restoring) {
       return const MaterialApp(
         home: Scaffold(
-          backgroundColor: Color(0xFFF6F6D7),
+          backgroundColor: AppDesignTokens.backgroundPrimary,
           body: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: Color(0xFF116478)),
+                CircularProgressIndicator(color: AppDesignTokens.primaryAction),
                 SizedBox(height: 16),
                 Text(
                   'Bilgiler güncelleniyor...',
-                  style: TextStyle(
-                    color: Color(0xFF116478),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+                  style: AppTypography.cardTitle,
                 ),
                 SizedBox(height: 6),
-                Text(
-                  'Lütfen bekleyin',
-                  style: TextStyle(color: Color(0xFF116478), fontSize: 13),
-                ),
+                Text('Lütfen bekleyin', style: AppTypography.caption),
               ],
             ),
           ),
