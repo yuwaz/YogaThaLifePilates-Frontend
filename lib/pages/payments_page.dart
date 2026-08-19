@@ -13,6 +13,7 @@ import '../models/payment.dart';
 import '../l10n/app_localizations.dart';
 import 'member_payment_details_page.dart';
 import '../utils/currency_formatter.dart';
+import '../theme/app_design_tokens.dart';
 
 // PaymentFormDialog for adding a payment
 class PaymentFormDialog extends ConsumerStatefulWidget {
@@ -64,12 +65,12 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
     final methodsAsync = ref.watch(paymentMethodProvider(widget.token));
     final isEdit = widget.initialPayment != null;
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         isEdit
             ? (loc?.translate('edit') ?? 'Ödeme Düzenle')
             : (loc?.translate('add') ?? 'Ödeme Ekle'),
-        style: const TextStyle(color: kBrandTextColor),
+        style: AppTypography.sectionTitle,
       ),
       content: Form(
         key: _formKey,
@@ -103,7 +104,7 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                       _selectedPaymentMethodId = v;
                     });
                   },
-                  decoration: const InputDecoration(labelText: 'Ödeme Yöntemi'),
+                  decoration: _dialogInputDecoration('Ödeme Yöntemi'),
                   validator: (v) => v == null ? 'Ödeme yöntemi seçin' : null,
                 );
               },
@@ -114,17 +115,16 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     : (e.toString().isNotEmpty
                           ? e.toString()
                           : 'Failed to fetch payment methods'),
-                style: const TextStyle(color: Colors.red),
+                style: AppTypography.body.copyWith(
+                  color: AppDesignTokens.error,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Tutar',
-                prefixText: '₺',
-              ),
+              decoration: _dialogInputDecoration('Tutar', prefixText: '₺'),
               validator: (v) {
                 final n = double.tryParse(v ?? '');
                 if (n == null || n <= 0) return 'Pozitif bir tutar girin';
@@ -139,12 +139,13 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     _selectedDate == null
                         ? 'Tarih: \\${DateTime.now().toLocal().toString().split(' ')[0]}'
                         : 'Tarih: \\${_selectedDate!.toLocal().toString().split(' ')[0]}',
+                    style: AppTypography.body,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(
                     Icons.calendar_today,
-                    color: kBrandAccentColor,
+                    color: AppDesignTokens.textSecondary,
                   ),
                   onPressed: () async {
                     final now = DateTime.now();
@@ -163,12 +164,14 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: _loading ? null : () => Navigator.pop(context, false),
-          child: Text(loc?.translate('cancel') ?? 'İptal'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(loc?.translate('cancel') ?? 'İptal'),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kBrandAccentColor),
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: _loading
               ? null
               : () async {
@@ -212,9 +215,10 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
                     }
                   }
                 },
-          child: _loading
+          icon: _loading
               ? const CircularProgressIndicator()
-              : const Text('Submit', style: TextStyle(color: Colors.white)),
+              : const Icon(AppIcons.save, size: 18),
+          label: _loading ? const Text('') : const Text('Submit'),
         ),
       ],
     );
@@ -293,13 +297,15 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
     final isEdit = widget.initialExpense != null;
 
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         isEdit ? 'Gider Düzenle' : 'Gider Ekle',
-        style: const TextStyle(color: kBrandTextColor),
+        style: AppTypography.sectionTitle,
       ),
       content: SizedBox(
-        width: 420,
+        width: MediaQuery.sizeOf(context).width > 468
+            ? 420
+            : MediaQuery.sizeOf(context).width - 48,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -308,7 +314,7 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
               children: [
                 TextFormField(
                   controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Başlık'),
+                  decoration: _dialogInputDecoration('Başlık'),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Başlık zorunludur';
@@ -322,10 +328,7 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Tutar',
-                    prefixText: '₺',
-                  ),
+                  decoration: _dialogInputDecoration('Tutar', prefixText: '₺'),
                   validator: (v) {
                     final n = double.tryParse((v ?? '').replaceAll(',', '.'));
                     if (n == null || n <= 0) {
@@ -337,7 +340,7 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
-                  decoration: const InputDecoration(labelText: 'Kategori'),
+                  decoration: _dialogInputDecoration('Kategori'),
                   items: _categories
                       .map(
                         (c) =>
@@ -362,8 +365,8 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
 
                     return DropdownButtonFormField<int>(
                       value: _selectedPaymentMethodId,
-                      decoration: const InputDecoration(
-                        labelText: 'Ödeme Yöntemi (Opsiyonel)',
+                      decoration: _dialogInputDecoration(
+                        'Ödeme Yöntemi (Opsiyonel)',
                       ),
                       items: [
                         const DropdownMenuItem<int>(
@@ -391,12 +394,13 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                     Expanded(
                       child: Text(
                         'Tarih: ${_selectedDate.day.toString().padLeft(2, '0')}.${_selectedDate.month.toString().padLeft(2, '0')}.${_selectedDate.year}',
+                        style: AppTypography.body,
                       ),
                     ),
                     IconButton(
                       icon: const Icon(
                         Icons.calendar_today,
-                        color: kBrandAccentColor,
+                        color: AppDesignTokens.textSecondary,
                       ),
                       onPressed: () async {
                         final now = DateTime.now();
@@ -416,7 +420,7 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _notesController,
-                  decoration: const InputDecoration(labelText: 'Notlar'),
+                  decoration: _dialogInputDecoration('Notlar'),
                   maxLines: 2,
                 ),
               ],
@@ -425,12 +429,14 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: _loading ? null : () => Navigator.pop(context),
-          child: const Text('İptal'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: const Text('İptal'),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kBrandAccentColor),
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: _loading
               ? null
               : () async {
@@ -491,13 +497,14 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                     Navigator.pop(context, error);
                   }
                 },
-          child: _loading
+          icon: _loading
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Kaydet', style: TextStyle(color: Colors.white)),
+              : const Icon(AppIcons.save, size: 18),
+          label: _loading ? const Text('') : const Text('Kaydet'),
         ),
       ],
     );
@@ -517,12 +524,28 @@ Color? parseColor(dynamic colorValue) {
       }
     } catch (_) {}
   }
-  return kBrandAccentColor;
+  return AppDesignTokens.backgroundSecondary;
 }
 
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+InputDecoration _dialogInputDecoration(String label, {String? prefixText}) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: AppTypography.label,
+    prefixText: prefixText,
+    prefixStyle: AppTypography.body,
+    filled: true,
+    fillColor: AppDesignTokens.backgroundSecondary,
+    border: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.textPrimary),
+    ),
+  );
+}
 
 class PaymentsPage extends ConsumerStatefulWidget {
   final String token;
@@ -704,20 +727,17 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     }
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         toolbarHeight: 46,
-        backgroundColor: const Color(0xFF116478),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         title: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             loc?.translate('payments') ?? 'Ödemeler',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: AppTypography.sectionTitle,
             textAlign: TextAlign.left,
           ),
         ),
@@ -737,12 +757,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       child: TextField(
                         decoration: InputDecoration(
                           hintText: loc?.translate('search') ?? 'Ara',
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const Icon(AppIcons.search),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: AppDesignTokens.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
+                            borderSide: const BorderSide(
+                              color: AppDesignTokens.border,
+                            ),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 12,
@@ -770,16 +792,16 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       height: 48,
                       child: OutlinedButton.icon(
                         key: _sortButtonKey,
-                        icon: const Icon(Icons.sort, color: Color(0xFF116478)),
+                        icon: const Icon(
+                          Icons.sort,
+                          color: AppDesignTokens.textPrimary,
+                        ),
                         label: Text(
                           _sortLabel(),
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFF116478)),
+                          style: AppTypography.label,
                         ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF116478)),
-                          backgroundColor: Colors.white,
-                        ),
+                        style: AppButtonStyles.toolbar,
                         onPressed: () async {
                           final ctx = _sortButtonKey.currentContext;
                           if (ctx == null) return;
@@ -845,8 +867,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: _selectedTabIndex == 0
-                              ? kBrandAccentColor
-                              : Colors.white,
+                              ? AppDesignTokens.primaryAction
+                              : AppDesignTokens.surface,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Center(
@@ -854,8 +876,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             'Üyeler',
                             style: TextStyle(
                               color: _selectedTabIndex == 0
-                                  ? Colors.white
-                                  : kBrandTextColor,
+                                  ? AppDesignTokens.primaryActionForeground
+                                  : AppDesignTokens.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -873,8 +895,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: _selectedTabIndex == 1
-                              ? kBrandAccentColor
-                              : Colors.white,
+                              ? AppDesignTokens.primaryAction
+                              : AppDesignTokens.surface,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Center(
@@ -882,8 +904,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             'Ödemeler',
                             style: TextStyle(
                               color: _selectedTabIndex == 1
-                                  ? Colors.white
-                                  : kBrandTextColor,
+                                  ? AppDesignTokens.primaryActionForeground
+                                  : AppDesignTokens.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -901,8 +923,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: _selectedTabIndex == 2
-                              ? kBrandAccentColor
-                              : Colors.white,
+                              ? AppDesignTokens.primaryAction
+                              : AppDesignTokens.surface,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Center(
@@ -910,8 +932,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                             'Giderler',
                             style: TextStyle(
                               color: _selectedTabIndex == 2
-                                  ? Colors.white
-                                  : kBrandTextColor,
+                                  ? AppDesignTokens.primaryActionForeground
+                                  : AppDesignTokens.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -937,7 +959,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                           // Removed unused memberPayments
                           return Card(
                             key: ValueKey('${member.id}-${member.totalDebt}'),
-                            color: Colors.white,
+                            color: AppDesignTokens.surface,
                             margin: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 6,
@@ -964,14 +986,15 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                     member.name.isNotEmpty
                                         ? member.name[0]
                                         : '?',
-                                    style: const TextStyle(color: Colors.white),
+                                    style: const TextStyle(
+                                      color: AppDesignTokens
+                                          .primaryActionForeground,
+                                    ),
                                   ),
                                 ),
                                 title: Text(
                                   member.name,
-                                  style: const TextStyle(
-                                    color: kBrandTextColor,
-                                  ),
+                                  style: AppTypography.cardTitle,
                                 ),
                                 subtitle: Row(
                                   children: [
@@ -979,23 +1002,18 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                       (loc?.translate('totalDebt') ??
                                               'Total Debt') +
                                           ': ',
-                                      style: const TextStyle(
-                                        color: kBrandTextColor,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: AppTypography.label,
                                     ),
                                     Text(
                                       formatCurrency(member.totalDebt),
-                                      style: const TextStyle(
-                                        color: kBrandTextColor,
-                                      ),
+                                      style: AppTypography.bodyStrong,
                                     ),
                                   ],
                                 ),
                                 trailing: IconButton(
                                   icon: const Icon(
-                                    Icons.add,
-                                    color: kBrandAccentColor,
+                                    AppIcons.create,
+                                    color: AppDesignTokens.textPrimary,
                                   ),
                                   tooltip:
                                       loc?.translate('add') ?? 'Add Payment',
@@ -1023,7 +1041,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                               loc?.translate('add') ??
                                                   'Payment added successfully',
                                             ),
-                                            backgroundColor: kBrandAccentColor,
+                                            backgroundColor:
+                                                AppDesignTokens.success,
                                           ),
                                         );
                                       }
@@ -1064,7 +1083,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                           ? _buildPullPlaceholder(
                               Text(
                                 'Henüz ödeme kaydı yok',
-                                style: const TextStyle(color: kBrandTextColor),
+                                style: AppTypography.body,
                               ),
                             )
                           : (() {
@@ -1094,16 +1113,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                               ? member.name[0]
                                               : '?',
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            color: AppDesignTokens
+                                                .primaryActionForeground,
                                           ),
                                         ),
                                       ),
                                       title: Text(
                                         memberName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: kBrandTextColor,
-                                        ),
+                                        style: AppTypography.cardTitle,
                                       ),
                                       subtitle: Column(
                                         crossAxisAlignment:
@@ -1113,25 +1130,18 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                             children: [
                                               Text(
                                                 '₺${p.amount.toStringAsFixed(2)}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                                style: AppTypography.bodyStrong,
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 p.method,
-                                                style: const TextStyle(
-                                                  color: kBrandAccentColor,
-                                                ),
+                                                style: AppTypography.label,
                                               ),
                                             ],
                                           ),
                                           Text(
                                             '${p.date.day.toString().padLeft(2, '0')}.${p.date.month.toString().padLeft(2, '0')}.${p.date.year}',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.black54,
-                                            ),
+                                            style: AppTypography.caption,
                                           ),
                                         ],
                                       ),
@@ -1147,7 +1157,9 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         Text(
                           expenseState.error?.toString() ??
                               (loc?.translate('error') ?? 'Error'),
-                          style: const TextStyle(color: Colors.red),
+                          style: AppTypography.body.copyWith(
+                            color: AppDesignTokens.error,
+                          ),
                         ),
                       )
                     : (() {
@@ -1155,7 +1167,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                           return _buildPullPlaceholder(
                             const Text(
                               'Henüz gider kaydı yok',
-                              style: TextStyle(color: kBrandTextColor),
+                              style: AppTypography.body,
                             ),
                           );
                         }
@@ -1177,10 +1189,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                 dense: true,
                                 title: Text(
                                   e.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: kBrandTextColor,
-                                  ),
+                                  style: AppTypography.cardTitle,
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1189,17 +1198,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                       children: [
                                         Text(
                                           '₺${e.amount.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                          style: AppTypography.bodyStrong,
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
                                             e.category,
-                                            style: const TextStyle(
-                                              color: kBrandAccentColor,
-                                            ),
+                                            style: AppTypography.label,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
@@ -1207,17 +1212,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                     ),
                                     Text(
                                       '${e.date.day.toString().padLeft(2, '0')}.${e.date.month.toString().padLeft(2, '0')}.${e.date.year}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black54,
-                                      ),
+                                      style: AppTypography.caption,
                                     ),
                                     if (hasNotes)
                                       Text(
                                         notes,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black87,
+                                        style: AppTypography.caption.copyWith(
+                                          color: AppDesignTokens.textSecondary,
                                         ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -1228,10 +1229,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: kBrandAccentColor,
-                                      ),
+                                      icon: const Icon(AppIcons.edit),
+                                      style: AppButtonStyles.compactIcon,
                                       onPressed: () async {
                                         final result = await showDialog(
                                           context: context,
@@ -1255,7 +1254,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                                 'Gider güncellendi',
                                               ),
                                               backgroundColor:
-                                                  kBrandAccentColor,
+                                                  AppDesignTokens.success,
                                             ),
                                           );
                                         } else if (result is String &&
@@ -1273,10 +1272,8 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                     ),
                                     const SizedBox(width: 12),
                                     IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
+                                      icon: const Icon(AppIcons.delete),
+                                      color: AppDesignTokens.destructive,
                                       onPressed: () async {
                                         final shouldDelete = await showDialog<bool>(
                                           context: context,
@@ -1296,22 +1293,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                                   child: const Text('Vazgeç'),
                                                 ),
                                                 ElevatedButton(
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
+                                                  style: AppButtonStyles
+                                                      .destructive,
                                                   onPressed: () =>
                                                       Navigator.pop(
                                                         dialogContext,
                                                         true,
                                                       ),
-                                                  child: const Text(
-                                                    'Sil',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
+                                                  child: const Text('Sil'),
                                                 ),
                                               ],
                                             );
@@ -1333,7 +1322,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                             const SnackBar(
                                               content: Text('Gider silindi'),
                                               backgroundColor:
-                                                  kBrandAccentColor,
+                                                  AppDesignTokens.success,
                                             ),
                                           );
                                         } else {
@@ -1362,8 +1351,11 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
       ),
       floatingActionButton: _selectedTabIndex == 2
           ? FloatingActionButton(
-              backgroundColor: const Color(0xFF116478),
-              child: const Icon(Icons.add, color: Colors.white),
+              backgroundColor: AppDesignTokens.primaryAction,
+              child: const Icon(
+                AppIcons.create,
+                color: AppDesignTokens.primaryActionForeground,
+              ),
               onPressed: () async {
                 final result = await showDialog(
                   context: context,
@@ -1383,7 +1375,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Gider eklendi'),
-                        backgroundColor: kBrandAccentColor,
+                        backgroundColor: AppDesignTokens.success,
                       ),
                     );
                   }
