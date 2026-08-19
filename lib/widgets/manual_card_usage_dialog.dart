@@ -6,9 +6,7 @@ import '../models/manual_card_usage.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../providers/manual_card_usage_provider.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 class ManualCardUsageDialog extends ConsumerStatefulWidget {
   final ManualCardUsage? initialUsage;
@@ -118,12 +116,12 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
         .toList();
 
     return AlertDialog(
-      backgroundColor: Colors.white,
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         widget.initialUsage != null && widget.initialUsage!.id > 0
             ? 'Manuel Kart Kullanımı Düzenle'
             : 'Manuel Kart Kullanımı',
-        style: TextStyle(color: kBrandTextColor),
+        style: AppTypography.sectionTitle,
       ),
       content: Form(
         key: _formKey,
@@ -134,15 +132,20 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Tarih'),
+                  decoration: _manualCardInputDecoration('Tarih'),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           _usageDate.toLocal().toString().split(' ')[0],
+                          style: AppTypography.body,
                         ),
                       ),
-                      const Icon(Icons.calendar_today, size: 18),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: AppDesignTokens.textSecondary,
+                      ),
                     ],
                   ),
                 ),
@@ -165,7 +168,7 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
                     .toList(),
                 onChanged: (value) =>
                     setState(() => _selectedMemberTypeId = value),
-                decoration: const InputDecoration(labelText: 'Üye Tipi'),
+                decoration: _manualCardInputDecoration('Üye Tipi'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Üye tipi zorunludur';
@@ -178,7 +181,7 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
                 controller: _usageCountController,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'Kullanım Adedi'),
+                decoration: _manualCardInputDecoration('Kullanım Adedi'),
                 validator: (value) {
                   final count = int.tryParse((value ?? '').trim());
                   if (count == null || count <= 0) {
@@ -192,29 +195,50 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
                 controller: _noteController,
                 minLines: 2,
                 maxLines: 4,
-                decoration: const InputDecoration(labelText: 'Not'),
+                decoration: _manualCardInputDecoration('Not'),
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          child: const Text('İptal'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: const Text('İptal'),
         ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kBrandAccentColor),
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: _isSaving ? null : _save,
-          child: _isSaving
+          icon: _isSaving
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Kaydet', style: TextStyle(color: Colors.white)),
+              : const Icon(AppIcons.save, size: 18),
+          label: _isSaving ? const Text('') : const Text('Kaydet'),
         ),
       ],
     );
   }
+}
+
+InputDecoration _manualCardInputDecoration(String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: AppTypography.label,
+    filled: true,
+    fillColor: AppDesignTokens.backgroundSecondary,
+    border: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.textPrimary),
+    ),
+  );
 }

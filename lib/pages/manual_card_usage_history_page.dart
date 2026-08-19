@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/manual_card_usage_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../widgets/manual_card_usage_dialog.dart';
+import '../theme/app_design_tokens.dart';
 
 class ManualCardUsageHistoryPage extends ConsumerStatefulWidget {
   final Future<void> Function()? onManualUsageChanged;
@@ -150,19 +151,27 @@ class _ManualCardUsageHistoryPageState
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Manuel Kullanımı Sil'),
+          backgroundColor: AppDesignTokens.surface,
+          title: const Text(
+            'Manuel Kullanımı Sil',
+            style: AppTypography.sectionTitle,
+          ),
           content: const Text(
             'Bu manuel kart kullanımını silmek istediğinize emin misiniz?',
+            style: AppTypography.body,
           ),
           actions: [
-            TextButton(
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Vazgeç'),
+              icon: const Icon(AppIcons.close, size: 18),
+              label: const Text('Vazgeç'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Sil', style: TextStyle(color: Colors.white)),
+              style: AppButtonStyles.destructive,
+              icon: const Icon(AppIcons.delete, size: 18),
+              label: const Text('Sil'),
             ),
           ],
         );
@@ -207,12 +216,18 @@ class _ManualCardUsageHistoryPageState
       ..sort((a, b) => b.usageDate.compareTo(a.usageDate));
 
     return Scaffold(
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        title: const Text('Manuel Kart Kullanımları'),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        title: const Text(
+          'Manuel Kart Kullanımları',
+          style: AppTypography.sectionTitle,
+        ),
         actions: [
           IconButton(
             onPressed: _openAddDialog,
-            icon: const Icon(Icons.add),
+            icon: const Icon(AppIcons.create),
             tooltip: 'Manuel Kullanım Ekle',
           ),
         ],
@@ -232,13 +247,17 @@ class _ManualCardUsageHistoryPageState
                   children: [
                     Text(
                       historyState.error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: AppTypography.body.copyWith(
+                        color: AppDesignTokens.error,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    OutlinedButton(
+                    OutlinedButton.icon(
+                      style: AppButtonStyles.secondary,
                       onPressed: _loadInitialData,
-                      child: const Text('Tekrar Dene'),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Tekrar Dene'),
                     ),
                   ],
                 ),
@@ -251,7 +270,11 @@ class _ManualCardUsageHistoryPageState
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history, size: 28, color: Colors.black54),
+                  Icon(
+                    AppIcons.history,
+                    size: 28,
+                    color: AppDesignTokens.textMuted,
+                  ),
                   SizedBox(height: 8),
                   Text('Henüz manuel kart kullanımı eklenmedi.'),
                 ],
@@ -272,7 +295,12 @@ class _ManualCardUsageHistoryPageState
                 final note = usage.note?.trim();
 
                 return Card(
+                  color: AppDesignTokens.surface,
                   margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: AppDesignTokens.border),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
                     child: Row(
@@ -282,18 +310,26 @@ class _ManualCardUsageHistoryPageState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_formatDate(usage.usageDate)),
+                              Text(
+                                _formatDate(usage.usageDate),
+                                style: AppTypography.caption,
+                              ),
                               const SizedBox(height: 2),
                               Text(
                                 _resolveMemberTypeName(usage, memberTypeMap),
+                                style: AppTypography.cardTitle,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
-                              Text('${usage.usageCount} kullanım'),
+                              Text(
+                                '${usage.usageCount} kullanım',
+                                style: AppTypography.bodyStrong,
+                              ),
                               if (note != null && note.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
                                   note,
+                                  style: AppTypography.caption,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -317,7 +353,7 @@ class _ManualCardUsageHistoryPageState
                               value: 'edit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit, size: 18),
+                                  Icon(AppIcons.edit, size: 18),
                                   SizedBox(width: 8),
                                   Text('Düzenle'),
                                 ],
@@ -327,7 +363,7 @@ class _ManualCardUsageHistoryPageState
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete_outline, size: 18),
+                                  Icon(AppIcons.delete, size: 18),
                                   SizedBox(width: 8),
                                   Text('Sil'),
                                 ],

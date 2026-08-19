@@ -8,10 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/manual_card_usage_dialog.dart';
 import 'manual_card_usage_history_page.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 class ReportsPage extends ConsumerStatefulWidget {
   const ReportsPage({super.key});
@@ -38,7 +35,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         }
       } catch (_) {}
     }
-    return const Color(0xFF8CB2AB);
+    return AppDesignTokens.backgroundSecondary;
   }
 
   DateTimeRange? _dateRange;
@@ -124,20 +121,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         : salons.where((s) => assignedSalonIds.contains(s.id)).toList();
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         toolbarHeight: 46,
-        backgroundColor: const Color(0xFF116478),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         title: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             loc?.translate('reports') ?? 'Reports',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: AppTypography.sectionTitle,
             textAlign: TextAlign.left,
           ),
         ),
@@ -156,7 +150,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               Center(
                 child: Text(
                   reportsState.error!,
-                  style: const TextStyle(color: Colors.red),
+                  style: AppTypography.body.copyWith(
+                    color: AppDesignTokens.error,
+                  ),
                 ),
               ),
             if (!reportsState.loading && reportsState.error == null)
@@ -180,17 +176,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       children: [
         // Date Range Picker
         OutlinedButton.icon(
-          icon: const Icon(Icons.date_range, color: kBrandTextColor),
+          icon: const Icon(
+            Icons.date_range,
+            color: AppDesignTokens.textPrimary,
+          ),
           label: Text(
             _dateRange == null
                 ? (loc?.translate('selectDateRange') ?? 'Select Date Range')
                 : '${_dateRange!.start.year}/${_dateRange!.start.month}/${_dateRange!.start.day} - '
                       '${_dateRange!.end.year}/${_dateRange!.end.month}/${_dateRange!.end.day}',
-            style: const TextStyle(color: kBrandTextColor),
+            style: AppTypography.label,
           ),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: kBrandTextColor),
-          ),
+          style: AppButtonStyles.toolbar,
           onPressed: () async {
             final picked = await showDateRangePicker(
               context: context,
@@ -319,7 +316,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           const SizedBox(width: 0), // TODO: Add instructor filter if needed
         // Refresh Button
         IconButton(
-          icon: const Icon(Icons.refresh, color: kBrandTextColor),
+          icon: const Icon(Icons.refresh, color: AppDesignTokens.textPrimary),
+          style: AppButtonStyles.compactIcon,
           tooltip: loc?.translate('edit') ?? 'Refresh',
           onPressed: () {
             _refreshReports();
@@ -455,8 +453,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         value: netProfitValue,
         icon: Icons.account_balance_wallet,
         valueColor: netProfit != null && netProfit < 0
-            ? Colors.red
-            : kBrandTextColor,
+            ? AppDesignTokens.destructive
+            : AppDesignTokens.textPrimary,
       ),
     ];
 
@@ -489,14 +487,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            sectionTitle,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: kBrandTextColor,
-            ),
-          ),
+          Text(sectionTitle, style: AppTypography.bodyStrong),
           const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
@@ -545,15 +536,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final list = (data['memberTypeBreakdown'] as List?) ?? [];
     if (list.isEmpty) return const SizedBox();
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Üye Tipi Dağılımı',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('Üye Tipi Dağılımı', style: AppTypography.cardTitle),
             const SizedBox(height: 8),
             ...list.map(
               (e) => Row(
@@ -567,8 +560,16 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  Expanded(child: Text(e['memberTypeName'] ?? '-')),
-                  Text(e['memberCount']?.toString() ?? '-'),
+                  Expanded(
+                    child: Text(
+                      e['memberTypeName'] ?? '-',
+                      style: AppTypography.body,
+                    ),
+                  ),
+                  Text(
+                    e['memberCount']?.toString() ?? '-',
+                    style: AppTypography.bodyStrong,
+                  ),
                 ],
               ),
             ),
@@ -604,15 +605,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     }
 
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Eğitmen Seans Raporu',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('Eğitmen Seans Raporu', style: AppTypography.cardTitle),
             const SizedBox(height: 8),
             ...list.map((e) {
               final row = e is Map
@@ -657,23 +660,41 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       children: [
                         Text(
                           'Eğitmen: ${instructorName != null && instructorName.isNotEmpty ? instructorName : '-'}',
+                          style: AppTypography.bodyStrong,
                         ),
-                        Text('Salon: ${salonLabel(row)}'),
-                        Text('Toplam Seans Sayısı: $sessionCount'),
-                        Text('Katılımcı Sayısı: $participantCount'),
+                        Text(
+                          'Salon: ${salonLabel(row)}',
+                          style: AppTypography.caption,
+                        ),
+                        Text(
+                          'Toplam Seans Sayısı: $sessionCount',
+                          style: AppTypography.caption,
+                        ),
+                        Text(
+                          'Katılımcı Sayısı: $participantCount',
+                          style: AppTypography.caption,
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Expanded(flex: 3, child: Text('Grup:')),
+                            const Expanded(
+                              flex: 3,
+                              child: Text('Grup:', style: AppTypography.label),
+                            ),
                             Expanded(
                               flex: 3,
-                              child: Text('$groupSessionCount seans'),
+                              child: Text(
+                                '$groupSessionCount seans',
+                                style: AppTypography.caption,
+                              ),
                             ),
                             Expanded(
                               flex: 2,
                               child: Text(
                                 formatCurrency(groupPayment),
                                 textAlign: TextAlign.right,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption,
                               ),
                             ),
                           ],
@@ -681,16 +702,27 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Expanded(flex: 3, child: Text('Bireysel:')),
+                            const Expanded(
+                              flex: 3,
+                              child: Text(
+                                'Bireysel:',
+                                style: AppTypography.label,
+                              ),
+                            ),
                             Expanded(
                               flex: 3,
-                              child: Text('$individualSessionCount seans'),
+                              child: Text(
+                                '$individualSessionCount seans',
+                                style: AppTypography.caption,
+                              ),
                             ),
                             Expanded(
                               flex: 2,
                               child: Text(
                                 formatCurrency(individualPayment),
                                 textAlign: TextAlign.right,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.caption,
                               ),
                             ),
                           ],
@@ -698,15 +730,20 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Expanded(flex: 6, child: Text('Toplam:')),
+                            const Expanded(
+                              flex: 6,
+                              child: Text(
+                                'Toplam:',
+                                style: AppTypography.label,
+                              ),
+                            ),
                             Expanded(
                               flex: 2,
                               child: Text(
                                 formatCurrency(totalInstructorPayout),
                                 textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.bodyStrong,
                               ),
                             ),
                           ],
@@ -768,6 +805,11 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     print('[Reports] cardBasedRevenueByType: $cardBasedRevenueByType');
 
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -779,7 +821,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 const Expanded(
                   child: Text(
                     'Kartlı Sistem Geliri Dağılımı',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: AppTypography.cardTitle,
                   ),
                 ),
                 PopupMenuButton<String>(
@@ -790,7 +832,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       value: _cardActionAdd,
                       child: Row(
                         children: [
-                          Icon(Icons.add_circle_outline, size: 18),
+                          Icon(AppIcons.create, size: 18),
                           SizedBox(width: 8),
                           Text('Manuel Kullanım Ekle'),
                         ],
@@ -800,14 +842,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       value: _cardActionHistory,
                       child: Row(
                         children: [
-                          Icon(Icons.history, size: 18),
+                          Icon(AppIcons.history, size: 18),
                           SizedBox(width: 8),
                           Text('Manuel Kullanım Geçmişi'),
                         ],
                       ),
                     ),
                   ],
-                  icon: const Icon(Icons.more_vert, color: kBrandTextColor),
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: AppDesignTokens.textPrimary,
+                  ),
                   iconSize: 18,
                   splashRadius: 18,
                   padding: EdgeInsets.zero,
@@ -816,7 +861,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             ),
             const SizedBox(height: 8),
             if (cardBasedRevenueByType.isEmpty)
-              const Text('Kartlı sistem geliri yok')
+              const Text('Kartlı sistem geliri yok', style: AppTypography.body)
             else
               ...cardBasedRevenueByType.map((e) {
                 final row = e is Map ? e : <String, dynamic>{};
@@ -830,15 +875,19 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       Expanded(
                         child: Text(
                           typeName.toString(),
+                          style: AppTypography.body,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('${count.toString()} kullanım'),
+                      Text(
+                        '${count.toString()} kullanım',
+                        style: AppTypography.caption,
+                      ),
                       const SizedBox(width: 16),
                       Text(
                         revenue != null ? formatCurrency(revenue) : '-',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: AppTypography.bodyStrong,
                       ),
                     ],
                   ),
@@ -894,28 +943,34 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
     if (filteredList.isEmpty) return const SizedBox();
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Doluluk Oranı',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('Doluluk Oranı', style: AppTypography.cardTitle),
             const SizedBox(height: 8),
             ...filteredList.map(
               (e) => Row(
                 children: [
-                  Expanded(child: Text(e['label'] ?? '-')),
+                  Expanded(
+                    child: Text(e['label'] ?? '-', style: AppTypography.body),
+                  ),
                   Text(
                     '${e['occupiedSlots'] ?? '-'} / ${e['totalSlots'] ?? '-'}',
+                    style: AppTypography.caption,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     e['occupancyRate'] != null
                         ? '%${(e['occupancyRate'] is num ? (e['occupancyRate'] as num).toStringAsFixed(2) : e['occupancyRate'].toString())}'
                         : '-',
+                    style: AppTypography.bodyStrong,
                   ),
                 ],
               ),
@@ -978,25 +1033,22 @@ class InstructorSessionDetailPage extends StatelessWidget {
     final sessions = (data['sessions'] as List?) ?? const [];
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         toolbarHeight: 46,
-        backgroundColor: const Color(0xFF116478),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         title: Text(
           '${instructorName != null && instructorName.isNotEmpty ? instructorName : '-'} - Seans Detayları',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: AppTypography.cardTitle,
         ),
       ),
       body: Column(
         children: [
           Container(
             width: double.infinity,
-            color: Colors.white,
+            color: AppDesignTokens.surface,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1004,12 +1056,12 @@ class InstructorSessionDetailPage extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Toplam Seans Sayısı: $sessionCount',
-                  style: const TextStyle(color: kBrandTextColor),
+                  style: AppTypography.body,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Katılımcı Sayısı: $participantCount',
-                  style: const TextStyle(color: kBrandTextColor),
+                  style: AppTypography.body,
                 ),
                 const SizedBox(height: 2),
               ],
@@ -1051,22 +1103,25 @@ class InstructorSessionDetailPage extends StatelessWidget {
                           children: [
                             Text(
                               '$formattedDate  ${time != null && time.isNotEmpty ? time : '-'}',
-                              style: const TextStyle(
-                                fontSize: 13,
+                              style: AppTypography.caption.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: kBrandTextColor,
+                                color: AppDesignTokens.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '$salon · $sessionParticipantCount katılımcı',
-                              style: const TextStyle(fontSize: 13),
+                              style: AppTypography.caption.copyWith(
+                                color: AppDesignTokens.textSecondary,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               memberNames,
                               softWrap: true,
-                              style: const TextStyle(fontSize: 13),
+                              style: AppTypography.caption.copyWith(
+                                color: AppDesignTokens.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -1089,7 +1144,7 @@ class _SummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
-    this.valueColor = kBrandTextColor,
+    this.valueColor = AppDesignTokens.textPrimary,
   });
 
   @override
@@ -1097,23 +1152,26 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 120),
       child: Card(
-        color: Colors.white,
-        elevation: 2,
+        color: AppDesignTokens.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppDesignTokens.border),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, color: kBrandTextColor, size: 28),
+              Icon(icon, color: AppDesignTokens.textPrimary, size: 28),
               const SizedBox(height: 8),
               Flexible(
                 child: Center(
                   child: Text(
                     value,
-                    style: TextStyle(
+                    style: AppTypography.numericKpi.copyWith(
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
                       color: valueColor,
                     ),
                     textAlign: TextAlign.center,
@@ -1126,7 +1184,7 @@ class _SummaryCard extends StatelessWidget {
               Center(
                 child: Text(
                   title,
-                  style: const TextStyle(fontSize: 14, color: kBrandTextColor),
+                  style: AppTypography.label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
