@@ -19,6 +19,7 @@ import '../providers/instructors_provider.dart' show instructorsProvider;
 import '../providers/locale_provider.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/subscription_settings_section.dart';
+import '../theme/app_design_tokens.dart';
 
 // Predefined member type colors (must match requirements)
 const List<Color> kMemberTypeColors = [
@@ -92,41 +93,50 @@ class SettingsPage extends ConsumerWidget {
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
+        backgroundColor: AppDesignTokens.backgroundPrimary,
         appBar: AppBar(
           toolbarHeight: 46,
-          backgroundColor: const Color(0xFF116478),
-          iconTheme: const IconThemeData(color: Colors.white),
+          backgroundColor: AppDesignTokens.surface,
+          foregroundColor: AppDesignTokens.textPrimary,
+          iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
           title: Align(
             alignment: Alignment.centerLeft,
             child: Text(
               loc?.translate('settings') ?? 'Settings',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: AppTypography.sectionTitle,
               textAlign: TextAlign.left,
             ),
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.language, color: Colors.white),
+              style: AppButtonStyles.compactIcon,
+              icon: const Icon(Icons.language),
               tooltip: loc?.translate('language') ?? 'Language',
               onPressed: () async {
                 final selected = await showDialog<Locale>(
                   context: context,
                   builder: (context) => SimpleDialog(
-                    title: Text(loc?.translate('language') ?? 'Language'),
+                    backgroundColor: AppDesignTokens.surface,
+                    title: Text(
+                      loc?.translate('language') ?? 'Language',
+                      style: AppTypography.sectionTitle,
+                    ),
                     children: [
                       SimpleDialogOption(
                         onPressed: () =>
                             Navigator.pop(context, const Locale('en')),
-                        child: Text(loc?.translate('english') ?? 'English'),
+                        child: Text(
+                          loc?.translate('english') ?? 'English',
+                          style: AppTypography.body,
+                        ),
                       ),
                       SimpleDialogOption(
                         onPressed: () =>
                             Navigator.pop(context, const Locale('tr')),
-                        child: Text(loc?.translate('turkish') ?? 'Türkçe'),
+                        child: Text(
+                          loc?.translate('turkish') ?? 'Türkçe',
+                          style: AppTypography.body,
+                        ),
                       ),
                     ],
                   ),
@@ -146,8 +156,16 @@ class SettingsPage extends ConsumerWidget {
         body: Column(
           children: [
             Material(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              child: TabBar(isScrollable: true, tabs: tabs),
+              color: AppDesignTokens.surface,
+              child: TabBar(
+                isScrollable: true,
+                labelColor: AppDesignTokens.textPrimary,
+                unselectedLabelColor: AppDesignTokens.textSecondary,
+                indicatorColor: AppDesignTokens.primaryAction,
+                labelStyle: AppTypography.label,
+                unselectedLabelStyle: AppTypography.label,
+                tabs: tabs,
+              ),
             ),
             Expanded(child: TabBarView(children: tabViews)),
           ],
@@ -265,11 +283,16 @@ class _AccountSectionState extends ConsumerState<_AccountSection> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Text(
+              _error!,
+              style: AppTypography.body.copyWith(color: AppDesignTokens.error),
+            ),
             const SizedBox(height: 12),
-            ElevatedButton(
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
               onPressed: _fetchProfile,
-              child: const Text('Tekrar Dene'),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Tekrar Dene'),
             ),
           ],
         ),
@@ -282,21 +305,26 @@ class _AccountSectionState extends ConsumerState<_AccountSection> {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
+            color: AppDesignTokens.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: AppDesignTokens.border),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Hesabım',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Hesabım', style: AppTypography.sectionTitle),
                   const SizedBox(height: 12),
-                  Text('Kullanıcı Adı: $username'),
+                  Text('Kullanıcı Adı: $username', style: AppTypography.body),
                   const SizedBox(height: 8),
-                  Text('Rol: $role'),
+                  Text('Rol: $role', style: AppTypography.body),
                   const SizedBox(height: 8),
-                  Text('Atanan Salonlar: $assignedSalonNames'),
+                  Text(
+                    'Atanan Salonlar: $assignedSalonNames',
+                    style: AppTypography.body,
+                  ),
                 ],
               ),
             ),
@@ -391,15 +419,12 @@ class _ChangePasswordSectionState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Şifre Değiştir',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text('Şifre Değiştir', style: AppTypography.sectionTitle),
             const SizedBox(height: 16),
             TextFormField(
               controller: _oldPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Mevcut Şifre'),
+              decoration: _settingsInputDecoration('Mevcut Şifre'),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Bu alan zorunludur';
@@ -411,7 +436,7 @@ class _ChangePasswordSectionState
             TextFormField(
               controller: _newPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Yeni Şifre'),
+              decoration: _settingsInputDecoration('Yeni Şifre'),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Bu alan zorunludur';
@@ -423,7 +448,7 @@ class _ChangePasswordSectionState
             TextFormField(
               controller: _confirmPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Yeni Şifre Tekrar'),
+              decoration: _settingsInputDecoration('Yeni Şifre Tekrar'),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Bu alan zorunludur';
@@ -438,6 +463,7 @@ class _ChangePasswordSectionState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                style: AppButtonStyles.primary,
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
                     ? const SizedBox(
@@ -453,6 +479,24 @@ class _ChangePasswordSectionState
       ),
     );
   }
+}
+
+InputDecoration _settingsInputDecoration(String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: AppTypography.label,
+    filled: true,
+    fillColor: AppDesignTokens.backgroundSecondary,
+    border: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.textPrimary),
+    ),
+  );
 }
 
 // Section classes moved to top-level (outside SettingsPage)

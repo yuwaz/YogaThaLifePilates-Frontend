@@ -11,6 +11,7 @@ import '../providers/subscription_native_purchase_restore_provider.dart';
 import '../providers/subscription_native_purchase_start_provider.dart';
 import '../providers/subscription_status_provider.dart';
 import '../services/subscription_store_catalog_service.dart';
+import '../theme/app_design_tokens.dart';
 
 final subscriptionPlanStoreMatchProvider = FutureProvider.autoDispose
     .family<SubscriptionStoreProductMatchResult, String>((ref, planCode) {
@@ -151,6 +152,9 @@ class _SubscriptionSettingsSectionState
               _SectionCard(
                 title: loc?.translate('subscriptionTab') ?? 'Subscription',
                 action: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppDesignTokens.textPrimary,
+                  ),
                   onPressed: _refreshStatus,
                   icon: const Icon(Icons.refresh),
                   label: Text(
@@ -187,6 +191,9 @@ class _SubscriptionSettingsSectionState
                     loc?.translate('subscriptionAvailablePlans') ??
                     'Available plans',
                 action: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppDesignTokens.textPrimary,
+                  ),
                   onPressed: _refreshCatalog,
                   icon: const Icon(Icons.refresh),
                   label: Text(
@@ -218,6 +225,7 @@ class _SubscriptionSettingsSectionState
                       Align(
                         alignment: Alignment.centerLeft,
                         child: OutlinedButton.icon(
+                          style: AppButtonStyles.secondary,
                           onPressed: _restoreInProgress ? null : _startRestore,
                           icon: _restoreInProgress
                               ? const SizedBox(
@@ -264,6 +272,7 @@ class _SubscriptionSettingsSectionState
           ),
           const SizedBox(height: 12),
           OutlinedButton(
+            style: AppButtonStyles.secondary,
             onPressed: _refreshStatus,
             child: Text(loc?.translate('retry') ?? 'Retry'),
           ),
@@ -349,6 +358,7 @@ class _SubscriptionSettingsSectionState
           ),
           const SizedBox(height: 12),
           OutlinedButton(
+            style: AppButtonStyles.secondary,
             onPressed: _refreshCatalog,
             child: Text(loc?.translate('retry') ?? 'Retry'),
           ),
@@ -607,6 +617,11 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -615,15 +630,7 @@ class _SectionCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                Expanded(child: Text(title, style: AppTypography.sectionTitle)),
                 ...?action == null ? null : [action!],
               ],
             ),
@@ -646,19 +653,21 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 156,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(value)),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelWidth = constraints.maxWidth < 360 ? 112.0 : 156.0;
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: labelWidth,
+                child: Text(label, style: AppTypography.bodyStrong),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(value, style: AppTypography.body)),
+            ],
+          );
+        },
       ),
     );
   }
@@ -679,10 +688,11 @@ class _FeedbackBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF4F2),
-        borderRadius: BorderRadius.circular(12),
+        color: AppDesignTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppDesignTokens.border),
       ),
-      child: Text(message),
+      child: Text(message, style: AppTypography.body),
     );
   }
 }
@@ -733,6 +743,11 @@ class _PlanCard extends ConsumerWidget {
         onPurchase != null;
 
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -741,13 +756,7 @@ class _PlanCard extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    planDisplayName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: Text(planDisplayName, style: AppTypography.cardTitle),
                 ),
                 if (isCurrentPlan)
                   Container(
@@ -756,32 +765,29 @@ class _PlanCard extends ConsumerWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF116478),
-                      borderRadius: BorderRadius.circular(999),
+                      color: AppDesignTokens.selectedBackground,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       loc?.translate('subscriptionCurrentPlanBadge') ??
                           'Current',
-                      style: const TextStyle(color: Colors.white),
+                      style: AppTypography.label.copyWith(
+                        color: AppDesignTokens.selectedForeground,
+                      ),
                     ),
                   ),
               ],
             ),
             if (localizedPrice != null && localizedPrice.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(
-                localizedPrice,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text(localizedPrice, style: AppTypography.sectionTitle),
             ],
             const SizedBox(height: 12),
             if (canPurchase)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  style: AppButtonStyles.primary,
                   onPressed: isPurchaseBusy ? null : onPurchase,
                   child: isPurchaseBusy
                       ? const SizedBox(
