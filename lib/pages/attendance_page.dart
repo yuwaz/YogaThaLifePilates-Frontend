@@ -9,10 +9,7 @@ import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../l10n/app_localizations.dart';
 import 'member_attendance_details_page.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 class AttendancePage extends ConsumerStatefulWidget {
   final String token;
@@ -65,6 +62,15 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
     _needsAttendanceRecompute = true;
   }
 
+  Color _memberTypeColor(Member member) {
+    try {
+      final hex = member.memberTypeColor.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppDesignTokens.backgroundSecondary;
+    }
+  }
+
   void _recomputeAttendanceCaches(
     List<Member> members,
     List<Attendance> attendances,
@@ -82,16 +88,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
           email.contains(query);
     }).toList();
 
-    _filteredAttendanceHistory = attendances.where((a) {
-      if (_attendanceSearchQuery.isEmpty) return true;
-      final name = _memberById[a.memberId]?.name.toLowerCase() ?? '';
-      return name.contains(_attendanceSearchQuery);
-    }).toList()
-      ..sort((a, b) {
-        final dateCompare = b.date.compareTo(a.date);
-        if (dateCompare != 0) return dateCompare;
-        return b.id.compareTo(a.id);
-      });
+    _filteredAttendanceHistory =
+        attendances.where((a) {
+          if (_attendanceSearchQuery.isEmpty) return true;
+          final name = _memberById[a.memberId]?.name.toLowerCase() ?? '';
+          return name.contains(_attendanceSearchQuery);
+        }).toList()..sort((a, b) {
+          final dateCompare = b.date.compareTo(a.date);
+          if (dateCompare != 0) return dateCompare;
+          return b.id.compareTo(a.id);
+        });
 
     _needsAttendanceRecompute = false;
   }
@@ -132,27 +138,24 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
     final memberTypes = memberTypesState.memberTypes;
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         toolbarHeight: 46,
-        backgroundColor: const Color(0xFF116478),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         title: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             loc?.translate('attendance') ?? 'Attendance',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: AppTypography.sectionTitle,
             textAlign: TextAlign.left,
           ),
         ),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: const Icon(AppIcons.create),
             tooltip: loc?.translate('add') ?? 'Add',
             onPressed: () async {
               final result = await showDialog<bool>(
@@ -174,7 +177,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                     content: Text(
                       loc?.translate('attendanceMarked') ?? 'Attendance marked',
                     ),
-                    backgroundColor: kBrandAccentColor,
+                    backgroundColor: AppDesignTokens.success,
                   ),
                 );
               }
@@ -190,14 +193,18 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
             return Center(
               child: Text(
                 '${loc?.translate('error') ?? 'Error'}: ${attendanceState.error}',
-                style: const TextStyle(color: Colors.red),
+                style: AppTypography.body.copyWith(
+                  color: AppDesignTokens.error,
+                ),
               ),
             );
           } else if (memberState.members.isEmpty) {
             return Center(
               child: Text(
                 'Üye bulunamadı',
-                style: const TextStyle(color: Colors.black54),
+                style: AppTypography.body.copyWith(
+                  color: AppDesignTokens.textMuted,
+                ),
               ),
             );
           }
@@ -227,8 +234,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         color: _selectedTabIndex == 0
-                            ? kBrandAccentColor
-                            : Colors.white,
+                            ? AppDesignTokens.primaryAction
+                            : AppDesignTokens.surface,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
@@ -236,8 +243,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                           'Üyeler',
                           style: TextStyle(
                             color: _selectedTabIndex == 0
-                                ? Colors.white
-                                : kBrandTextColor,
+                                ? AppDesignTokens.primaryActionForeground
+                                : AppDesignTokens.textPrimary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -253,8 +260,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         color: _selectedTabIndex == 1
-                            ? kBrandAccentColor
-                            : Colors.white,
+                            ? AppDesignTokens.primaryAction
+                            : AppDesignTokens.surface,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
@@ -262,8 +269,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                           'Yoklama Geçmişi',
                           style: TextStyle(
                             color: _selectedTabIndex == 1
-                                ? Colors.white
-                                : kBrandTextColor,
+                                ? AppDesignTokens.primaryActionForeground
+                                : AppDesignTokens.textPrimary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -285,10 +292,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                   child: TextField(
                     decoration: const InputDecoration(
                       hintText: 'Üye ara',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.white,
+                      prefixIcon: Icon(AppIcons.search),
                     ),
                     onChanged: (value) {
                       _searchDebounce?.cancel();
@@ -297,8 +301,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                         () {
                           if (!mounted) return;
                           setState(() {
-                            _attendanceSearchQuery =
-                                value.trim().toLowerCase();
+                            _attendanceSearchQuery = value.trim().toLowerCase();
                             _markAttendanceDirty();
                           });
                         },
@@ -311,7 +314,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                   child: RefreshIndicator(
                     onRefresh: _refreshAttendance,
                     child: _selectedTabIndex == 0
-                      ? (_filteredMembers.isEmpty
+                        ? (_filteredMembers.isEmpty
                               ? ListView(
                                   physics:
                                       const AlwaysScrollableScrollPhysics(),
@@ -320,9 +323,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                     Center(
                                       child: Text(
                                         'Üye bulunamadı',
-                                        style: TextStyle(
-                                          color: kBrandTextColor,
-                                        ),
+                                        style: AppTypography.body,
                                       ),
                                     ),
                                   ],
@@ -334,149 +335,128 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                   itemCount: _filteredMembers.length,
                                   itemBuilder: (context, idx) {
                                     final member = _filteredMembers[idx];
+                                    final memberTypeColor = _memberTypeColor(
+                                      member,
+                                    );
                                     return Card(
-                                      color: Colors.white,
+                                      color: AppDesignTokens.surface,
                                       margin: const EdgeInsets.symmetric(
                                         horizontal: 12,
                                         vertical: 6,
                                       ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: ListTile(
-                                              leading: CircleAvatar(
-                                                child: Text(
-                                                  member.name.isNotEmpty
-                                                      ? member.name[0]
-                                                      : '?',
-                                                ),
+                                      child: ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor: memberTypeColor,
+                                          child: Text(
+                                            member.name.isNotEmpty
+                                                ? member.name[0]
+                                                : '?',
+                                            style: TextStyle(
+                                              color:
+                                                  memberTypeColor
+                                                          .computeLuminance() >
+                                                      0.5
+                                                  ? AppDesignTokens.textPrimary
+                                                  : AppDesignTokens
+                                                        .primaryActionForeground,
+                                            ),
+                                          ),
+                                        ),
+                                        title: Text(
+                                          member.name,
+                                          style: AppTypography.cardTitle,
+                                        ),
+                                        subtitle: Text(
+                                          'Kalan Ders: ${member.remainingLessons}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: AppTypography.caption,
+                                        ),
+                                        trailing: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 12.0,
+                                          ),
+                                          child: IntrinsicWidth(
+                                            child: ElevatedButton.icon(
+                                              icon: const Icon(
+                                                AppIcons.create,
+                                                size: 16,
                                               ),
-                                              title: Text(member.name),
-                                              subtitle: Text(
-                                                'Kalan Ders: ${member.remainingLessons}',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.black54,
-                                                ),
-                                              ),
-                                              trailing: Padding(
-                                                padding: const EdgeInsets.only(
-                                                  right: 12.0,
-                                                ),
-                                                child: IntrinsicWidth(
-                                                  child: ElevatedButton.icon(
-                                                    icon: const Icon(
-                                                      Icons.check,
-                                                      size: 16,
-                                                      color: Colors.white,
-                                                    ),
-                                                    label: const Text(
-                                                      'Yoklama Al',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
+                                              label: const Text('Yoklama Al'),
+                                              style: AppButtonStyles.primary.copyWith(
+                                                padding:
+                                                    const WidgetStatePropertyAll(
+                                                      EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8,
                                                       ),
                                                     ),
-                                                    style: ElevatedButton.styleFrom(
+                                                minimumSize:
+                                                    const WidgetStatePropertyAll(
+                                                      Size(0, 36),
+                                                    ),
+                                              ),
+                                              onPressed: () async {
+                                                final result =
+                                                    await showDialog<bool>(
+                                                      context: context,
+                                                      builder: (context) =>
+                                                          _AddAttendanceDialog(
+                                                            members: memberState
+                                                                .members,
+                                                            token: token,
+                                                            ref: ref,
+                                                            memberTypes:
+                                                                memberTypes,
+                                                            initialMember:
+                                                                member,
+                                                          ),
+                                                    );
+                                                if (result == true) {
+                                                  await ref
+                                                      .read(
+                                                        attendanceProvider
+                                                            .notifier,
+                                                      )
+                                                      .fetchAttendance(token);
+                                                  await ref
+                                                      .read(
+                                                        memberProvider.notifier,
+                                                      )
+                                                      .fetchMembers(token);
+                                                  if (!context.mounted) return;
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        loc?.translate(
+                                                              'attendanceMarked',
+                                                            ) ??
+                                                            'Attendance marked',
+                                                      ),
                                                       backgroundColor:
-                                                          kBrandAccentColor,
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 12,
-                                                            vertical: 8,
-                                                          ),
-                                                      minimumSize: const Size(
-                                                        0,
-                                                        36,
-                                                      ),
-                                                      textStyle:
-                                                          const TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w500,
-                                                          ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
-                                                      ),
-                                                      elevation: 0,
+                                                          AppDesignTokens
+                                                              .success,
                                                     ),
-                                                    onPressed: () async {
-                                                      final result =
-                                                          await showDialog<
-                                                            bool
-                                                          >(
-                                                            context: context,
-                                                            builder: (context) =>
-                                                                _AddAttendanceDialog(
-                                                                  members:
-                                                                      memberState
-                                                                          .members,
-                                                                  token: token,
-                                                                  ref: ref,
-                                                                  memberTypes:
-                                                                      memberTypes,
-                                                                  initialMember:
-                                                                      member,
-                                                                ),
-                                                          );
-                                                      if (result == true) {
-                                                        await ref
-                                                            .read(
-                                                              attendanceProvider
-                                                                  .notifier,
-                                                            )
-                                                            .fetchAttendance(
-                                                              token,
-                                                            );
-                                                        await ref
-                                                            .read(
-                                                              memberProvider
-                                                                  .notifier,
-                                                            )
-                                                            .fetchMembers(
-                                                              token,
-                                                            );
-                                                        if (!context.mounted)
-                                                          return;
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              loc?.translate(
-                                                                    'attendanceMarked',
-                                                                  ) ??
-                                                                  'Attendance marked',
-                                                            ),
-                                                            backgroundColor:
-                                                                kBrandAccentColor,
-                                                          ),
-                                                        );
-                                                      }
-                                                    },
-                                                  ),
-                                                ),
-                                              ),
-                                              onTap: () {
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        MemberAttendanceDetailsPage(
-                                                          memberId: member.id,
-                                                          memberName:
-                                                              member.name,
-                                                          token: token,
-                                                        ),
-                                                  ),
-                                                );
+                                                  );
+                                                }
                                               },
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  MemberAttendanceDetailsPage(
+                                                    memberId: member.id,
+                                                    memberName: member.name,
+                                                    token: token,
+                                                  ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                     );
                                   },
@@ -490,7 +470,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                   Center(
                                     child: Text(
                                       'Henüz yoklama kaydı yok',
-                                      style: TextStyle(color: kBrandTextColor),
+                                      style: AppTypography.body,
                                     ),
                                   ),
                                 ],
@@ -511,7 +491,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                 final timeStr =
                                     '${a.date.hour.toString().padLeft(2, '0')}:${a.date.minute.toString().padLeft(2, '0')}';
                                 return Card(
-                                  color: Colors.white,
+                                  color: AppDesignTokens.surface,
                                   margin: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 6,
@@ -524,20 +504,23 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                             : '?',
                                       ),
                                     ),
-                                    title: Text(memberName),
+                                    title: Text(
+                                      memberName,
+                                      style: AppTypography.cardTitle,
+                                    ),
                                     subtitle: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           dateStr,
-                                          style: const TextStyle(fontSize: 13),
+                                          style: AppTypography.caption,
                                         ),
                                         Text(
                                           'Saat: $timeStr',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: kBrandAccentColor,
+                                          style: AppTypography.caption.copyWith(
+                                            color:
+                                                AppDesignTokens.textSecondary,
                                           ),
                                         ),
                                       ],
@@ -556,6 +539,24 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
       ),
     );
   }
+}
+
+InputDecoration _attendanceInputDecoration(String label) {
+  return InputDecoration(
+    labelText: label,
+    labelStyle: AppTypography.label,
+    filled: true,
+    fillColor: AppDesignTokens.backgroundSecondary,
+    border: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    enabledBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.border),
+    ),
+    focusedBorder: const OutlineInputBorder(
+      borderSide: BorderSide(color: AppDesignTokens.textPrimary),
+    ),
+  );
 }
 
 class _AddAttendanceDialog extends StatefulWidget {
@@ -596,7 +597,11 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     return AlertDialog(
-      title: Text(loc?.translate('addAttendance') ?? 'Add Attendance'),
+      backgroundColor: AppDesignTokens.surface,
+      title: Text(
+        loc?.translate('addAttendance') ?? 'Add Attendance',
+        style: AppTypography.sectionTitle,
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -613,12 +618,15 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
             onChanged: _memberPreselected
                 ? null
                 : (value) => setState(() => _selectedMemberId = value),
-            decoration: InputDecoration(
-              labelText: loc?.translate('member') ?? 'Member',
+            decoration: _attendanceInputDecoration(
+              loc?.translate('member') ?? 'Member',
             ),
           ),
           ListTile(
-            title: Text(_selectedDate.toString().split(' ')[0]),
+            title: Text(
+              _selectedDate.toString().split(' ')[0],
+              style: AppTypography.body,
+            ),
             trailing: const Icon(Icons.calendar_today),
             onTap: () async {
               final picked = await showDatePicker(
@@ -633,6 +641,7 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
           ListTile(
             title: Text(
               '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+              style: AppTypography.body,
             ),
             trailing: const Icon(Icons.access_time),
             onTap: () async {
@@ -643,7 +652,7 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
                 builder: (context) {
                   return Container(
                     height: 250,
-                    color: Colors.white,
+                    color: AppDesignTokens.surface,
                     child: Column(
                       children: [
                         Expanded(
@@ -715,11 +724,14 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: () => Navigator.pop(context, false),
-          child: Text(loc?.translate('cancel') ?? 'Cancel'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(loc?.translate('cancel') ?? 'Cancel'),
         ),
-        TextButton(
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: () async {
             if (_selectedMemberId == null) return;
             final dateTime = DateTime(
@@ -820,7 +832,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
               }
             }
           },
-          child: Text(loc?.translate('add') ?? 'Add'),
+          icon: const Icon(AppIcons.save, size: 18),
+          label: Text(loc?.translate('add') ?? 'Add'),
         ),
       ],
     );
