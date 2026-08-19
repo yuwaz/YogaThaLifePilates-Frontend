@@ -194,6 +194,67 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               firstDate: DateTime(2022, 1, 1),
               lastDate: DateTime.now().add(const Duration(days: 365)),
               initialDateRange: _dateRange,
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: AppDesignTokens.primaryAction,
+                      onPrimary: AppDesignTokens.primaryActionForeground,
+                      surface: AppDesignTokens.surface,
+                      onSurface: AppDesignTokens.textPrimary,
+                    ),
+                    datePickerTheme: DatePickerThemeData(
+                      backgroundColor: AppDesignTokens.surface,
+                      surfaceTintColor: AppDesignTokens.surface,
+                      headerBackgroundColor: AppDesignTokens.primaryAction,
+                      headerForegroundColor:
+                          AppDesignTokens.primaryActionForeground,
+                      rangePickerBackgroundColor: AppDesignTokens.surface,
+                      rangePickerSurfaceTintColor: AppDesignTokens.surface,
+                      rangePickerHeaderBackgroundColor: AppDesignTokens.surface,
+                      rangePickerHeaderForegroundColor:
+                          AppDesignTokens.textPrimary,
+                      rangePickerHeaderHeadlineStyle:
+                          AppTypography.sectionTitle,
+                      rangePickerHeaderHelpStyle: AppTypography.label,
+                      weekdayStyle: AppTypography.label,
+                      dayStyle: AppTypography.body,
+                      yearStyle: AppTypography.body,
+                      dividerColor: AppDesignTokens.divider,
+                      rangeSelectionBackgroundColor:
+                          AppDesignTokens.selectedBackground,
+                      dayBackgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppDesignTokens.primaryAction;
+                        }
+                        return Colors.transparent;
+                      }),
+                      dayForegroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppDesignTokens.primaryActionForeground;
+                        }
+                        if (states.contains(WidgetState.disabled)) {
+                          return AppDesignTokens.disabledForeground;
+                        }
+                        return AppDesignTokens.textPrimary;
+                      }),
+                      todayForegroundColor: const WidgetStatePropertyAll(
+                        AppDesignTokens.textPrimary,
+                      ),
+                      todayBorder: const BorderSide(
+                        color: AppDesignTokens.textPrimary,
+                      ),
+                      cancelButtonStyle: AppButtonStyles.secondary,
+                      confirmButtonStyle: AppButtonStyles.primary,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
             );
             if (picked != null) {
               setState(() => _dateRange = picked);
