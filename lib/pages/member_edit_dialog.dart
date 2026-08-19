@@ -7,6 +7,7 @@ import '../models/member.dart';
 // import '../providers/equipment_provider.dart';
 import '../providers/salons_provider.dart';
 import '../providers/member_types_provider.dart';
+import '../theme/app_design_tokens.dart';
 
 typedef MemberEditOnSave =
     Future<String?> Function(
@@ -104,12 +105,12 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
       '[MemberEditDialog] memberTypes: \\${memberTypes.map((e) => e.name).toList()}',
     );
     return AlertDialog(
-      backgroundColor: const Color(0xFFf6f6d7),
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         widget.member == null
             ? (l10n?.translate('addMember') ?? 'Add Member')
             : (l10n?.translate('editMember') ?? 'Edit Member'),
-        style: const TextStyle(color: Color(0xFF116478)),
+        style: AppTypography.sectionTitle,
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -122,7 +123,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                 controller: _nameController,
                 decoration: InputDecoration(
                   labelText: l10n?.translate('name') ?? 'Name',
-                  labelStyle: const TextStyle(color: Color(0xFF116478)),
+                  labelStyle: AppTypography.label,
                 ),
                 enabled: !_isSubmitting,
                 validator: (value) {
@@ -137,7 +138,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                 controller: _phoneController,
                 decoration: InputDecoration(
                   labelText: l10n?.translate('phone') ?? 'Phone',
-                  labelStyle: const TextStyle(color: Color(0xFF116478)),
+                  labelStyle: AppTypography.label,
                   prefixText: '+90 ',
                 ),
                 keyboardType: TextInputType.phone,
@@ -165,7 +166,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: l10n?.translate('email') ?? 'Email',
-                  labelStyle: const TextStyle(color: Color(0xFF116478)),
+                  labelStyle: AppTypography.label,
                 ),
                 keyboardType: TextInputType.emailAddress,
                 enabled: !_isSubmitting,
@@ -184,10 +185,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
               const SizedBox(height: 16),
               Text(
                 l10n?.translate('assignSalons') ?? 'Assign Salons',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF116478),
-                ),
+                style: AppTypography.bodyStrong,
               ),
               const SizedBox(height: 8),
               if (salonsState.isLoading)
@@ -220,7 +218,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                                   });
                                 }
                               : null,
-                          selectedColor: const Color(0xFF8cb2ab),
+                          selectedColor: AppDesignTokens.selectedBackground,
                         ),
                       )
                       .toList(),
@@ -238,7 +236,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                     : null,
                 decoration: InputDecoration(
                   labelText: l10n?.translate('instructor') ?? 'Eğitmen',
-                  labelStyle: const TextStyle(color: Color(0xFF116478)),
+                  labelStyle: AppTypography.label,
                 ),
                 items: [
                   DropdownMenuItem<String>(
@@ -275,7 +273,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                           : null),
                 decoration: InputDecoration(
                   labelText: l10n?.translate('memberType') ?? 'Member Type',
-                  labelStyle: const TextStyle(color: Color(0xFF116478)),
+                  labelStyle: AppTypography.label,
                 ),
                 items: memberTypes
                     .map<DropdownMenuItem<int>>(
@@ -310,23 +308,27 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
               ),
               if (_backendError != null) ...[
                 const SizedBox(height: 12),
-                Text(_backendError!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _backendError!,
+                  style: AppTypography.body.copyWith(
+                    color: AppDesignTokens.error,
+                  ),
+                ),
               ],
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: _isSubmitting ? null : () => Navigator.pop(context),
-          child: Text(l10n?.translate('cancel') ?? 'İptal'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(l10n?.translate('cancel') ?? 'İptal'),
         ),
         const SizedBox(width: 8),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF116478),
-            foregroundColor: Colors.white,
-          ),
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: _isSubmitting
               ? null
               : () async {
@@ -380,7 +382,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                     Navigator.pop(context, true);
                   }
                 },
-          child: _isSubmitting
+          icon: _isSubmitting
               ? const SizedBox(
                   width: 20,
                   height: 20,
@@ -389,6 +391,9 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                     color: Colors.white,
                   ),
                 )
+              : const Icon(AppIcons.save, size: 18),
+          label: _isSubmitting
+              ? const Text('')
               : Text(
                   widget.member == null
                       ? (l10n?.translate('submit') ?? 'Kaydet')

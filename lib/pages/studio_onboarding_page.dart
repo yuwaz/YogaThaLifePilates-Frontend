@@ -11,10 +11,7 @@ import '../providers/salons_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
 import '../widgets/logout_button.dart';
 import 'main_page.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 const List<String> _memberTypeColorHexes = [
   '#F08080',
@@ -372,15 +369,15 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
             !onboardingState.onboardingCompleted && index == normalizedIndex;
 
         final bg = completed
-            ? kBrandAccentColor
+            ? AppDesignTokens.success
             : current
-            ? const Color(0xFFFFF3CD)
-            : const Color(0xFFE9ECEF);
+            ? AppDesignTokens.warning
+            : AppDesignTokens.backgroundSecondary;
         final fg = completed
-            ? Colors.white
+            ? AppDesignTokens.primaryActionForeground
             : current
-            ? const Color(0xFF7A5D00)
-            : const Color(0xFF6C757D);
+            ? AppDesignTokens.primaryActionForeground
+            : AppDesignTokens.textSecondary;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -390,10 +387,9 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
           ),
           child: Text(
             '${index + 1} ${labels[step] ?? step}',
-            style: TextStyle(
+            style: AppTypography.caption.copyWith(
               color: fg,
               fontWeight: FontWeight.w700,
-              fontSize: 12,
             ),
           ),
         );
@@ -411,33 +407,18 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (hasStudioName) ...[
-          Text(
-            widget.studioName!.trim(),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-            ),
-          ),
+          Text(widget.studioName!.trim(), style: AppTypography.sectionTitle),
           const SizedBox(height: 14),
         ],
         if (hasStudioCode) ...[
           Text(
             _tr(context, 'yourStudioCode', 'Your Studio Code'),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
+            style: AppTypography.label,
           ),
           const SizedBox(height: 6),
           SelectableText(
             widget.studioCode!.trim(),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontWeight: FontWeight.w800,
-              fontSize: 24,
-            ),
+            style: AppTypography.numericKpi,
           ),
           const SizedBox(height: 10),
           Text(
@@ -446,11 +427,7 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
               'studioCodeTeamExplanation',
               'Share this code with your team. They will use it to log in.',
             ),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontSize: 14,
-              height: 1.4,
-            ),
+            style: AppTypography.body,
           ),
           const SizedBox(height: 14),
         ],
@@ -458,35 +435,26 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
             widget.trialEndsAt!.trim().isNotEmpty) ...[
           Text(
             _tr(context, 'trialStarted', 'Your trial has started.'),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTypography.bodyStrong,
           ),
           const SizedBox(height: 4),
           Text(
             '${_tr(context, 'trialEndsAt', 'Trial ends at')}: ${_formatTrialEndsAt(widget.trialEndsAt!.trim())}',
-            style: const TextStyle(color: kBrandTextColor),
+            style: AppTypography.body,
           ),
           const SizedBox(height: 16),
         ],
         if (!hasStudioName && !hasStudioCode) ...[
           Text(
             _tr(context, 'continueSetup', 'Continue Setup'),
-            style: const TextStyle(
-              color: kBrandTextColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
+            style: AppTypography.cardTitle,
           ),
           const SizedBox(height: 14),
         ],
         const SizedBox(height: 20),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy ? null : () => _advanceToStep('salon'),
           child: busy
@@ -512,16 +480,15 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: satisfied ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
-        borderRadius: BorderRadius.circular(10),
+        color: satisfied ? AppDesignTokens.success : AppDesignTokens.warning,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         satisfied
             ? '${_tr(context, 'setupComplete', 'Setup complete')}: $count'
             : _tr(context, requirementKey, requirementFallback),
-        style: const TextStyle(
-          color: kBrandTextColor,
-          fontWeight: FontWeight.w600,
+        style: AppTypography.bodyStrong.copyWith(
+          color: AppDesignTokens.primaryActionForeground,
         ),
       ),
     );
@@ -594,10 +561,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
         ],
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy || !hasSalon
               ? null
@@ -726,10 +691,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
         ],
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy || !hasMemberType
               ? null
@@ -795,10 +758,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
         ],
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy || !hasMethod
               ? null
@@ -913,10 +874,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
         ],
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy || !hasEquipment
               ? null
@@ -946,8 +905,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFE8F5E9),
-            borderRadius: BorderRadius.circular(10),
+            color: AppDesignTokens.success,
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -958,9 +917,8 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                   'ownerAccountReady',
                   'Your owner account is ready. You can add instructors now or later from Settings.',
                 ),
-                style: const TextStyle(
-                  color: kBrandTextColor,
-                  fontWeight: FontWeight.w600,
+                style: AppTypography.bodyStrong.copyWith(
+                  color: AppDesignTokens.primaryActionForeground,
                 ),
               ),
               const SizedBox(height: 6),
@@ -970,17 +928,17 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                   'addLaterFromSettings',
                   'Yonetici hesabiniz hazir. Egitmenleri simdi veya daha sonra Ayarlar bolumunden ekleyebilirsiniz.',
                 ),
-                style: const TextStyle(color: kBrandTextColor),
+                style: AppTypography.body.copyWith(
+                  color: AppDesignTokens.primaryActionForeground,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: busy ? null : () => _advanceToStep('completed'),
           child: onboardingState.advancing
@@ -1001,18 +959,12 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
       children: [
         Text(
           _tr(context, 'setupComplete', 'Setup complete'),
-          style: const TextStyle(
-            color: kBrandTextColor,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
+          style: AppTypography.sectionTitle,
         ),
         const SizedBox(height: 12),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: kBrandAccentColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
+          style: AppButtonStyles.primary.copyWith(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
           ),
           onPressed: () {
             Navigator.of(context).pushAndRemoveUntil(
@@ -1062,16 +1014,17 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
         onboardingState.studioId == null;
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
           _tr(context, 'setupYourStudio', 'Setup your studio'),
-          style: const TextStyle(color: kBrandTextColor),
+          style: AppTypography.sectionTitle,
         ),
         actions: const [LogoutButton()],
-        backgroundColor: kBrandBackgroundColor,
-        iconTheme: const IconThemeData(color: kBrandTextColor),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
       body: SafeArea(
@@ -1081,7 +1034,9 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
 
             if (onboardingState.loading && onboardingState.studioId == null) {
               return const Center(
-                child: CircularProgressIndicator(color: kBrandTextColor),
+                child: CircularProgressIndicator(
+                  color: AppDesignTokens.primaryAction,
+                ),
               );
             }
 
@@ -1094,8 +1049,9 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                     child: Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        color: AppDesignTokens.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppDesignTokens.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1106,10 +1062,7 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kBrandAccentColor,
-                              foregroundColor: Colors.white,
-                            ),
+                            style: AppButtonStyles.secondary,
                             onPressed: () => _bootstrap(),
                             child: Text(_tr(context, 'retry', 'Retry')),
                           ),
@@ -1135,19 +1088,16 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppDesignTokens.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppDesignTokens.border),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _tr(context, 'setupProgress', 'Setup progress'),
-                              style: const TextStyle(
-                                color: kBrandTextColor,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                              ),
+                              style: AppTypography.cardTitle,
                             ),
                             const SizedBox(height: 10),
                             _buildProgress(onboardingState, context),
@@ -1160,12 +1110,15 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFEBEE),
-                            borderRadius: BorderRadius.circular(10),
+                            color: AppDesignTokens.backgroundSecondary,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppDesignTokens.error),
                           ),
                           child: Text(
                             onboardingState.error!,
-                            style: const TextStyle(color: Colors.red),
+                            style: AppTypography.body.copyWith(
+                              color: AppDesignTokens.error,
+                            ),
                           ),
                         ),
                       ],
@@ -1173,8 +1126,9 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppDesignTokens.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppDesignTokens.border),
                         ),
                         child: _buildCurrentStepCard(context, onboardingState),
                       ),

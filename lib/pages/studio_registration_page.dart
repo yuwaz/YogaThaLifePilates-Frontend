@@ -11,10 +11,7 @@ import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
 import 'entry_page.dart' show EntryPage;
 import 'studio_onboarding_page.dart';
-
-const kBrandTextColor = Color(0xFF116478);
-const kBrandBackgroundColor = Color(0xFFF6F6D7);
-const kBrandAccentColor = Color(0xFF8CB2AB);
+import '../theme/app_design_tokens.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorageService());
 
@@ -361,11 +358,12 @@ class _StudioRegistrationPageState
     final title = loc?.translate('createNewStudio') ?? 'Create New Studio';
 
     return Scaffold(
-      backgroundColor: kBrandBackgroundColor,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        title: Text(title, style: const TextStyle(color: kBrandTextColor)),
-        backgroundColor: kBrandBackgroundColor,
-        iconTheme: const IconThemeData(color: kBrandTextColor),
+        title: Text(title, style: AppTypography.sectionTitle),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
       body: SafeArea(
@@ -390,8 +388,9 @@ class _StudioRegistrationPageState
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            color: AppDesignTokens.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppDesignTokens.border),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,11 +398,7 @@ class _StudioRegistrationPageState
                               Text(
                                 loc?.translate('studioInformation') ??
                                     'Studio Information',
-                                style: const TextStyle(
-                                  color: kBrandTextColor,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
+                                style: AppTypography.cardTitle,
                               ),
                               const SizedBox(height: 14),
                               TextFormField(
@@ -531,8 +526,9 @@ class _StudioRegistrationPageState
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            color: AppDesignTokens.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppDesignTokens.border),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,11 +536,7 @@ class _StudioRegistrationPageState
                               Text(
                                 loc?.translate('ownerAccount') ??
                                     'Owner Account',
-                                style: const TextStyle(
-                                  color: kBrandTextColor,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
-                                ),
+                                style: AppTypography.cardTitle,
                               ),
                               const SizedBox(height: 14),
                               TextFormField(
@@ -629,13 +621,9 @@ class _StudioRegistrationPageState
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kBrandAccentColor,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              textStyle: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                            style: AppButtonStyles.primary.copyWith(
+                              minimumSize: const WidgetStatePropertyAll(
+                                Size.fromHeight(52),
                               ),
                             ),
                             onPressed: _isSubmitting
@@ -668,13 +656,9 @@ class _StudioRegistrationPageState
                         ),
                         const SizedBox(height: 10),
                         OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: kBrandTextColor,
-                            side: const BorderSide(color: kBrandTextColor),
-                            minimumSize: const Size.fromHeight(50),
-                            textStyle: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                          style: AppButtonStyles.secondary.copyWith(
+                            minimumSize: const WidgetStatePropertyAll(
+                              Size.fromHeight(50),
                             ),
                           ),
                           onPressed: _isSubmitting
