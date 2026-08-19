@@ -9,6 +9,7 @@ import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_login_page.dart';
+import '../../theme/app_design_tokens.dart';
 
 List<String> parseBackofficePermissions(dynamic permissions) {
   if (permissions is List) {
@@ -133,13 +134,22 @@ class _BackofficeStudioDetailPageState
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: AppDesignTokens.backgroundPrimary,
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (_error != null) {
       return Scaffold(
+        backgroundColor: AppDesignTokens.backgroundPrimary,
         appBar: AppBar(
-          title: Text(loc?.translate('studioDetail') ?? 'Studio Detail'),
+          backgroundColor: AppDesignTokens.surface,
+          foregroundColor: AppDesignTokens.textPrimary,
+          title: Text(
+            loc?.translate('studioDetail') ?? 'Studio Detail',
+            style: AppTypography.sectionTitle,
+          ),
         ),
         body: Center(
           child: Column(
@@ -148,11 +158,16 @@ class _BackofficeStudioDetailPageState
               Text(
                 loc?.translate('unableToLoadStudios') ??
                     'Unable to load studio detail.',
+                style: AppTypography.body.copyWith(
+                  color: AppDesignTokens.error,
+                ),
               ),
               const SizedBox(height: 12),
-              ElevatedButton(
+              OutlinedButton.icon(
+                style: AppButtonStyles.secondary,
                 onPressed: _load,
-                child: Text(loc?.translate('retry') ?? 'Retry'),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text(loc?.translate('retry') ?? 'Retry'),
               ),
             ],
           ),
@@ -164,8 +179,11 @@ class _BackofficeStudioDetailPageState
         .toString();
 
     return Scaffold(
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        title: Text(title),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        title: Text(title, style: AppTypography.sectionTitle),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -174,6 +192,11 @@ class _BackofficeStudioDetailPageState
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: AppDesignTokens.textPrimary,
+          unselectedLabelColor: AppDesignTokens.textSecondary,
+          indicatorColor: AppDesignTokens.primaryAction,
+          labelStyle: AppTypography.label,
+          unselectedLabelStyle: AppTypography.label,
           tabs: const [
             Tab(text: 'Overview'),
             Tab(text: 'Users'),
@@ -219,17 +242,22 @@ class _BackofficeStudioDetailPageState
                 return SizedBox(
                   width: constraints.maxWidth > 600 ? 260 : double.infinity,
                   child: Card(
+                    color: AppDesignTokens.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: AppDesignTokens.border),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            entry.key,
-                            style: const TextStyle(color: Colors.grey),
-                          ),
+                          Text(entry.key, style: AppTypography.label),
                           const SizedBox(height: 8),
-                          Text(entry.value.toString()),
+                          Text(
+                            entry.value.toString(),
+                            style: AppTypography.bodyStrong,
+                          ),
                         ],
                       ),
                     ),
@@ -254,6 +282,11 @@ class _BackofficeStudioDetailPageState
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
+          headingRowColor: const WidgetStatePropertyAll(
+            AppDesignTokens.backgroundSecondary,
+          ),
+          headingTextStyle: AppTypography.label,
+          dataTextStyle: AppTypography.body,
           columns: [
             DataColumn(label: Text(loc?.translate('username') ?? 'Username')),
             DataColumn(label: Text(loc?.translate('role') ?? 'Role')),
@@ -530,17 +563,25 @@ class _BackofficeStudioDetailPageState
     return SizedBox(
       width: 360,
       child: Card(
+        color: AppDesignTokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppDesignTokens.border),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(title, style: AppTypography.cardTitle),
               const SizedBox(height: 12),
               ...rows.map(
                 (row) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('${row.key}: ${row.value}'),
+                  child: Text(
+                    '${row.key}: ${row.value}',
+                    style: AppTypography.body,
+                  ),
                 ),
               ),
             ],
@@ -578,7 +619,8 @@ class _BackofficeStudioDetailPageState
       return const SizedBox.shrink();
     }
     if (status == 'active') {
-      return OutlinedButton.icon(
+      return ElevatedButton.icon(
+        style: AppButtonStyles.destructive,
         onPressed: () => _confirmOperationalAction(suspend: true),
         icon: const Icon(Icons.pause_circle_outline),
         label: Text(loc?.translate('suspendStudio') ?? 'Suspend Studio'),
@@ -586,6 +628,7 @@ class _BackofficeStudioDetailPageState
     }
     if (status == 'suspended') {
       return ElevatedButton.icon(
+        style: AppButtonStyles.primary,
         onPressed: () => _confirmOperationalAction(suspend: false),
         icon: const Icon(Icons.play_circle_outline),
         label: Text(loc?.translate('reactivateStudio') ?? 'Reactivate Studio'),
@@ -600,17 +643,25 @@ class _BackofficeStudioDetailPageState
       width: 540,
       child: Card(
         color: Theme.of(context).colorScheme.errorContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppDesignTokens.destructive),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(loc?.translate('operationalStatus') ?? 'Operational status'),
+              Text(
+                loc?.translate('operationalStatus') ?? 'Operational status',
+                style: AppTypography.cardTitle,
+              ),
               const SizedBox(height: 8),
               Text(
                 status.isEmpty
                     ? (loc?.translate('unknown') ?? 'Unknown')
                     : status,
+                style: AppTypography.bodyStrong,
               ),
               const SizedBox(height: 12),
               _buildOperationalActions(loc),
@@ -629,6 +680,11 @@ class _BackofficeStudioDetailPageState
     return SizedBox(
       width: 540,
       child: Card(
+        color: AppDesignTokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppDesignTokens.border),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Wrap(
@@ -639,10 +695,11 @@ class _BackofficeStudioDetailPageState
               Text(
                 loc?.translate('manualOverride') ??
                     'Manual subscription override',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: AppTypography.cardTitle,
               ),
               if (hasActiveOverride)
                 OutlinedButton.icon(
+                  style: AppButtonStyles.destructive,
                   onPressed: _submitting ? null : _confirmRevokeOverride,
                   icon: const Icon(Icons.undo),
                   label: Text(
@@ -651,6 +708,7 @@ class _BackofficeStudioDetailPageState
                 )
               else
                 ElevatedButton.icon(
+                  style: AppButtonStyles.primary,
                   onPressed: _submitting ? null : _showOverrideForm,
                   icon: const Icon(Icons.tune),
                   label: Text(
@@ -774,9 +832,14 @@ class _BackofficeStudioDetailPageState
     final confirmed = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(title),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(title, style: AppTypography.sectionTitle),
         content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
+          constraints: BoxConstraints(
+            maxWidth: (MediaQuery.sizeOf(dialogContext).width - 48)
+                .clamp(0.0, 480.0)
+                .toDouble(),
+          ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -784,19 +847,22 @@ class _BackofficeStudioDetailPageState
               children: [
                 Text(
                   (_detail['name'] ?? _detail['studioName'] ?? '-').toString(),
+                  style: AppTypography.bodyStrong,
                 ),
                 Text(
                   (_detail['studioCode'] ?? _detail['studio_code'] ?? '-')
                       .toString(),
+                  style: AppTypography.caption,
                 ),
                 Text(
                   (_detail['operationalStatus'] ??
                           loc?.translate('unknown') ??
                           'Unknown')
                       .toString(),
+                  style: AppTypography.caption,
                 ),
                 const SizedBox(height: 16),
-                Text(warning),
+                Text(warning, style: AppTypography.body),
                 const SizedBox(height: 16),
                 TextField(
                   controller: controller,
@@ -811,17 +877,21 @@ class _BackofficeStudioDetailPageState
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(loc?.translate('cancel') ?? 'Cancel'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: Text(loc?.translate('cancel') ?? 'Cancel'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () {
               final reason = controller.text.trim();
               if (reason.isEmpty) return;
               Navigator.of(dialogContext).pop(reason);
             },
-            child: Text(actionLabel),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(actionLabel),
           ),
         ],
       ),
@@ -939,11 +1009,17 @@ class _ManualOverrideDialogState extends State<_ManualOverrideDialog> {
   Widget build(BuildContext context) {
     final loc = widget.loc;
     return AlertDialog(
+      backgroundColor: AppDesignTokens.surface,
       title: Text(
         loc?.translate('confirmManualOverride') ?? 'Confirm Manual Override',
+        style: AppTypography.sectionTitle,
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
+        constraints: BoxConstraints(
+          maxWidth: (MediaQuery.sizeOf(context).width - 48)
+              .clamp(0.0, 560.0)
+              .toDouble(),
+        ),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -951,12 +1027,13 @@ class _ManualOverrideDialogState extends State<_ManualOverrideDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(widget.studioName),
-                Text(widget.studioCode),
+                Text(widget.studioName, style: AppTypography.bodyStrong),
+                Text(widget.studioCode, style: AppTypography.caption),
                 const SizedBox(height: 12),
                 Text(
                   loc?.translate('manualOverrideWarning') ??
                       'This override can change Studio operational access.',
+                  style: AppTypography.body,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -1023,11 +1100,14 @@ class _ManualOverrideDialogState extends State<_ManualOverrideDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        OutlinedButton.icon(
+          style: AppButtonStyles.secondary,
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(loc?.translate('cancel') ?? 'Cancel'),
+          icon: const Icon(AppIcons.close, size: 18),
+          label: Text(loc?.translate('cancel') ?? 'Cancel'),
         ),
-        ElevatedButton(
+        ElevatedButton.icon(
+          style: AppButtonStyles.primary,
           onPressed: () {
             if (!_formKey.currentState!.validate()) return;
             if (!isBackofficeOverrideDateRangeValid(
@@ -1054,7 +1134,8 @@ class _ManualOverrideDialogState extends State<_ManualOverrideDialog> {
               ),
             );
           },
-          child: Text(
+          icon: const Icon(AppIcons.save, size: 18),
+          label: Text(
             loc?.translate('setManualOverride') ?? 'Set Manual Override',
           ),
         ),

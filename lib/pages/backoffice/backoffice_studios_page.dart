@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import 'backoffice_studio_detail_page.dart';
+import '../../theme/app_design_tokens.dart';
 
 class BackofficeStudiosPage extends ConsumerStatefulWidget {
   const BackofficeStudiosPage({super.key});
@@ -92,11 +93,14 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
           children: [
             Text(
               loc?.translate('studiosLoadFailed') ?? 'Unable to load studios.',
+              style: AppTypography.body.copyWith(color: AppDesignTokens.error),
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
               onPressed: _loading ? null : _load,
-              child: Text(loc?.translate('retry') ?? 'Retry'),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(loc?.translate('retry') ?? 'Retry'),
             ),
           ],
         ),
@@ -120,6 +124,7 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
     }
 
     return Material(
+      color: AppDesignTokens.backgroundPrimary,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tableScrollable = constraints.maxWidth < 760;
@@ -140,15 +145,16 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                           labelText:
                               loc?.translate('searchStudios') ??
                               'Search studios',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
+                          prefixIcon: const Icon(AppIcons.search),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
+                    ElevatedButton.icon(
+                      style: AppButtonStyles.toolbar,
                       onPressed: _loading ? null : () => _load(page: 1),
-                      child: Text(loc?.translate('search') ?? 'Search'),
+                      icon: const Icon(AppIcons.search, size: 18),
+                      label: Text(loc?.translate('search') ?? 'Search'),
                     ),
                     DropdownButton<String>(
                       value: _subscriptionStatus,
@@ -248,7 +254,7 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                         _subscriptionStatus != null ||
                         _subscriptionPlan != null ||
                         _onboardingCompleted != null)
-                      TextButton(
+                      TextButton.icon(
                         onPressed: _loading
                             ? null
                             : () {
@@ -260,7 +266,8 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                                 });
                                 _load(page: 1);
                               },
-                        child: Text(
+                        icon: const Icon(AppIcons.close, size: 18),
+                        label: Text(
                           loc?.translate('clearFilters') ?? 'Clear filters',
                         ),
                       ),
@@ -277,6 +284,12 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                         minWidth: tableScrollable ? 760 : 0,
                       ),
                       child: DataTable(
+                        headingRowColor: const WidgetStatePropertyAll(
+                          AppDesignTokens.backgroundSecondary,
+                        ),
+                        headingTextStyle: AppTypography.label,
+                        dataTextStyle: AppTypography.body,
+                        dividerThickness: 1,
                         columns: [
                           DataColumn(
                             label: Text(
@@ -345,13 +358,28 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                               }
                             },
                             cells: [
-                              DataCell(Text(name.toString())),
+                              DataCell(
+                                Text(
+                                  name.toString(),
+                                  style: AppTypography.bodyStrong,
+                                ),
+                              ),
                               DataCell(Text(code.toString())),
                               DataCell(Text(country.toString())),
                               DataCell(Text(currency.toString())),
                               DataCell(Text(timezone.toString())),
-                              DataCell(Text(plan.toString())),
-                              DataCell(Text(status.toString())),
+                              DataCell(
+                                Text(
+                                  plan.toString(),
+                                  style: AppTypography.caption,
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  status.toString(),
+                                  style: AppTypography.caption,
+                                ),
+                              ),
                             ],
                           );
                         }).toList(),
@@ -366,20 +394,25 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                   spacing: 12,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    OutlinedButton(
+                    OutlinedButton.icon(
+                      style: AppButtonStyles.secondary,
                       onPressed: _loading || _currentPage <= 1
                           ? null
                           : () => _load(page: _currentPage - 1),
-                      child: Text(loc?.translate('previous') ?? 'Previous'),
+                      icon: const Icon(Icons.chevron_left, size: 18),
+                      label: Text(loc?.translate('previous') ?? 'Previous'),
                     ),
                     Text(
                       '${loc?.translate('page') ?? 'Page'} $_currentPage ${loc?.translate('of') ?? 'of'} $_totalPages · ${loc?.translate('total') ?? 'Total'} $_total',
+                      style: AppTypography.caption,
                     ),
-                    OutlinedButton(
+                    OutlinedButton.icon(
+                      style: AppButtonStyles.secondary,
                       onPressed: _loading || _currentPage >= _totalPages
                           ? null
                           : () => _load(page: _currentPage + 1),
-                      child: Text(loc?.translate('next') ?? 'Next'),
+                      icon: const Icon(Icons.chevron_right, size: 18),
+                      label: Text(loc?.translate('next') ?? 'Next'),
                     ),
                   ],
                 ),
