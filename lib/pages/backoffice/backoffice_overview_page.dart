@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/backoffice_api_service.dart';
 import '../../providers/backoffice_auth_provider.dart';
+import '../../theme/app_design_tokens.dart';
 
 class BackofficeOverviewPage extends ConsumerStatefulWidget {
   const BackofficeOverviewPage({super.key});
@@ -76,11 +77,16 @@ class _BackofficeOverviewPageState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(_error ?? 'Unable to load overview.'),
+            Text(
+              _error ?? 'Unable to load overview.',
+              style: AppTypography.body.copyWith(color: AppDesignTokens.error),
+            ),
             const SizedBox(height: 12),
-            ElevatedButton(
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
               onPressed: _load,
-              child: Text(loc?.translate('retry') ?? 'Retry'),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(loc?.translate('retry') ?? 'Retry'),
             ),
           ],
         ),
@@ -156,7 +162,7 @@ class _BackofficeOverviewPageState
         children: [
           Text(
             loc?.translate('overview') ?? 'Overview',
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: AppTypography.pageTitle,
           ),
           const SizedBox(height: 20),
           GridView.builder(
@@ -175,7 +181,7 @@ class _BackofficeOverviewPageState
             const SizedBox(height: 24),
             Text(
               loc?.translate('studiosByPlan') ?? 'Studios by plan',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: AppTypography.sectionTitle,
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -200,26 +206,25 @@ class _BackofficeOverviewPageState
 
   Widget _metricCard({required String label, required String value}) {
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
-            ),
+            Text(label, style: AppTypography.label),
             const SizedBox(height: 8),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTypography.numericKpi.copyWith(fontSize: 26),
               ),
             ),
           ],

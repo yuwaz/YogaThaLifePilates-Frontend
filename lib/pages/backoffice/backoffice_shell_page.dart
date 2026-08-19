@@ -8,6 +8,7 @@ import 'backoffice_login_page.dart';
 import 'backoffice_audit_logs_page.dart';
 import 'backoffice_overview_page.dart';
 import 'backoffice_studios_page.dart';
+import '../../theme/app_design_tokens.dart';
 
 class BackofficeShellPage extends ConsumerStatefulWidget {
   const BackofficeShellPage({super.key});
@@ -79,14 +80,23 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
     ];
 
     return Scaffold(
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        title: const Text('PlatformAdmin'),
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        title: const Text('PlatformAdmin', style: AppTypography.sectionTitle),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Center(child: Text(auth.email ?? 'Platform Admin')),
+            child: Center(
+              child: Text(
+                auth.email ?? 'Platform Admin',
+                style: AppTypography.caption,
+              ),
+            ),
           ),
           IconButton(
+            color: AppDesignTokens.destructive,
             tooltip: 'Logout',
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -102,6 +112,15 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
                 return const SizedBox.shrink();
               }
               return NavigationRail(
+                backgroundColor: AppDesignTokens.surface,
+                selectedIconTheme: const IconThemeData(
+                  color: AppDesignTokens.selectedForeground,
+                ),
+                unselectedIconTheme: const IconThemeData(
+                  color: AppDesignTokens.textMuted,
+                ),
+                selectedLabelTextStyle: AppTypography.label,
+                unselectedLabelTextStyle: AppTypography.caption,
                 selectedIndex: _selectedIndex,
                 onDestinationSelected: (index) =>
                     setState(() => _selectedIndex = index),
@@ -128,6 +147,11 @@ class _BackofficeShellPageState extends ConsumerState<BackofficeShellPage> {
       ),
       bottomNavigationBar: MediaQuery.of(context).size.width <= 800
           ? BottomNavigationBar(
+              backgroundColor: AppDesignTokens.surface,
+              selectedItemColor: AppDesignTokens.selectedForeground,
+              unselectedItemColor: AppDesignTokens.textMuted,
+              selectedLabelStyle: AppTypography.caption,
+              unselectedLabelStyle: AppTypography.caption,
               currentIndex: _selectedIndex,
               onTap: (index) => setState(() => _selectedIndex = index),
               items: [

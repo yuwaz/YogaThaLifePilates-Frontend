@@ -6,6 +6,7 @@ import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_shell_page.dart';
+import '../../theme/app_design_tokens.dart';
 
 String? parseBackofficeAccessToken(Map<String, dynamic> response) {
   final token = response['accessToken'] ?? response['token'] ?? response['jwt'];
@@ -106,7 +107,7 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
     final loc = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6D7),
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -114,6 +115,11 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: Card(
+                color: AppDesignTokens.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: AppDesignTokens.border),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Form(
@@ -125,11 +131,7 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
                         Text(
                           loc?.translate('backofficeLoginTitle') ??
                               'PlatformAdmin Access',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF116478),
-                          ),
+                          style: AppTypography.pageTitle,
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
@@ -146,9 +148,6 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
                           decoration: InputDecoration(
                             labelText: loc?.translate('email') ?? 'Email',
                             prefixIcon: const Icon(Icons.email_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -176,22 +175,22 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
                                 );
                               },
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
                           ),
                         ),
                         if ((authState.error ?? '').isNotEmpty) ...[
                           const SizedBox(height: 16),
                           Text(
                             authState.error ?? '',
-                            style: const TextStyle(color: Colors.red),
+                            style: AppTypography.body.copyWith(
+                              color: AppDesignTokens.error,
+                            ),
                           ),
                         ],
                         const SizedBox(height: 24),
                         SizedBox(
                           height: 52,
                           child: ElevatedButton(
+                            style: AppButtonStyles.primary,
                             onPressed: authState.isLoading ? null : _submit,
                             child: authState.isLoading
                                 ? const SizedBox(
