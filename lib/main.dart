@@ -184,18 +184,13 @@ class _AuthInitState extends ConsumerState<AuthInit> {
         home: Scaffold(
           backgroundColor: AppDesignTokens.backgroundPrimary,
           body: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(color: AppDesignTokens.primaryAction),
-                SizedBox(height: 16),
-                Text(
-                  'Bilgiler güncelleniyor...',
-                  style: AppTypography.cardTitle,
-                ),
-                SizedBox(height: 6),
-                Text('Lütfen bekleyin', style: AppTypography.caption),
-              ],
+            child: SizedBox(
+              width: 144,
+              height: 144,
+              child: Image(
+                image: AssetImage('assets/branding/studiotha_symbol_1024.png'),
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),

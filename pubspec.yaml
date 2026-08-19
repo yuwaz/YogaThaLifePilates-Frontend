@@ -80,6 +80,7 @@ flutter:
     - lib/l10n/app_en.arb
     - lib/l10n/app_tr.arb
     - assets/branding/studiotha_logo_full.png
+    - assets/branding/studiotha_symbol_1024.png
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
