@@ -719,12 +719,17 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                 ),
                               );
                             },
-                            leading: Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                color: memberTypeColor,
-                                shape: BoxShape.circle,
+                            leading: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: memberTypeColor,
+                              child: Text(
+                                memberName.isNotEmpty ? memberName[0] : '?',
+                                style: TextStyle(
+                                  color:
+                                      memberTypeColor.computeLuminance() > 0.5
+                                      ? AppDesignTokens.textPrimary
+                                      : AppDesignTokens.primaryActionForeground,
+                                ),
                               ),
                             ),
                             title: Text(memberName),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reservation.dart';
 import '../models/member.dart';
 import '../providers/reservation_provider.dart';
+import '../providers/member_types_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_design_tokens.dart';
 
@@ -151,6 +152,10 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
           padding: EdgeInsets.zero,
           child: _MemberDropdownSearchContent(
             members: salonMembers,
+            memberTypeById: {
+              for (final type in ref.read(memberTypesProvider).memberTypes)
+                type.id: type,
+            },
             width: fieldSize.width,
             selectedMemberId: _selectedMemberId,
             matchesSearch: _matchesMemberSearch,
@@ -560,12 +565,14 @@ class _ReservationFormDialogState extends ConsumerState<ReservationFormDialog> {
 
 class _MemberDropdownSearchContent extends StatefulWidget {
   final List<Member> members;
+  final Map<String, MemberType> memberTypeById;
   final double width;
   final int? selectedMemberId;
   final bool Function(Member member, String query) matchesSearch;
 
   const _MemberDropdownSearchContent({
     required this.members,
+    required this.memberTypeById,
     required this.width,
     required this.selectedMemberId,
     required this.matchesSearch,
@@ -653,6 +660,10 @@ class _MemberDropdownSearchContentState
                       itemCount: filteredMembers.length,
                       itemBuilder: (context, index) {
                         final member = filteredMembers[index];
+                        final memberTypeColor = _reservationMemberTypeColor(
+                          member,
+                          widget.memberTypeById,
+                        );
                         return ListTile(
                           dense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -662,10 +673,25 @@ class _MemberDropdownSearchContentState
                             vertical: -2,
                             horizontal: 0,
                           ),
-                          title: Text(
-                            member.name,
-                            style: AppTypography.body,
-                            overflow: TextOverflow.ellipsis,
+                          title: Row(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: memberTypeColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  member.name,
+                                  style: AppTypography.body,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                           trailing: member.id == widget.selectedMemberId
                               ? const Icon(
@@ -683,5 +709,19 @@ class _MemberDropdownSearchContentState
         ),
       ),
     );
+  }
+}
+
+Color _reservationMemberTypeColor(
+  Member member,
+  Map<String, MemberType> memberTypeById,
+) {
+  try {
+    final hex = (memberTypeById[member.memberTypeId.toString()]?.color ?? '')
+        .replaceAll('#', '');
+    if (hex.isEmpty) return AppDesignTokens.backgroundSecondary;
+    return Color(int.parse('FF$hex', radix: 16));
+  } catch (_) {
+    return AppDesignTokens.backgroundSecondary;
   }
 }

@@ -5,8 +5,10 @@ import '../providers/member_provider.dart';
 import '../providers/payment_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/payment_method_provider.dart';
+import '../providers/member_types_provider.dart';
 import '../providers/salons_provider.dart';
 import '../models/expense.dart';
+import '../models/member.dart';
 import '../models/payment.dart';
 // import 'add_payment_dialog.dart';
 
@@ -527,6 +529,25 @@ Color? parseColor(dynamic colorValue) {
   return AppDesignTokens.backgroundSecondary;
 }
 
+Color _memberTypeColor(Member? member, Map<String, MemberType> memberTypeById) {
+  try {
+    final hex =
+        (member == null
+                ? ''
+                : memberTypeById[member.memberTypeId.toString()]?.color ?? '')
+            .replaceAll('#', '');
+    if (hex.isEmpty) return AppDesignTokens.backgroundSecondary;
+    return Color(int.parse('FF$hex', radix: 16));
+  } catch (_) {
+    return AppDesignTokens.backgroundSecondary;
+  }
+}
+
+Color _avatarForeground(Color backgroundColor) =>
+    backgroundColor.computeLuminance() > 0.5
+    ? AppDesignTokens.textPrimary
+    : AppDesignTokens.primaryActionForeground;
+
 InputDecoration _dialogInputDecoration(String label, {String? prefixText}) {
   return InputDecoration(
     labelText: label,
@@ -706,6 +727,10 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     final expenseState = ref.watch(expenseProvider);
     final memberState = ref.watch(memberProvider);
     final members = memberState.members;
+    final memberTypeById = {
+      for (final type in ref.watch(memberTypesProvider).memberTypes)
+        type.id: type,
+    };
     final payments = paymentState.value ?? [];
     final memberMap = {for (var m in members) m.id: m};
     final expenses = expenseState.value ?? [];
@@ -979,16 +1004,21 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                               },
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: parseColor(
-                                    member.memberTypeColor,
+                                  backgroundColor: _memberTypeColor(
+                                    member,
+                                    memberTypeById,
                                   ),
                                   child: Text(
                                     member.name.isNotEmpty
                                         ? member.name[0]
                                         : '?',
-                                    style: const TextStyle(
-                                      color: AppDesignTokens
-                                          .primaryActionForeground,
+                                    style: TextStyle(
+                                      color: _avatarForeground(
+                                        _memberTypeColor(
+                                          member,
+                                          memberTypeById,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1104,17 +1134,22 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                     child: ListTile(
                                       dense: true,
                                       leading: CircleAvatar(
-                                        backgroundColor: parseColor(
-                                          member?.memberTypeColor,
+                                        backgroundColor: _memberTypeColor(
+                                          member,
+                                          memberTypeById,
                                         ),
                                         child: Text(
                                           member?.name != null &&
                                                   member!.name.isNotEmpty
                                               ? member.name[0]
                                               : '?',
-                                          style: const TextStyle(
-                                            color: AppDesignTokens
-                                                .primaryActionForeground,
+                                          style: TextStyle(
+                                            color: _avatarForeground(
+                                              _memberTypeColor(
+                                                member,
+                                                memberTypeById,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),

@@ -488,6 +488,12 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                               itemBuilder: (context, idx) {
                                 final a = _filteredAttendanceHistory[idx];
                                 final foundMember = _memberById[a.memberId];
+                                final memberTypeColor = foundMember == null
+                                    ? AppDesignTokens.backgroundSecondary
+                                    : _memberTypeColor(
+                                        memberTypeMap[foundMember.memberTypeId
+                                            .toString()],
+                                      );
                                 final memberName =
                                     foundMember?.name ??
                                     'Üye ID: ${a.memberId}';
@@ -503,10 +509,20 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                   ),
                                   child: ListTile(
                                     leading: CircleAvatar(
+                                      backgroundColor: memberTypeColor,
                                       child: Text(
                                         memberName.isNotEmpty
                                             ? memberName[0]
                                             : '?',
+                                        style: TextStyle(
+                                          color:
+                                              memberTypeColor
+                                                      .computeLuminance() >
+                                                  0.5
+                                              ? AppDesignTokens.textPrimary
+                                              : AppDesignTokens
+                                                    .primaryActionForeground,
+                                        ),
                                       ),
                                     ),
                                     title: Text(
