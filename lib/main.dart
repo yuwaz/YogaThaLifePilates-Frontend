@@ -63,13 +63,24 @@ class AuthInit extends ConsumerStatefulWidget {
 enum StartupDestination { entry, main, onboarding, backoffice }
 
 class _AuthInitState extends ConsumerState<AuthInit> {
+  static const _minimumSplashDuration = Duration(milliseconds: 2500);
   bool _restoring = true;
   StartupDestination _startupDestination = StartupDestination.entry;
 
   @override
   void initState() {
     super.initState();
-    _restoreAuth();
+    _initializeStartup();
+  }
+
+  Future<void> _initializeStartup() async {
+    await Future.wait([
+      _restoreAuth(),
+      Future<void>.delayed(_minimumSplashDuration),
+    ]);
+    if (mounted) {
+      setState(() => _restoring = false);
+    }
   }
 
   Future<void> _restoreAuth() async {
@@ -163,10 +174,6 @@ class _AuthInitState extends ConsumerState<AuthInit> {
     } catch (e) {
       _startupDestination = StartupDestination.entry;
       debugPrint('[AuthRestore] unexpected restore error: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _restoring = false);
-      }
     }
   }
 
