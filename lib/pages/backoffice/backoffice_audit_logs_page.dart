@@ -9,6 +9,7 @@ import '../../providers/backoffice_auth_provider.dart';
 import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_login_page.dart';
+import '../../theme/app_design_tokens.dart';
 
 class BackofficeAuditLogsPage extends ConsumerStatefulWidget {
   const BackofficeAuditLogsPage({super.key});
@@ -134,8 +135,14 @@ class _BackofficeAuditLogsPageState
                     ? 'auditInvalidFilters'
                     : 'auditLogsLoadFailed',
               ),
+              style: AppTypography.body.copyWith(color: AppDesignTokens.error),
             ),
-            ElevatedButton(onPressed: _load, child: Text(t('retry'))),
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
+              onPressed: _load,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(t('retry')),
+            ),
           ],
         ),
       );
@@ -152,14 +159,17 @@ class _BackofficeAuditLogsPageState
                 _field(_target, t('targetType')),
                 _field(_studioId, t('studioId'), numeric: true),
                 _field(_actorId, t('actorId'), numeric: true),
-                ElevatedButton(
+                ElevatedButton.icon(
+                  style: AppButtonStyles.primary,
                   onPressed: _loading ? null : () => _load(page: 1),
-                  child: Text(t('applyFilters')),
+                  icon: const Icon(AppIcons.filter, size: 18),
+                  label: Text(t('applyFilters')),
                 ),
                 if (_filtered)
-                  TextButton(
+                  TextButton.icon(
                     onPressed: _loading ? null : _clear,
-                    child: Text(t('clearFilters')),
+                    icon: const Icon(AppIcons.close, size: 18),
+                    label: Text(t('clearFilters')),
                   ),
               ],
             ),
@@ -169,6 +179,7 @@ class _BackofficeAuditLogsPageState
                 ? Center(
                     child: Text(
                       _filtered ? t('noAuditMatches') : t('noAuditHistory'),
+                      style: AppTypography.body,
                     ),
                   )
                 : ListView.separated(
@@ -184,20 +195,25 @@ class _BackofficeAuditLogsPageState
             child: Wrap(
               spacing: 12,
               children: [
-                OutlinedButton(
+                OutlinedButton.icon(
+                  style: AppButtonStyles.secondary,
                   onPressed: _loading || _page <= 1
                       ? null
                       : () => _load(page: _page - 1),
-                  child: Text(t('previous')),
+                  icon: const Icon(Icons.chevron_left, size: 18),
+                  label: Text(t('previous')),
                 ),
                 Text(
                   '${t('page')} $_page ${t('of')} $_totalPages · ${t('total')} $_total',
+                  style: AppTypography.caption,
                 ),
-                OutlinedButton(
+                OutlinedButton.icon(
+                  style: AppButtonStyles.secondary,
                   onPressed: _loading || _page >= _totalPages
                       ? null
                       : () => _load(page: _page + 1),
-                  child: Text(t('next')),
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                  label: Text(t('next')),
                 ),
               ],
             ),
@@ -218,7 +234,7 @@ class _BackofficeAuditLogsPageState
       keyboardType: numeric ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        border: const OutlineInputBorder(),
+        labelStyle: AppTypography.label,
       ),
     ),
   );
@@ -232,39 +248,65 @@ class _BackofficeAuditLogsPageState
     final actorLabel =
         actor['email'] ?? event['actorPlatformAdminId'] ?? t('unavailable');
     return Card(
+      color: AppDesignTokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppDesignTokens.border),
+      ),
       child: ListTile(
-        title: Text((event['actionType'] ?? t('unavailable')).toString()),
+        title: Text(
+          (event['actionType'] ?? t('unavailable')).toString(),
+          style: AppTypography.cardTitle,
+        ),
         subtitle: Text(
           '${t('actor')}: $actorLabel\n${t('target')}: ${event['targetType'] ?? '-'} ${event['targetId'] ?? '-'} · ${t('studio')}: ${event['studioId'] ?? '-'}\n${t('reason')}: ${event['reason'] ?? '-'}',
+          style: AppTypography.body,
         ),
-        trailing: Text((event['createdAt'] ?? '-').toString()),
+        trailing: Text(
+          (event['createdAt'] ?? '-').toString(),
+          style: AppTypography.caption,
+        ),
         onTap: () => showDialog<void>(
           context: context,
-          builder: (_) => AlertDialog(
-            title: Text(t('auditEvent')),
-            content: SingleChildScrollView(
-              child: SelectableText(
-                const JsonEncoder.withIndent('  ').convert({
-                  'eventId': event['eventId'],
-                  'actionType': event['actionType'],
-                  'targetType': event['targetType'],
-                  'targetId': event['targetId'],
-                  'studioId': event['studioId'],
-                  'reason': event['reason'],
-                  'requestId': event['requestId'],
-                  'ip': event['ip'],
-                  'userAgent': event['userAgent'],
-                  'createdAt': event['createdAt'],
-                  'updatedAt': event['updatedAt'],
-                  'beforeSnapshot': _safeSnapshot(event['beforeSnapshot']),
-                  'afterSnapshot': _safeSnapshot(event['afterSnapshot']),
-                }),
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AppDesignTokens.surface,
+            title: Text(t('auditEvent'), style: AppTypography.sectionTitle),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: (MediaQuery.sizeOf(dialogContext).width - 48)
+                    .clamp(0.0, 640.0)
+                    .toDouble(),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  const JsonEncoder.withIndent('  ').convert({
+                    'eventId': event['eventId'],
+                    'actionType': event['actionType'],
+                    'targetType': event['targetType'],
+                    'targetId': event['targetId'],
+                    'studioId': event['studioId'],
+                    'reason': event['reason'],
+                    'requestId': event['requestId'],
+                    'ip': event['ip'],
+                    'userAgent': event['userAgent'],
+                    'createdAt': event['createdAt'],
+                    'updatedAt': event['updatedAt'],
+                    'beforeSnapshot': _safeSnapshot(event['beforeSnapshot']),
+                    'afterSnapshot': _safeSnapshot(event['afterSnapshot']),
+                  }),
+                  style: AppTypography.caption.copyWith(
+                    fontFamily: 'monospace',
+                    color: AppDesignTokens.textPrimary,
+                  ),
+                ),
               ),
             ),
             actions: [
-              TextButton(
+              OutlinedButton.icon(
+                style: AppButtonStyles.secondary,
                 onPressed: () => Navigator.pop(context),
-                child: Text(t('close')),
+                icon: const Icon(AppIcons.close, size: 18),
+                label: Text(t('close')),
               ),
             ],
           ),
