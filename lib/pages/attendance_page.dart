@@ -62,9 +62,12 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
     _needsAttendanceRecompute = true;
   }
 
-  Color _memberTypeColor(Member member) {
+  Color _memberTypeColor(MemberType? memberType) {
     try {
-      final hex = member.memberTypeColor.replaceAll('#', '');
+      final hex = (memberType?.color ?? '').replaceAll('#', '');
+      if (hex.isEmpty) {
+        return AppDesignTokens.backgroundSecondary;
+      }
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
       return AppDesignTokens.backgroundSecondary;
@@ -136,6 +139,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
     // Get member types list from provider (only here)
     final memberTypesState = ref.watch(memberTypesProvider);
     final memberTypes = memberTypesState.memberTypes;
+    final memberTypeMap = {for (final type in memberTypes) type.id: type};
 
     return Scaffold(
       backgroundColor: AppDesignTokens.backgroundPrimary,
@@ -336,7 +340,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                   itemBuilder: (context, idx) {
                                     final member = _filteredMembers[idx];
                                     final memberTypeColor = _memberTypeColor(
-                                      member,
+                                      memberTypeMap[member.memberTypeId
+                                          .toString()],
                                     );
                                     return Card(
                                       color: AppDesignTokens.surface,

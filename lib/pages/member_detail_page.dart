@@ -521,10 +521,12 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         '[MemberDetailPage UI] rendering assignedLessonPackages length: ${assignedLessonPackages.length}',
       );
     }
-    Color? memberTypeColor;
+    Color memberTypeColor;
     try {
-      final hex = member.memberTypeColor.replaceAll('#', '');
-      memberTypeColor = Color(int.parse('FF$hex', radix: 16));
+      final hex = (matchedMemberType?.color ?? '').replaceAll('#', '');
+      memberTypeColor = hex.isEmpty
+          ? AppDesignTokens.backgroundSecondary
+          : Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
       memberTypeColor = AppDesignTokens.backgroundSecondary;
     }
