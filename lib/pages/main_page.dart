@@ -42,7 +42,8 @@ class _MainPageState extends ConsumerState<MainPage> {
         permissionKey: 'members',
       ),
       _NavItem(
-        loc?.translate('reservations') ?? 'Reservations',
+        // Compact bottom-nav label ('Rezervasyonlar' truncates on narrow widths); page title unaffected.
+        'Rezervasyon',
         Icons.calendar_today,
         ReservationsPage(
           token: _token,

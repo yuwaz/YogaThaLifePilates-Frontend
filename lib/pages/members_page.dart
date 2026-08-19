@@ -1357,11 +1357,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                                   );
                                                                 }
                                                               },
-                                                              child: Text(
-                                                                l10n?.translate(
-                                                                      'assign',
-                                                                    ) ??
-                                                                    'Ata',
+                                                              child: const Text(
+                                                                'Kaydet',
                                                               ),
                                                             ),
                                                           ],
@@ -1580,7 +1577,20 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                           ),
                                           PopupMenuItem<String>(
                                             value: 'assign_package',
-                                            child: Text('Ders Paketi Ata'),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.inventory_2_outlined,
+                                                  color: AppDesignTokens
+                                                      .textSecondary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Ders Paketi Ata',
+                                                  style: AppTypography.body,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                           PopupMenuItem<String>(
                                             value: 'deactivate',
