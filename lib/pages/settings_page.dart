@@ -557,93 +557,133 @@ class _InstructorsSection extends ConsumerWidget {
                         )
                         .map((s) => s.name)
                         .join(', ');
-                    return ListTile(
-                      title: Text(instructor.username),
-                      subtitle: Text(
-                        'Salonlar: $assignedSalons\nGrup: ${_formatFee(instructor.groupSessionFee)} | Bireysel: ${_formatFee(instructor.individualSessionFee)}',
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      isThreeLine: false,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showInstructorDialog(
-                                context,
-                                ref,
-                                salonsState.salons,
-                                instructor: instructor,
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Instructor'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this instructor?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          instructor.username,
+                          style: AppTypography.cardTitle,
+                        ),
+                        subtitle: Text(
+                          'Salonlar: $assignedSalons\nGrup: ${_formatFee(instructor.groupSessionFee)} | Bireysel: ${_formatFee(instructor.individualSessionFee)}',
+                          style: AppTypography.caption,
+                        ),
+                        isThreeLine: false,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showInstructorDialog(
+                                  context,
+                                  ref,
+                                  salonsState.salons,
+                                  instructor: instructor,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Delete Instructor',
+                                      style: AppTypography.sectionTitle,
                                     ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
+                                    content: const Text(
+                                      'Are you sure you want to delete this instructor?',
+                                      style: AppTypography.body,
                                     ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed == true) {
-                                final token = await ref
-                                    .read(instructorsProvider.notifier)
-                                    .getToken();
-                                if (token == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                await ref
-                                    .read(instructorsProvider.notifier)
-                                    .deleteInstructor(token, instructor.id);
-                                final err = ref.read(instructorsProvider).error;
-                                if (err == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Instructor deleted successfully',
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
                                         ),
+                                        label: const Text('Cancel'),
                                       ),
-                                    );
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  final token = await ref
+                                      .read(instructorsProvider.notifier)
+                                      .getToken();
+                                  if (token == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('No auth token found.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                    return;
                                   }
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Error: $err'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
+                                  await ref
+                                      .read(instructorsProvider.notifier)
+                                      .deleteInstructor(token, instructor.id);
+                                  final err = ref
+                                      .read(instructorsProvider)
+                                      .error;
+                                  if (err == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Instructor deleted successfully',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Error: $err'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -656,10 +696,12 @@ class _InstructorsSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addInstructorFab'),
             onPressed: () =>
                 _showInstructorDialog(context, ref, salonsState.salons),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Eğitmen Ekle',
           ),
         ),
@@ -733,7 +775,11 @@ void _showInstructorDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(isEdit ? 'Eğitmeni Düzenle' : 'Eğitmen Ekle'),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(
+          isEdit ? 'Eğitmeni Düzenle' : 'Eğitmen Ekle',
+          style: AppTypography.sectionTitle,
+        ),
         content: Form(
           key: formKey,
           child: SingleChildScrollView(
@@ -742,7 +788,7 @@ void _showInstructorDialog(
               children: [
                 TextFormField(
                   controller: usernameController,
-                  decoration: const InputDecoration(labelText: 'Kullanıcı Adı'),
+                  decoration: _settingsInputDecoration('Kullanıcı Adı'),
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'Enter username' : null,
                 ),
@@ -750,7 +796,7 @@ void _showInstructorDialog(
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: passwordController,
-                    decoration: const InputDecoration(labelText: 'Şifre'),
+                    decoration: _settingsInputDecoration('Şifre'),
                     obscureText: true,
                     validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Enter password' : null,
@@ -762,9 +808,7 @@ void _showInstructorDialog(
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Grup Seans Ücreti',
-                  ),
+                  decoration: _settingsInputDecoration('Grup Seans Ücreti'),
                   validator: (v) {
                     final input = v?.trim() ?? '';
                     if (input.isEmpty) return null;
@@ -780,9 +824,7 @@ void _showInstructorDialog(
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Bireysel Seans Ücreti',
-                  ),
+                  decoration: _settingsInputDecoration('Bireysel Seans Ücreti'),
                   validator: (v) {
                     final input = v?.trim() ?? '';
                     if (input.isEmpty) return null;
@@ -797,13 +839,16 @@ void _showInstructorDialog(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Atanan Salonlar',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    style: AppTypography.bodyStrong,
                   ),
                 ),
                 ...salons.map(
                   (salon) => CheckboxListTile(
                     value: selectedSalonIds.contains(salon.id),
-                    title: Text('${salon.name} (${salon.type})'),
+                    title: Text(
+                      '${salon.name} (${salon.type})',
+                      style: AppTypography.body,
+                    ),
                     onChanged: (checked) {
                       if (checked == true) {
                         if (!selectedSalonIds.contains(salon.id))
@@ -821,15 +866,15 @@ void _showInstructorDialog(
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Yetkiler',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  child: Text('Yetkiler', style: AppTypography.bodyStrong),
                 ),
                 ...kInstructorPermissionOptions.map(
                   (opt) => CheckboxListTile(
                     value: permissions.contains(opt['key']),
-                    title: Text(opt['label'] ?? opt['key']!),
+                    title: Text(
+                      opt['label'] ?? opt['key']!,
+                      style: AppTypography.body,
+                    ),
                     onChanged: (checked) {
                       final key = opt['key']!;
                       if (checked == true) {
@@ -848,11 +893,14 @@ void _showInstructorDialog(
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: const Text('İptal'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () async {
               try {
                 if (!formKey.currentState!.validate()) return;
@@ -954,7 +1002,8 @@ void _showInstructorDialog(
                 }
               }
             },
-            child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
       );
@@ -1368,93 +1417,122 @@ class _MemberTypesSection extends ConsumerWidget {
                     } catch (_) {
                       color = kMemberTypeColors[0];
                     }
-                    return ListTile(
-                      leading: CircleAvatar(backgroundColor: color),
-                      title: Text(type.name),
-                      subtitle: Text(
-                        'Seans Türü: ${_sessionTypeLabel(type.sessionType)}',
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showMemberTypeDialog(context, ref, type: type);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Sil'),
-                                  content: const Text(
-                                    'Silmek istediğinize emin misiniz?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('İptal'),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(backgroundColor: color),
+                        title: Text(type.name, style: AppTypography.cardTitle),
+                        subtitle: Text(
+                          'Seans Türü: ${_sessionTypeLabel(type.sessionType)}',
+                          style: AppTypography.caption,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showMemberTypeDialog(context, ref, type: type);
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Sil',
+                                      style: AppTypography.sectionTitle,
                                     ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Sil'),
+                                    content: const Text(
+                                      'Silmek istediğinize emin misiniz?',
+                                      style: AppTypography.body,
                                     ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed != true) return;
-                              final token = await ref
-                                  .read(
-                                    member_types.memberTypesProvider.notifier,
-                                  )
-                                  .getToken();
-                              if (token == null) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('No auth token found.'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                                return;
-                              }
-                              await ref
-                                  .read(
-                                    member_types.memberTypesProvider.notifier,
-                                  )
-                                  .deleteMemberType(token, type.id);
-                              final err = ref
-                                  .read(member_types.memberTypesProvider)
-                                  .error;
-                              if (err == null) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Member type deleted successfully',
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
+                                        ),
+                                        label: const Text('İptal'),
                                       ),
-                                    ),
-                                  );
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Sil'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true) return;
+                                final token = await ref
+                                    .read(
+                                      member_types.memberTypesProvider.notifier,
+                                    )
+                                    .getToken();
+                                if (token == null) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('No auth token found.'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                  return;
                                 }
-                              } else {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $err'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                await ref
+                                    .read(
+                                      member_types.memberTypesProvider.notifier,
+                                    )
+                                    .deleteMemberType(token, type.id);
+                                final err = ref
+                                    .read(member_types.memberTypesProvider)
+                                    .error;
+                                if (err == null) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Member type deleted successfully',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $err'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -1467,9 +1545,11 @@ class _MemberTypesSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addMemberTypeFab'),
             onPressed: () => _showMemberTypeDialog(context, ref),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Üye Tipi Ekle',
           ),
         ),
@@ -1513,7 +1593,11 @@ void _showMemberTypeDialog(
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: Text(isEdit ? 'Üye Tipini Düzenle' : 'Üye Tipi Ekle'),
+            backgroundColor: AppDesignTokens.surface,
+            title: Text(
+              isEdit ? 'Üye Tipini Düzenle' : 'Üye Tipi Ekle',
+              style: AppTypography.sectionTitle,
+            ),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -1522,17 +1606,14 @@ void _showMemberTypeDialog(
                   children: [
                     TextFormField(
                       controller: nameController,
-                      decoration: const InputDecoration(labelText: 'Ad'),
+                      decoration: _settingsInputDecoration('Ad'),
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Ad girin' : null,
                     ),
                     const SizedBox(height: 16),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Renk',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      child: Text('Renk', style: AppTypography.bodyStrong),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -1569,9 +1650,7 @@ void _showMemberTypeDialog(
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: sessionType,
-                      decoration: const InputDecoration(
-                        labelText: 'Seans Türü',
-                      ),
+                      decoration: _settingsInputDecoration('Seans Türü'),
                       items: const [
                         DropdownMenuItem(value: 'group', child: Text('Grup')),
                         DropdownMenuItem(
@@ -1589,9 +1668,16 @@ void _showMemberTypeDialog(
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: Text('Kartlı Üyelik')),
+                        Expanded(
+                          child: Text(
+                            'Kartlı Üyelik',
+                            style: AppTypography.bodyStrong,
+                          ),
+                        ),
                         Switch(
                           value: isCardBased,
+                          activeTrackColor: AppDesignTokens.selectedBackground,
+                          activeThumbColor: AppDesignTokens.primaryAction,
                           onChanged: (val) {
                             setState(() {
                               isCardBased = val;
@@ -1609,8 +1695,8 @@ void _showMemberTypeDialog(
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'Kart Basım Tutarı / Card Usage Fee',
+                        decoration: _settingsInputDecoration(
+                          'Kart Basım Tutarı / Card Usage Fee',
                         ),
                         validator: (v) {
                           if (!isCardBased) return null;
@@ -1628,11 +1714,14 @@ void _showMemberTypeDialog(
               ),
             ),
             actions: [
-              TextButton(
+              OutlinedButton.icon(
+                style: AppButtonStyles.secondary,
                 onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
+                icon: const Icon(AppIcons.close, size: 18),
+                label: const Text('İptal'),
               ),
-              ElevatedButton(
+              ElevatedButton.icon(
+                style: AppButtonStyles.primary,
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
                   final notifier = ref.read(
@@ -1680,7 +1769,8 @@ void _showMemberTypeDialog(
                     }
                   }
                 },
-                child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+                icon: const Icon(AppIcons.save, size: 18),
+                label: Text(isEdit ? 'Kaydet' : 'Ekle'),
               ),
             ],
           );
