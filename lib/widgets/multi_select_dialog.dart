@@ -26,11 +26,18 @@ class MultiSelectDialog<T> extends StatefulWidget {
 class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
   late List<T> _selected;
   String _search = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selected = List<T>.from(widget.initialSelected);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -88,6 +95,7 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: TextField(
+                controller: _searchController,
                 decoration: InputDecoration(
                   hintText: loc?.translate('search') ?? 'Search...',
                   prefixIcon: Icon(Icons.search, color: widget.brandColor),
@@ -101,6 +109,15 @@ class _MultiSelectDialogState<T> extends State<MultiSelectDialog<T>> {
                     vertical: 0,
                     horizontal: 12,
                   ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.close, color: widget.brandColor),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _search = '');
+                          },
+                        )
+                      : null,
                 ),
                 style: TextStyle(color: widget.brandColor),
                 onChanged: (v) => setState(() => _search = v),

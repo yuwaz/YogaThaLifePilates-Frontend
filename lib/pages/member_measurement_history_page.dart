@@ -93,11 +93,11 @@ class _MemberMeasurementHistoryPageState
   String _label(String key) {
     switch (key) {
       case 'Kalca':
-        return 'Kalca';
+        return 'Kalça';
       case 'Gogus':
-        return 'Gogus';
+        return 'Göğüs';
       case 'Yag Orani':
-        return 'Yag Orani';
+        return 'Yağ Oranı';
       default:
         return key;
     }

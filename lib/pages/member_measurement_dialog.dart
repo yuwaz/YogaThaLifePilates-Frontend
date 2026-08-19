@@ -25,13 +25,13 @@ Future<bool> showNewMeasurementDialog({
   String labelForField(String key) {
     switch (key) {
       case 'Kalca':
-        return 'Kalca';
+        return 'Kalça';
       case 'Gogus':
       case 'gogus':
       case 'Gogus Olcusu':
-        return 'Gogus';
+        return 'Göğüs';
       case 'Yag Orani':
-        return 'Yag Orani';
+        return 'Yağ Oranı';
       default:
         return key;
     }
@@ -71,7 +71,7 @@ Future<bool> showNewMeasurementDialog({
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: const Text('Yeni Olcum Ekle'),
+        title: const Text('Yeni Ölçüm Ekle'),
         content: SizedBox(
           width: 460,
           child: SingleChildScrollView(
@@ -89,7 +89,7 @@ Future<bool> showNewMeasurementDialog({
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Olcum Tarihi: ${formatDateTime(measuredAt)}',
+                        'Ölçüm Tarihi: ${formatDateTime(measuredAt)}',
                         style: AppTypography.bodyStrong,
                       ),
                     ),
@@ -126,7 +126,7 @@ Future<bool> showNewMeasurementDialog({
                                 );
                               });
                             },
-                      child: const Text('Degistir'),
+                      child: const Text('Değiştir'),
                     ),
                   ],
                 ),
@@ -176,7 +176,7 @@ Future<bool> showNewMeasurementDialog({
         actions: [
           TextButton(
             onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(false),
-            child: const Text('Vazgec'),
+            child: const Text('Vazgeç'),
           ),
           ElevatedButton(
             style: AppButtonStyles.primary,
@@ -192,7 +192,7 @@ Future<bool> showNewMeasurementDialog({
                           parsedValue == null) {
                         setDialogState(() {
                           dialogError =
-                              '${labelForField(entry.key)} icin gecerli bir sayi giriniz';
+                              '${labelForField(entry.key)} için geçerli bir sayı giriniz';
                         });
                         return;
                       }

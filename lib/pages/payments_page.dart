@@ -600,6 +600,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   String _selectedSort = 'debt_desc';
   final GlobalKey _sortButtonKey = GlobalKey();
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
   List<dynamic> _filteredMembers = const [];
   List<Payment> _filteredPayments = const [];
   List<Expense> _filteredExpenses = const [];
@@ -666,6 +667,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -780,6 +782,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                     child: SizedBox(
                       height: 48,
                       child: TextField(
+                        controller: _searchController,
                         decoration: InputDecoration(
                           hintText: loc?.translate('search') ?? 'Ara',
                           prefixIcon: const Icon(AppIcons.search),
@@ -794,6 +797,19 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 12,
                           ),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(AppIcons.close),
+                                  onPressed: () {
+                                    _searchDebounce?.cancel();
+                                    _searchController.clear();
+                                    setState(() {
+                                      _paymentSearchQuery = '';
+                                      _markFinanceDirty();
+                                    });
+                                  },
+                                )
+                              : null,
                         ),
                         onChanged: (v) {
                           _searchDebounce?.cancel();
@@ -807,6 +823,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                               });
                             },
                           );
+                          setState(() {});
                         },
                       ),
                     ),

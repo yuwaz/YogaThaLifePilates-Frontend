@@ -182,14 +182,16 @@ class _AuthInitState extends ConsumerState<AuthInit> {
     if (_restoring) {
       return const MaterialApp(
         home: Scaffold(
-          backgroundColor: AppDesignTokens.backgroundPrimary,
+          backgroundColor: Colors.white,
           body: Center(
-            child: SizedBox(
-              width: 144,
-              height: 144,
-              child: Image(
-                image: AssetImage('assets/branding/studiotha_symbol_1024.png'),
-                fit: BoxFit.contain,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32),
+              child: FractionallySizedBox(
+                widthFactor: 0.7,
+                child: Image(
+                  image: AssetImage('assets/branding/studiotha_logo_full.png'),
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),

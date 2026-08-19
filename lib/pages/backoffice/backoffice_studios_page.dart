@@ -141,11 +141,22 @@ class _BackofficeStudiosPageState extends ConsumerState<BackofficeStudiosPage> {
                       child: TextField(
                         controller: _searchController,
                         onSubmitted: (_) => _load(page: 1),
+                        onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           labelText:
                               loc?.translate('searchStudios') ??
                               'Search studios',
                           prefixIcon: const Icon(AppIcons.search),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(AppIcons.close),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {});
+                                    _load(page: 1);
+                                  },
+                                )
+                              : null,
                         ),
                       ),
                     ),

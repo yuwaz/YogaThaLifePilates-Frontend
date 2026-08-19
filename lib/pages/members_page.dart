@@ -42,6 +42,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
   String _memberSearchQuery = '';
   String _selectedSort = 'created_desc';
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
   List<Member> _filteredMembers = const [];
   List<Member>? _lastMembersSource;
   List<MemberType>? _lastMemberTypesSource;
@@ -170,6 +171,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -537,12 +539,26 @@ class _MembersPageState extends ConsumerState<MembersPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
               child: TextField(
-                decoration: const InputDecoration(
+                controller: _searchController,
+                decoration: InputDecoration(
                   hintText: 'Üye ara',
-                  prefixIcon: Icon(AppIcons.search),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(AppIcons.search),
+                  border: const OutlineInputBorder(),
                   filled: true,
                   fillColor: AppDesignTokens.surface,
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(AppIcons.close),
+                          onPressed: () {
+                            _searchDebounce?.cancel();
+                            _searchController.clear();
+                            setState(() {
+                              _memberSearchQuery = '';
+                              _markMembersDirty();
+                            });
+                          },
+                        )
+                      : null,
                 ),
                 onChanged: (value) {
                   _searchDebounce?.cancel();
@@ -556,6 +572,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                       });
                     },
                   );
+                  setState(() {});
                 },
               ),
             ),

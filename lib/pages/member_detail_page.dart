@@ -543,7 +543,9 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         backgroundColor: AppDesignTokens.primaryAction,
         title: Text(
           loc?.translate('memberDetails') ?? 'Member Details',
-          style: AppTypography.cardTitle,
+          style: AppTypography.cardTitle.copyWith(
+            color: AppDesignTokens.primaryActionForeground,
+          ),
         ),
         iconTheme: const IconThemeData(
           color: AppDesignTokens.primaryActionForeground,

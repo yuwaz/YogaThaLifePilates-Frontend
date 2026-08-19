@@ -32,6 +32,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
   String _attendanceSearchQuery = '';
   Timer? _refreshTimer;
   Timer? _searchDebounce;
+  final TextEditingController _searchController = TextEditingController();
   bool _isRefreshing = false;
   List<Member> _filteredMembers = const [];
   List<Attendance> _filteredAttendanceHistory = const [];
@@ -125,6 +126,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     _refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -294,9 +296,23 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                   child: TextField(
-                    decoration: const InputDecoration(
+                    controller: _searchController,
+                    decoration: InputDecoration(
                       hintText: 'Üye ara',
-                      prefixIcon: Icon(AppIcons.search),
+                      prefixIcon: const Icon(AppIcons.search),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(AppIcons.close),
+                              onPressed: () {
+                                _searchDebounce?.cancel();
+                                _searchController.clear();
+                                setState(() {
+                                  _attendanceSearchQuery = '';
+                                  _markAttendanceDirty();
+                                });
+                              },
+                            )
+                          : null,
                     ),
                     onChanged: (value) {
                       _searchDebounce?.cancel();
@@ -310,6 +326,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                           });
                         },
                       );
+                      setState(() {});
                     },
                   ),
                 ),
