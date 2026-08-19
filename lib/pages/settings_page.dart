@@ -1033,91 +1033,126 @@ class _LessonPackagesSection extends ConsumerWidget {
                   itemCount: lessonPackagesState.lessonPackages.length,
                   itemBuilder: (context, index) {
                     final pkg = lessonPackagesState.lessonPackages[index];
-                    return ListTile(
-                      title: Text(pkg.name),
-                      subtitle: Text('Ders: ${pkg.lessonCount}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '₺${pkg.price.toStringAsFixed(2)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showLessonPackageDialog(context, ref, pkg: pkg);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Sil'),
-                                  content: const Text(
-                                    'Silmek istediğinize emin misiniz?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('İptal'),
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        title: Text(pkg.name, style: AppTypography.cardTitle),
+                        subtitle: Text(
+                          'Ders: ${pkg.lessonCount}',
+                          style: AppTypography.caption,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '₺${pkg.price.toStringAsFixed(2)}',
+                              style: AppTypography.bodyStrong,
+                            ),
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showLessonPackageDialog(
+                                  context,
+                                  ref,
+                                  pkg: pkg,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Sil',
+                                      style: AppTypography.sectionTitle,
                                     ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Sil'),
+                                    content: const Text(
+                                      'Silmek istediğinize emin misiniz?',
+                                      style: AppTypography.body,
                                     ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed != true) return;
-                              print("DELETE TRIGGERED ID: ${pkg.id}");
-                              final token = await ref
-                                  .read(lessonPackagesProvider.notifier)
-                                  .getToken();
-                              if (token == null) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('No auth token found.'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                                return;
-                              }
-                              await ref
-                                  .read(lessonPackagesProvider.notifier)
-                                  .deleteLessonPackage(token, pkg.id);
-                              final err = ref
-                                  .read(lessonPackagesProvider)
-                                  .error;
-                              if (err == null) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Lesson package deleted successfully',
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
+                                        ),
+                                        label: const Text('İptal'),
                                       ),
-                                    ),
-                                  );
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Sil'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed != true) return;
+                                print("DELETE TRIGGERED ID: ${pkg.id}");
+                                final token = await ref
+                                    .read(lessonPackagesProvider.notifier)
+                                    .getToken();
+                                if (token == null) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('No auth token found.'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                  return;
                                 }
-                              } else {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $err'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                await ref
+                                    .read(lessonPackagesProvider.notifier)
+                                    .deleteLessonPackage(token, pkg.id);
+                                final err = ref
+                                    .read(lessonPackagesProvider)
+                                    .error;
+                                if (err == null) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Lesson package deleted successfully',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $err'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -1130,9 +1165,11 @@ class _LessonPackagesSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addLessonPackageFab'),
             onPressed: () => _showLessonPackageDialog(context, ref),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Ders Paketi Ekle',
           ),
         ),
@@ -1160,54 +1197,63 @@ void _showLessonPackageDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(isEdit ? 'Ders Paketini Düzenle' : 'Ders Paketi Ekle'),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(
+          isEdit ? 'Ders Paketini Düzenle' : 'Ders Paketi Ekle',
+          style: AppTypography.sectionTitle,
+        ),
         content: Form(
           key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'İsim'),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Enter name' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: lessonCountController,
-                decoration: const InputDecoration(labelText: 'Ders Sayısı'),
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  final n = int.tryParse(v ?? '');
-                  if (n == null || n <= 0) return 'Enter a valid lesson count';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Fiyat',
-                  prefixText: '₺',
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: _settingsInputDecoration('İsim'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Enter name' : null,
                 ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: lessonCountController,
+                  decoration: _settingsInputDecoration('Ders Sayısı'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final n = int.tryParse(v ?? '');
+                    if (n == null || n <= 0)
+                      return 'Enter a valid lesson count';
+                    return null;
+                  },
                 ),
-                validator: (v) {
-                  final d = double.tryParse(v?.replaceAll(',', '.') ?? '');
-                  if (d == null || d < 0) return 'Enter a valid price';
-                  return null;
-                },
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: priceController,
+                  decoration: _settingsInputDecoration(
+                    'Fiyat',
+                  ).copyWith(prefixText: '₺', prefixStyle: AppTypography.body),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (v) {
+                    final d = double.tryParse(v?.replaceAll(',', '.') ?? '');
+                    if (d == null || d < 0) return 'Enter a valid price';
+                    return null;
+                  },
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: const Text('İptal'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () async {
               try {
                 if (!formKey.currentState!.validate()) return;
@@ -1339,7 +1385,8 @@ void _showLessonPackageDialog(
                 }
               }
             },
-            child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
       );
@@ -1805,104 +1852,141 @@ class _PaymentMethodsSection extends ConsumerWidget {
                   itemCount: paymentMethodsState.paymentMethods.length,
                   itemBuilder: (context, index) {
                     final method = paymentMethodsState.paymentMethods[index];
-                    return ListTile(
-                      title: Text(method.name),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showPaymentMethodDialog(
-                                context,
-                                ref,
-                                method: method,
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Payment Method'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this payment method?',
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          method.name,
+                          style: AppTypography.cardTitle,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showPaymentMethodDialog(
+                                  context,
+                                  ref,
+                                  method: method,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Delete Payment Method',
+                                      style: AppTypography.sectionTitle,
+                                    ),
+                                    content: const Text(
+                                      'Are you sure you want to delete this payment method?',
+                                      style: AppTypography.body,
+                                    ),
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Delete'),
+                                      ),
+                                    ],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed == true) {
-                                final token = await ref
-                                    .read(
-                                      payment_methods
-                                          .paymentMethodsProvider
-                                          .notifier,
-                                    )
-                                    .getToken();
-                                if (token == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                await ref
-                                    .read(
-                                      payment_methods
-                                          .paymentMethodsProvider
-                                          .notifier,
-                                    )
-                                    .deletePaymentMethod(token, method.id);
-                                final err = ref
-                                    .read(
-                                      payment_methods.paymentMethodsProvider,
-                                    )
-                                    .error;
-                                if (err == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Payment method deleted successfully',
+                                );
+                                if (confirmed == true) {
+                                  final token = await ref
+                                      .read(
+                                        payment_methods
+                                            .paymentMethodsProvider
+                                            .notifier,
+                                      )
+                                      .getToken();
+                                  if (token == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('No auth token found.'),
+                                          backgroundColor: Colors.red,
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
+                                    return;
                                   }
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          err.isNotEmpty
-                                              ? err
-                                              : 'Silme işlemi başarısız oldu.',
+                                  await ref
+                                      .read(
+                                        payment_methods
+                                            .paymentMethodsProvider
+                                            .notifier,
+                                      )
+                                      .deletePaymentMethod(token, method.id);
+                                  final err = ref
+                                      .read(
+                                        payment_methods.paymentMethodsProvider,
+                                      )
+                                      .error;
+                                  if (err == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Payment method deleted successfully',
+                                          ),
                                         ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
+                                      );
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            err.isNotEmpty
+                                                ? err
+                                                : 'Silme işlemi başarısız oldu.',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -1915,9 +1999,11 @@ class _PaymentMethodsSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addPaymentMethodFab'),
             onPressed: () => _showPaymentMethodDialog(context, ref),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Ödeme Yöntemi Ekle',
           ),
         ),
@@ -1939,22 +2025,29 @@ void _showPaymentMethodDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(isEdit ? 'Ödeme Yöntemini Düzenle' : 'Ödeme Yöntemi Ekle'),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(
+          isEdit ? 'Ödeme Yöntemini Düzenle' : 'Ödeme Yöntemi Ekle',
+          style: AppTypography.sectionTitle,
+        ),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: 'Ad'),
+            decoration: _settingsInputDecoration('Ad'),
             validator: (v) =>
                 v == null || v.trim().isEmpty ? 'Enter name' : null,
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: const Text('İptal'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final notifier = ref.read(
@@ -1996,7 +2089,8 @@ void _showPaymentMethodDialog(
                 }
               }
             },
-            child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
       );
@@ -2025,89 +2119,126 @@ class _SalonsSection extends ConsumerWidget {
                   itemCount: salonsState.salons.length,
                   itemBuilder: (context, index) {
                     final salon = salonsState.salons[index];
-                    return ListTile(
-                      title: Text(salon.name),
-                      subtitle: Text(salon.type),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showSalonDialog(context, ref, salon: salon);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Salon'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this salon?',
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        title: Text(salon.name, style: AppTypography.cardTitle),
+                        subtitle: Text(
+                          salon.type,
+                          style: AppTypography.caption,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showSalonDialog(context, ref, salon: salon);
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Delete Salon',
+                                      style: AppTypography.sectionTitle,
+                                    ),
+                                    content: const Text(
+                                      'Are you sure you want to delete this salon?',
+                                      style: AppTypography.body,
+                                    ),
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Delete'),
+                                      ),
+                                    ],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed == true) {
-                                final token = await ref
-                                    .read(salonsProvider.notifier)
-                                    .getToken();
-                                if (token == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                await ref
-                                    .read(salonsProvider.notifier)
-                                    .deleteSalon(token, salon.id);
-                                final err = ref.read(salonsProvider).error;
-                                if (err == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Salon deleted successfully',
+                                );
+                                if (confirmed == true) {
+                                  final token = await ref
+                                      .read(salonsProvider.notifier)
+                                      .getToken();
+                                  if (token == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('No auth token found.'),
+                                          backgroundColor: Colors.red,
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
+                                    return;
                                   }
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          err.isNotEmpty
-                                              ? err
-                                              : 'Silme işlemi başarısız oldu.',
+                                  await ref
+                                      .read(salonsProvider.notifier)
+                                      .deleteSalon(token, salon.id);
+                                  final err = ref.read(salonsProvider).error;
+                                  if (err == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Salon deleted successfully',
+                                          ),
                                         ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
+                                      );
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            err.isNotEmpty
+                                                ? err
+                                                : 'Silme işlemi başarısız oldu.',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -2120,9 +2251,11 @@ class _SalonsSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addSalonFab'),
             onPressed: () => _showSalonDialog(context, ref),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Salon Ekle',
           ),
         ),
@@ -2141,7 +2274,11 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(isEdit ? 'Salonu Düzenle' : 'Salon Ekle'),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(
+          isEdit ? 'Salonu Düzenle' : 'Salon Ekle',
+          style: AppTypography.sectionTitle,
+        ),
         content: Form(
           key: formKey,
           child: Column(
@@ -2149,14 +2286,14 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Ad'),
+                decoration: _settingsInputDecoration('Ad'),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter name' : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: type.isNotEmpty ? type : null,
-                decoration: const InputDecoration(labelText: 'Salon Tipi'),
+                decoration: _settingsInputDecoration('Salon Tipi'),
                 items: const [
                   DropdownMenuItem(value: 'Yoga', child: Text('Yoga')),
                   DropdownMenuItem(value: 'Pilates', child: Text('Pilates')),
@@ -2169,11 +2306,14 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: const Text('İptal'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final salonsNotifier = ref.read(salonsProvider.notifier);
@@ -2212,7 +2352,8 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
                 }
               }
             },
-            child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
       );
@@ -2246,94 +2387,138 @@ class _EquipmentSection extends ConsumerWidget {
                       (s) => s.id == equipment.salonId,
                       orElse: () => Salon(id: 0, name: 'Unknown', type: ''),
                     );
-                    return ListTile(
-                      title: Text(equipment.name),
-                      subtitle: Text('${equipment.type} • ${salon.name}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              _showEquipmentDialog(
-                                context,
-                                ref,
-                                salonsState.salons,
-                                equipment: equipment,
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Equipment'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this equipment?',
+                    return Card(
+                      color: AppDesignTokens.surface,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: AppDesignTokens.border),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          equipment.name,
+                          style: AppTypography.cardTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${equipment.type} • ${salon.name}',
+                          style: AppTypography.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(AppIcons.edit),
+                              onPressed: () {
+                                _showEquipmentDialog(
+                                  context,
+                                  ref,
+                                  salonsState.salons,
+                                  equipment: equipment,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              color: AppDesignTokens.destructive,
+                              icon: const Icon(AppIcons.delete),
+                              onPressed: () async {
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppDesignTokens.surface,
+                                    title: const Text(
+                                      'Delete Equipment',
+                                      style: AppTypography.sectionTitle,
+                                    ),
+                                    content: const Text(
+                                      'Are you sure you want to delete this equipment?',
+                                      style: AppTypography.body,
+                                    ),
+                                    actions: [
+                                      OutlinedButton.icon(
+                                        style: AppButtonStyles.secondary,
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        icon: const Icon(
+                                          AppIcons.close,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton.icon(
+                                        style: AppButtonStyles.destructive,
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        icon: const Icon(
+                                          AppIcons.delete,
+                                          size: 18,
+                                        ),
+                                        label: const Text('Delete'),
+                                      ),
+                                    ],
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirmed == true) {
-                                final token = await ref
-                                    .read(equipmentProvider.notifier)
-                                    .getToken();
-                                if (token == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                await ref
-                                    .read(equipmentProvider.notifier)
-                                    .deleteEquipment(token, equipment.id);
-                                final err = ref.read(equipmentProvider).error;
-                                if (err == null) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Equipment deleted successfully',
+                                );
+                                if (confirmed == true) {
+                                  final token = await ref
+                                      .read(equipmentProvider.notifier)
+                                      .getToken();
+                                  if (token == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('No auth token found.'),
+                                          backgroundColor: Colors.red,
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    }
+                                    return;
                                   }
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          err.isNotEmpty
-                                              ? err
-                                              : 'Silme işlemi başarısız oldu.',
+                                  await ref
+                                      .read(equipmentProvider.notifier)
+                                      .deleteEquipment(token, equipment.id);
+                                  final err = ref.read(equipmentProvider).error;
+                                  if (err == null) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Equipment deleted successfully',
+                                          ),
                                         ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
+                                      );
+                                    }
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            err.isNotEmpty
+                                                ? err
+                                                : 'Silme işlemi başarısız oldu.',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
-                              }
-                            },
-                          ),
-                        ],
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -2346,10 +2531,12 @@ class _EquipmentSection extends ConsumerWidget {
           bottom: 16,
           right: 16,
           child: FloatingActionButton(
+            backgroundColor: AppDesignTokens.primaryAction,
+            foregroundColor: AppDesignTokens.primaryActionForeground,
             key: const ValueKey('addEquipmentFab'),
             onPressed: () =>
                 _showEquipmentDialog(context, ref, salonsState.salons),
-            child: const Icon(Icons.add),
+            child: const Icon(AppIcons.create),
             tooltip: 'Ekipman Ekle',
           ),
         ),
@@ -2374,7 +2561,11 @@ void _showEquipmentDialog(
     context: context,
     builder: (context) {
       return AlertDialog(
-        title: Text(isEdit ? 'Ekipmanı Düzenle' : 'Ekipman Ekle'),
+        backgroundColor: AppDesignTokens.surface,
+        title: Text(
+          isEdit ? 'Ekipmanı Düzenle' : 'Ekipman Ekle',
+          style: AppTypography.sectionTitle,
+        ),
         content: Form(
           key: formKey,
           child: Column(
@@ -2382,14 +2573,14 @@ void _showEquipmentDialog(
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Ad'),
+                decoration: _settingsInputDecoration('Ad'),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter name' : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: type.isNotEmpty ? type : null,
-                decoration: const InputDecoration(labelText: 'Ekipman Tipi'),
+                decoration: _settingsInputDecoration('Ekipman Tipi'),
                 items: const [
                   DropdownMenuItem(value: 'Mat', child: Text('Mat')),
                   DropdownMenuItem(value: 'Reformer', child: Text('Reformer')),
@@ -2401,7 +2592,7 @@ void _showEquipmentDialog(
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 value: selectedSalonId,
-                decoration: const InputDecoration(labelText: 'Salon'),
+                decoration: _settingsInputDecoration('Salon'),
                 items: salons
                     .map(
                       (salon) => DropdownMenuItem(
@@ -2417,11 +2608,14 @@ void _showEquipmentDialog(
           ),
         ),
         actions: [
-          TextButton(
+          OutlinedButton.icon(
+            style: AppButtonStyles.secondary,
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            icon: const Icon(AppIcons.close, size: 18),
+            label: const Text('İptal'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
+            style: AppButtonStyles.primary,
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               // Business rules: Yoga salons must use Mat, Pilates salons must use Reformer
@@ -2479,7 +2673,8 @@ void _showEquipmentDialog(
                 }
               }
             },
-            child: Text(isEdit ? 'Kaydet' : 'Ekle'),
+            icon: const Icon(AppIcons.save, size: 18),
+            label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
       );
