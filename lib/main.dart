@@ -215,7 +215,7 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     print('[Locale] MaterialApp locale: \\${locale.languageCode}');
     return MaterialApp(
-      title: AppLocalizations.of(context)?.translate('appTitle') ?? 'YogaThApp',
+      title: AppLocalizations.of(context)?.translate('appTitle') ?? 'StudioTha',
       theme: ThemeData(
         colorScheme: const ColorScheme.light(
           primary: AppDesignTokens.primaryAction,

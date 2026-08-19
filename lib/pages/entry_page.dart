@@ -41,22 +41,10 @@ class EntryPage extends StatelessWidget {
                         ),
                         child: Column(
                           children: [
-                            const Icon(
-                              Icons.self_improvement,
-                              color: AppDesignTokens.textPrimary,
-                              size: 40,
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'YogaTha',
-                              style: AppTypography.pageTitle,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              loc?.translate('appTitle') ?? 'YogaTh App',
-                              style: AppTypography.label,
-                              textAlign: TextAlign.center,
+                            Image.asset(
+                              'assets/branding/studiotha_logo_full.png',
+                              width: 280,
+                              fit: BoxFit.contain,
                             ),
                           ],
                         ),
