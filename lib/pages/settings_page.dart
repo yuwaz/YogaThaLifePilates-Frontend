@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../api_config.dart';
 import '../providers/auth_provider.dart';
+import '../providers/session_lifecycle_provider.dart';
 import '../providers/payment_methods_provider.dart' as payment_methods;
 import '../providers/member_types_provider.dart' as member_types;
 import '../models/salon.dart';
@@ -20,6 +21,7 @@ import '../providers/locale_provider.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/subscription_settings_section.dart';
 import '../theme/app_design_tokens.dart';
+import 'login_page.dart';
 
 // Predefined member type colors (must match requirements)
 const List<Color> kMemberTypeColors = [
@@ -193,13 +195,19 @@ class _AccountSectionState extends ConsumerState<_AccountSection> {
     _fetchProfile();
   }
 
+  Future<void> _invalidateSessionAndShowLogin() async {
+    await ref.read(sessionLifecycleControllerProvider).logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
+  }
+
   Future<void> _fetchProfile() async {
     final token = ref.read(authProvider).token;
     if (token == null || token.isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Kullanıcı bilgisi alınamadı';
-      });
+      await _invalidateSessionAndShowLogin();
       return;
     }
 
@@ -220,23 +228,29 @@ class _AccountSectionState extends ConsumerState<_AccountSection> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
+          if (!mounted) return;
           setState(() {
             _profile = decoded;
             _isLoading = false;
           });
         } else {
+          if (!mounted) return;
           setState(() {
             _error = 'Kullanıcı bilgisi alınamadı';
             _isLoading = false;
           });
         }
+      } else if (response.statusCode == 401) {
+        await _invalidateSessionAndShowLogin();
       } else {
+        if (!mounted) return;
         setState(() {
           _error = 'Kullanıcı bilgisi alınamadı';
           _isLoading = false;
         });
       }
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _error = 'Kullanıcı bilgisi alınamadı';
         _isLoading = false;

@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/entry_page.dart';
 import 'pages/backoffice/backoffice_login_page.dart';
+import 'pages/login_page.dart';
 import 'pages/main_page.dart';
 import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
@@ -19,6 +20,7 @@ import 'providers/studio_onboarding_provider.dart';
 import 'services/backoffice_secure_storage.dart';
 import 'pages/backoffice/backoffice_shell_page.dart';
 import 'utils/app_bootstrap.dart';
+import 'utils/auth_token_utils.dart';
 import 'theme/app_design_tokens.dart';
 
 enum BackofficeRouteDecision { tenant, backofficeLogin, backofficeShell }
@@ -60,7 +62,7 @@ class AuthInit extends ConsumerStatefulWidget {
   ConsumerState<AuthInit> createState() => _AuthInitState();
 }
 
-enum StartupDestination { entry, main, onboarding, backoffice }
+enum StartupDestination { entry, login, main, onboarding, backoffice }
 
 class _AuthInitState extends ConsumerState<AuthInit> {
   static const _minimumSplashDuration = Duration(milliseconds: 2500);
@@ -115,6 +117,15 @@ class _AuthInitState extends ConsumerState<AuthInit> {
             ? StartupDestination.backoffice
             : StartupDestination.entry;
       } else if (tenantToken != null && tenantToken.isNotEmpty) {
+        if (isJwtExpired(tenantToken)) {
+          await ref.read(sessionLifecycleControllerProvider).logout();
+          _startupDestination = StartupDestination.login;
+          debugPrint(
+            '[AuthRestore] stored tenant token expired; session cleared.',
+          );
+          return;
+        }
+
         final normalizedRole = (role ?? '').trim();
         final safeRole = normalizedRole.isNotEmpty ? normalizedRole : 'unknown';
         final safeAssignedSalonIds = List<int>.from(assignedSalonIds);
@@ -163,7 +174,7 @@ class _AuthInitState extends ConsumerState<AuthInit> {
             break;
           case OnboardingGateDecision.unauthorized:
             await ref.read(sessionLifecycleControllerProvider).logout();
-            _startupDestination = StartupDestination.entry;
+            _startupDestination = StartupDestination.login;
             break;
         }
       } else {
@@ -364,6 +375,8 @@ class MyApp extends ConsumerWidget {
     switch (startupDestination) {
       case StartupDestination.entry:
         return const EntryPage();
+      case StartupDestination.login:
+        return const LoginPage();
       case StartupDestination.main:
         return const MainPage();
       case StartupDestination.onboarding:
