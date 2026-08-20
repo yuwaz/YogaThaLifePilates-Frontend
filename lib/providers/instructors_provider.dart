@@ -232,4 +232,35 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
   }
 
   Future<String?> getToken() => _storage.getToken();
+
+  Future<void> resetInstructorPassword({
+    required String instructorId,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final url = '$_instructorsBaseUrl/$instructorId/password';
+      final response = await http.patch(
+        Uri.parse(url),
+        headers: await _authHeaders(),
+        body: json.encode({'newPassword': newPassword}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
+        state = state.copyWith(isLoading: false, error: null);
+      } else {
+        _reportSignal(response);
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
+        state = state.copyWith(isLoading: false, error: backendMsg);
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
 }

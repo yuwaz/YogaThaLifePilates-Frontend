@@ -519,6 +519,7 @@ class _InstructorsSection extends ConsumerWidget {
   @override
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
     final instructorsState = ref.watch(instructorsProvider);
     final instructorsNotifier = ref.read(instructorsProvider.notifier);
     final salonsState = ref.watch(salonsProvider);
@@ -588,6 +589,20 @@ class _InstructorsSection extends ConsumerWidget {
                                   context,
                                   ref,
                                   salonsState.salons,
+                                  instructor: instructor,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              style: AppButtonStyles.compactIcon,
+                              icon: const Icon(Icons.lock_reset),
+                              tooltip:
+                                  loc?.translate('resetInstructorPassword') ??
+                                  'Reset Password',
+                              onPressed: () {
+                                _showResetInstructorPasswordDialog(
+                                  context,
+                                  ref,
                                   instructor: instructor,
                                 );
                               },
@@ -1006,6 +1021,161 @@ void _showInstructorDialog(
             label: Text(isEdit ? 'Kaydet' : 'Ekle'),
           ),
         ],
+      );
+    },
+  );
+}
+
+void _showResetInstructorPasswordDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required model.Instructor instructor,
+}) {
+  final loc = AppLocalizations.of(context);
+  final formKey = GlobalKey<FormState>();
+  final newPasswordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  bool obscureNew = true;
+  bool obscureConfirm = true;
+  bool isSubmitting = false;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppDesignTokens.surface,
+            title: Text(
+              loc?.translate('resetInstructorPassword') ?? 'Reset Password',
+              style: AppTypography.sectionTitle,
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(instructor.username, style: AppTypography.bodyStrong),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: newPasswordController,
+                      obscureText: obscureNew,
+                      decoration:
+                          _settingsInputDecoration(
+                            loc?.translate('newPassword') ?? 'New Password',
+                          ).copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscureNew
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () => setDialogState(
+                                () => obscureNew = !obscureNew,
+                              ),
+                            ),
+                          ),
+                      validator: (v) {
+                        final value = (v ?? '').trim();
+                        if (value.length < 6) {
+                          return loc?.translate('passwordMinLength') ??
+                              'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirm,
+                      decoration:
+                          _settingsInputDecoration(
+                            loc?.translate('confirmPassword') ??
+                                'Confirm Password',
+                          ).copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                obscureConfirm
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () => setDialogState(
+                                () => obscureConfirm = !obscureConfirm,
+                              ),
+                            ),
+                          ),
+                      validator: (v) {
+                        final value = (v ?? '').trim();
+                        if (value != newPasswordController.text.trim()) {
+                          return loc?.translate('confirmPasswordMismatch') ??
+                              'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              OutlinedButton.icon(
+                style: AppButtonStyles.secondary,
+                onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                icon: const Icon(AppIcons.close, size: 18),
+                label: Text(loc?.translate('cancel') ?? 'İptal'),
+              ),
+              ElevatedButton.icon(
+                style: AppButtonStyles.primary,
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() => isSubmitting = true);
+                        await ref
+                            .read(instructorsProvider.notifier)
+                            .resetInstructorPassword(
+                              instructorId: instructor.id,
+                              newPassword: newPasswordController.text.trim(),
+                            );
+                        final err = ref.read(instructorsProvider).error;
+                        setDialogState(() => isSubmitting = false);
+                        if (err == null) {
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  loc?.translate('instructorPasswordUpdated') ??
+                                      'Instructor password updated',
+                                ),
+                              ),
+                            );
+                          }
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(err),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(AppIcons.save, size: 18),
+                label: Text(loc?.translate('save') ?? 'Kaydet'),
+              ),
+            ],
+          );
+        },
       );
     },
   );
