@@ -68,7 +68,7 @@ dev_dependencies:
 flutter_launcher_icons:
   ios: true
   android: true
-  image_path: assets/branding/studiotha_symbol_1024.png
+  image_path: assets/branding/thabi_logo.png
   remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
@@ -79,8 +79,7 @@ flutter:
   assets:
     - lib/l10n/app_en.arb
     - lib/l10n/app_tr.arb
-    - assets/branding/studiotha_logo_full.png
-    - assets/branding/studiotha_symbol_1024.png
+    - assets/branding/thabi_logo.png
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

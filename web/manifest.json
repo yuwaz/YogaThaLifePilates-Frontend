@@ -1,11 +1,11 @@
 {
-    "name": "StudioTha",
-    "short_name": "StudioTha",
+    "name": "ThaBi",
+    "short_name": "ThaBi",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FAFAFA",
     "theme_color": "#171717",
-    "description": "StudioTha",
+    "description": "ThaBi",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

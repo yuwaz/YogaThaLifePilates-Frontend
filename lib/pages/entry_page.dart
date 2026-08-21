@@ -42,7 +42,7 @@ class EntryPage extends StatelessWidget {
                         child: Column(
                           children: [
                             Image.asset(
-                              'assets/branding/studiotha_logo_full.png',
+                              'assets/branding/thabi_logo.png',
                               width: 280,
                               fit: BoxFit.contain,
                             ),

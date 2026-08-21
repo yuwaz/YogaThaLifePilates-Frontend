@@ -200,7 +200,7 @@ class _AuthInitState extends ConsumerState<AuthInit> {
               child: FractionallySizedBox(
                 widthFactor: 0.7,
                 child: Image(
-                  image: AssetImage('assets/branding/studiotha_logo_full.png'),
+                  image: AssetImage('assets/branding/thabi_logo.png'),
                   fit: BoxFit.contain,
                 ),
               ),
@@ -230,7 +230,7 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     print('[Locale] MaterialApp locale: \\${locale.languageCode}');
     return MaterialApp(
-      title: AppLocalizations.of(context)?.translate('appTitle') ?? 'StudioTha',
+      title: AppLocalizations.of(context)?.translate('appTitle') ?? 'ThaBi',
       theme: ThemeData(
         colorScheme: const ColorScheme.light(
           primary: AppDesignTokens.primaryAction,

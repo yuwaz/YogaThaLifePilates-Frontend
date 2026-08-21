@@ -283,7 +283,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             AppLocalizations.of(
                               context,
                             )?.translate('studioCodeHelper') ??
-                            'Leave blank if you use the original YogaTha studio.',
+                            'Leave blank if you use the original ThaBi studio.',
                         labelStyle: AppTypography.label,
                       ),
                       style: AppTypography.body,
