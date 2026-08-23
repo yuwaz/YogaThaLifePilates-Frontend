@@ -938,7 +938,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         ),
                         child: Center(
                           child: Text(
-                            'Ödemeler',
+                            loc?.translate('paymentHistory') ?? 'Ödeme Geçmişi',
                             style: TextStyle(
                               color: _selectedTabIndex == 1
                                   ? AppDesignTokens.primaryActionForeground

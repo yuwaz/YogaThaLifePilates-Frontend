@@ -102,6 +102,7 @@
   "members": "Members",
   "reservations": "Reservations",
   "payments": "Payments",
+  "paymentHistory": "Payment History",
   "finance": "Finance",
   "attendance": "Attendance",
   "reports": "Reports",
