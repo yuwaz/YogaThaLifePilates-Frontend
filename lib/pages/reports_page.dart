@@ -352,22 +352,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 _dateRange = picked;
                 _quickRange = null;
               });
-              final auth = ref.read(authProvider);
-              final token = auth.token;
-              if (token == null || _dateRange == null) return;
-              final mode = _rangeType;
-              final selectedSalonId = _selectedSalonId;
-              final startDate = _dateRange!.start;
-              final endDate = _dateRange!.end;
-              ref
-                  .read(reportsProvider.notifier)
-                  .fetchReports(
-                    token: token,
-                    rangeType: mode,
-                    startDate: startDate,
-                    endDate: endDate,
-                    salonId: selectedSalonId,
-                  );
+              _refreshReports();
             }
           },
         ),
@@ -410,22 +395,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ],
           onChanged: (val) {
             setState(() => _selectedSalonId = val);
-            final auth = ref.read(authProvider);
-            final token = auth.token;
-            if (token == null || _dateRange == null) return;
-            final mode = _rangeType;
-            final selectedSalonId = _selectedSalonId;
-            final startDate = _dateRange!.start;
-            final endDate = _dateRange!.end;
-            ref
-                .read(reportsProvider.notifier)
-                .fetchReports(
-                  token: token,
-                  rangeType: mode,
-                  startDate: startDate,
-                  endDate: endDate,
-                  salonId: selectedSalonId,
-                );
+            _refreshReports();
           },
         ),
         // Instructor Filter (admin only, placeholder for now)
@@ -600,11 +570,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     ];
 
     final operationCards = [
-      _SummaryCard(
-        title: 'Toplam Yoklama',
-        value: summary['totalAttendanceCount']?.toString() ?? '-',
-        icon: Icons.how_to_reg,
-      ),
       _SummaryCard(
         title: 'Toplam İndirim',
         value: summary['totalDiscountAmount'] != null
@@ -1049,11 +1014,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
     List filteredList = list;
     if (_rangeType == 'weekly' && _dateRange != null) {
-      // Parse labels as dates, filter to only those in selected week (Mon-Sun)
+      // Keep only rows inside the selected range; the range end may be earlier
+      // than the end of the calendar week (e.g. "This Week" ends today).
       final weekStart = _dateRange!.start.subtract(
         Duration(days: _dateRange!.start.weekday - 1),
       );
-      final weekEnd = weekStart.add(const Duration(days: 6));
+      final weekEnd = _dateRange!.end;
       filteredList = list.where((e) {
         final label = e['label']?.toString();
         if (label == null) return false;
