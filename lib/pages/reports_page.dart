@@ -52,15 +52,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final selectedSalonId = _selectedSalonId;
     final startDate = _dateRange!.start;
     final endDate = _dateRange!.end;
-    await ref
-        .read(reportsProvider.notifier)
-        .fetchReports(
-          token: token,
-          rangeType: mode,
-          startDate: startDate,
-          endDate: endDate,
-          salonId: selectedSalonId,
-        );
+    await Future.wait([
+      ref
+          .read(reportsProvider.notifier)
+          .fetchReports(
+            token: token,
+            rangeType: mode,
+            startDate: startDate,
+            endDate: endDate,
+            salonId: selectedSalonId,
+          ),
+      _refreshMemberCounts(),
+    ]);
   }
 
   Future<void> _refreshMemberCounts() async {

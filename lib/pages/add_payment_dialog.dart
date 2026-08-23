@@ -71,7 +71,12 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
               data: (methods) => DropdownButtonFormField<String>(
                 value: _selectedMethod,
                 items: methods
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .map(
+                      (m) => DropdownMenuItem<String>(
+                        value: (m['name'] ?? '').toString(),
+                        child: Text((m['name'] ?? '').toString()),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _selectedMethod = v),
                 decoration: const InputDecoration(labelText: 'Payment Method'),
