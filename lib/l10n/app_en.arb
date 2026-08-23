@@ -138,6 +138,8 @@
   "weekly": "Weekly",
   "monthly": "Monthly",
   "customRange": "Custom Range",
+  "estimatedInstructorCost": "Estimated Instructor Cost",
+  "estimatedNetProfitLoss": "Estimated Net Profit / Loss",
   "today": "Today",
   "yesterday": "Yesterday",
   "thisWeek": "This Week",

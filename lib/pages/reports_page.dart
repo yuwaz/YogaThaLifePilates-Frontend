@@ -556,6 +556,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             : '-',
         icon: Icons.money_off,
       ),
+      _SummaryCard(
+        title:
+            loc?.translate('estimatedInstructorCost') ??
+            'Tahmini Eğitmen Gideri',
+        value: formatCurrency(
+          _toDouble(summary['estimatedInstructorCost']) ?? 0,
+        ),
+        icon: Icons.school,
+      ),
     ];
 
     final netProfit = _toDouble(summary['netProfit']);
@@ -564,12 +573,27 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         : (summary['netProfit'] != null
               ? formatCurrency(summary['netProfit'])
               : '-');
+    // Backend-provided estimate; falls back to netProfit when the key is absent.
+    final estimatedNetProfit =
+        _toDouble(summary['estimatedNetProfit']) ?? netProfit;
     final resultCards = [
       _SummaryCard(
         title: 'Net Kar / Zarar',
         value: netProfitValue,
         icon: Icons.account_balance_wallet,
         valueColor: netProfit != null && netProfit < 0
+            ? AppDesignTokens.destructive
+            : AppDesignTokens.textPrimary,
+      ),
+      _SummaryCard(
+        title:
+            loc?.translate('estimatedNetProfitLoss') ??
+            'Tahmini Net Kâr / Zarar',
+        value: estimatedNetProfit != null
+            ? formatCurrency(estimatedNetProfit)
+            : '-',
+        icon: Icons.account_balance_wallet,
+        valueColor: estimatedNetProfit != null && estimatedNetProfit < 0
             ? AppDesignTokens.destructive
             : AppDesignTokens.textPrimary,
       ),

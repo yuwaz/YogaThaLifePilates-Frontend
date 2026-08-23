@@ -139,6 +139,8 @@
   "weekly": "Haftalık",
   "monthly": "Aylık",
   "customRange": "Özel Aralık",
+  "estimatedInstructorCost": "Tahmini Eğitmen Gideri",
+  "estimatedNetProfitLoss": "Tahmini Net Kâr / Zarar",
   "today": "Bugün",
   "yesterday": "Dün",
   "thisWeek": "Bu hafta",
