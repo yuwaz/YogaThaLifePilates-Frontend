@@ -39,10 +39,101 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   DateTimeRange? _dateRange;
+  // Backend `mode` contract value, derived from the selected quick range.
   String _rangeType = 'monthly';
+  String? _quickRange = 'thisMonth';
   int? _selectedSalonId;
   int _activeMemberCount = 0;
   int _passiveMemberCount = 0;
+
+  static const List<String> _quickRangeKeys = [
+    'today',
+    'yesterday',
+    'thisWeek',
+    'thisMonth',
+    'lastMonth',
+    'thisYear',
+    'last3Months',
+    'last6Months',
+    'last1Year',
+  ];
+
+  static const Map<String, String> _quickRangeFallbackLabels = {
+    'today': 'Bugün',
+    'yesterday': 'Dün',
+    'thisWeek': 'Bu hafta',
+    'thisMonth': 'Bu ay',
+    'lastMonth': 'Geçen ay',
+    'thisYear': 'Bu yıl',
+    'last3Months': 'Son 3 ay',
+    'last6Months': 'Son 6 ay',
+    'last1Year': 'Son 1 yıl',
+  };
+
+  static String _apiModeForQuickRange(String key) {
+    switch (key) {
+      case 'today':
+      case 'yesterday':
+        return 'daily';
+      case 'thisWeek':
+        return 'weekly';
+      default:
+        return 'monthly';
+    }
+  }
+
+  static DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  /// Calendar-month subtraction, clamped to the last valid day of the target month.
+  static DateTime _minusMonths(DateTime date, int months) {
+    final totalMonths = date.year * 12 + (date.month - 1) - months;
+    final year = totalMonths ~/ 12;
+    final month = totalMonths % 12 + 1;
+    final lastDayOfMonth = DateTime(year, month + 1, 0).day;
+    return DateTime(
+      year,
+      month,
+      date.day <= lastDayOfMonth ? date.day : lastDayOfMonth,
+    );
+  }
+
+  static DateTimeRange _rangeForQuickRange(String key, DateTime now) {
+    final today = _dateOnly(now);
+    switch (key) {
+      case 'today':
+        return DateTimeRange(start: today, end: today);
+      case 'yesterday':
+        final yesterday = DateTime(today.year, today.month, today.day - 1);
+        return DateTimeRange(start: yesterday, end: yesterday);
+      case 'thisWeek':
+        final monday = DateTime(
+          today.year,
+          today.month,
+          today.day - (today.weekday - 1),
+        );
+        return DateTimeRange(start: monday, end: today);
+      case 'lastMonth':
+        return DateTimeRange(
+          start: DateTime(today.year, today.month - 1, 1),
+          end: DateTime(today.year, today.month, 0),
+        );
+      case 'thisYear':
+        return DateTimeRange(start: DateTime(today.year, 1, 1), end: today);
+      case 'last3Months':
+        return DateTimeRange(start: _minusMonths(today, 3), end: today);
+      case 'last6Months':
+        return DateTimeRange(start: _minusMonths(today, 6), end: today);
+      case 'last1Year':
+        return DateTimeRange(start: _minusMonths(today, 12), end: today);
+      case 'thisMonth':
+      default:
+        return DateTimeRange(
+          start: DateTime(today.year, today.month, 1),
+          end: today,
+        );
+    }
+  }
 
   Future<void> _refreshReports() async {
     final auth = ref.read(authProvider);
@@ -82,11 +173,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _dateRange = DateTimeRange(
-      start: DateTime(now.year, now.month, 1),
-      end: DateTime(now.year, now.month + 1, 0),
-    );
+    _rangeType = _apiModeForQuickRange(_quickRange!);
+    _dateRange = _rangeForQuickRange(_quickRange!, DateTime.now());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = ref.read(authProvider);
       final token = auth.token;
@@ -260,7 +348,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               },
             );
             if (picked != null) {
-              setState(() => _dateRange = picked);
+              setState(() {
+                _dateRange = picked;
+                _quickRange = null;
+              });
               final auth = ref.read(authProvider);
               final token = auth.token;
               if (token == null || _dateRange == null) return;
@@ -280,66 +371,28 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             }
           },
         ),
-        // Range Type Dropdown
+        // Quick Range Dropdown
         DropdownButton<String>(
-          value: _rangeType,
-          items: [
-            DropdownMenuItem(
-              value: 'daily',
-              child: Text(loc?.translate('daily') ?? 'Daily'),
-            ),
-            DropdownMenuItem(
-              value: 'weekly',
-              child: Text(loc?.translate('weekly') ?? 'Weekly'),
-            ),
-            DropdownMenuItem(
-              value: 'monthly',
-              child: Text(loc?.translate('monthly') ?? 'Monthly'),
-            ),
-          ],
+          value: _quickRange,
+          hint: Text(loc?.translate('customRange') ?? 'Özel Aralık'),
+          items: _quickRangeKeys
+              .map(
+                (key) => DropdownMenuItem(
+                  value: key,
+                  child: Text(
+                    loc?.translate(key) ?? _quickRangeFallbackLabels[key]!,
+                  ),
+                ),
+              )
+              .toList(),
           onChanged: (val) {
-            if (val != null) {
-              final now = DateTime.now();
-              DateTimeRange nextRange;
-
-              if (val == 'daily') {
-                final today = DateTime(now.year, now.month, now.day);
-                nextRange = DateTimeRange(start: today, end: today);
-              } else if (val == 'weekly') {
-                final monday = DateTime(
-                  now.year,
-                  now.month,
-                  now.day,
-                ).subtract(Duration(days: now.weekday - 1));
-                final sunday = monday.add(const Duration(days: 6));
-                nextRange = DateTimeRange(start: monday, end: sunday);
-              } else {
-                final monthStart = DateTime(now.year, now.month, 1);
-                final monthEnd = DateTime(now.year, now.month + 1, 0);
-                nextRange = DateTimeRange(start: monthStart, end: monthEnd);
-              }
-
-              setState(() {
-                _rangeType = val;
-                _dateRange = nextRange;
-              });
-            }
-            final auth = ref.read(authProvider);
-            final token = auth.token;
-            if (token == null || _dateRange == null) return;
-            final mode = _rangeType;
-            final selectedSalonId = _selectedSalonId;
-            final startDate = _dateRange!.start;
-            final endDate = _dateRange!.end;
-            ref
-                .read(reportsProvider.notifier)
-                .fetchReports(
-                  token: token,
-                  rangeType: mode,
-                  startDate: startDate,
-                  endDate: endDate,
-                  salonId: selectedSalonId,
-                );
+            if (val == null) return;
+            setState(() {
+              _quickRange = val;
+              _rangeType = _apiModeForQuickRange(val);
+              _dateRange = _rangeForQuickRange(val, DateTime.now());
+            });
+            _refreshReports();
           },
         ),
         // Salon Filter
