@@ -4,14 +4,22 @@ import '../services/subscription_native_purchase_runtime_service.dart';
 import 'attendance_provider.dart';
 import 'auth_provider.dart';
 import 'equipment_provider.dart';
+import 'expense_provider.dart';
+import 'instructors_provider.dart';
+import 'lesson_packages_provider.dart';
+import 'manual_card_usage_provider.dart';
 import 'member_provider.dart';
 import 'member_types_provider.dart';
+import 'payment_method_provider.dart';
+import 'payment_methods_provider.dart';
 import 'payment_provider.dart';
+import 'reports_provider.dart';
 import 'reservation_provider.dart';
 import 'salons_provider.dart';
 import 'secure_storage_service.dart';
 import 'studio_onboarding_provider.dart';
 import 'subscription_catalog_provider.dart';
+import 'subscription_enforcement_provider.dart';
 import 'subscription_native_purchase_processing_provider.dart';
 import 'subscription_native_purchase_restore_provider.dart';
 import 'subscription_native_purchase_recovery_provider.dart';
@@ -66,6 +74,14 @@ class SessionLifecycleController {
     _invalidateProvider(paymentProvider);
     _invalidateProvider(attendanceProvider);
     _invalidateProvider(studioOnboardingProvider);
+    _invalidateProvider(instructorsProvider);
+    _invalidateProvider(lessonPackagesProvider);
+    _invalidateProvider(expenseProvider);
+    _invalidateProvider(paymentMethodsProvider);
+    _invalidateProvider(paymentMethodProvider);
+    _invalidateProvider(manualCardUsageProvider);
+    _invalidateProvider(reportsProvider);
+    _invalidateProvider(subscriptionEnforcementProvider);
   }
 }
 

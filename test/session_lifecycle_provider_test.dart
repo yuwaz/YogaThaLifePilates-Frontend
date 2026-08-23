@@ -8,14 +8,22 @@ import 'package:frontend/models/subscription_purchase_scope.dart';
 import 'package:frontend/providers/attendance_provider.dart';
 import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/equipment_provider.dart';
+import 'package:frontend/providers/expense_provider.dart';
+import 'package:frontend/providers/instructors_provider.dart';
+import 'package:frontend/providers/lesson_packages_provider.dart';
+import 'package:frontend/providers/manual_card_usage_provider.dart';
 import 'package:frontend/providers/member_provider.dart';
 import 'package:frontend/providers/member_types_provider.dart';
+import 'package:frontend/providers/payment_method_provider.dart';
+import 'package:frontend/providers/payment_methods_provider.dart';
 import 'package:frontend/providers/payment_provider.dart';
+import 'package:frontend/providers/reports_provider.dart';
 import 'package:frontend/providers/reservation_provider.dart';
 import 'package:frontend/providers/salons_provider.dart';
 import 'package:frontend/providers/session_lifecycle_provider.dart';
 import 'package:frontend/providers/studio_onboarding_provider.dart';
 import 'package:frontend/providers/subscription_catalog_provider.dart';
+import 'package:frontend/providers/subscription_enforcement_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_processing_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_recovery_provider.dart';
 import 'package:frontend/providers/subscription_native_purchase_restore_provider.dart';
@@ -222,6 +230,30 @@ String _providerName(Object provider) {
   if (identical(provider, studioOnboardingProvider)) {
     return 'studioOnboarding';
   }
+  if (identical(provider, instructorsProvider)) {
+    return 'instructors';
+  }
+  if (identical(provider, lessonPackagesProvider)) {
+    return 'lessonPackages';
+  }
+  if (identical(provider, expenseProvider)) {
+    return 'expense';
+  }
+  if (identical(provider, paymentMethodsProvider)) {
+    return 'paymentMethods';
+  }
+  if (identical(provider, paymentMethodProvider)) {
+    return 'paymentMethodFamily';
+  }
+  if (identical(provider, manualCardUsageProvider)) {
+    return 'manualCardUsage';
+  }
+  if (identical(provider, reportsProvider)) {
+    return 'reports';
+  }
+  if (identical(provider, subscriptionEnforcementProvider)) {
+    return 'subscriptionEnforcement';
+  }
   return 'unknown';
 }
 
@@ -293,6 +325,14 @@ void main() {
         'payment',
         'attendance',
         'studioOnboarding',
+        'instructors',
+        'lessonPackages',
+        'expense',
+        'paymentMethods',
+        'paymentMethodFamily',
+        'manualCardUsage',
+        'reports',
+        'subscriptionEnforcement',
       ]);
       expect(authNotifier.state.token, isNull);
       expect(authNotifier.state.isSessionTransitioning, isFalse);
