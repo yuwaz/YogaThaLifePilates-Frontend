@@ -592,127 +592,154 @@ class _InstructorsSection extends ConsumerWidget {
                           style: AppTypography.caption,
                         ),
                         isThreeLine: false,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              style: AppButtonStyles.compactIcon,
-                              icon: const Icon(AppIcons.edit),
-                              onPressed: () {
-                                _showInstructorDialog(
-                                  context,
-                                  ref,
-                                  salonsState.salons,
-                                  instructor: instructor,
-                                );
-                              },
-                            ),
-                            IconButton(
-                              style: AppButtonStyles.compactIcon,
-                              icon: const Icon(Icons.lock_reset),
-                              tooltip:
-                                  loc?.translate('resetInstructorPassword') ??
-                                  'Reset Password',
-                              onPressed: () {
-                                _showResetInstructorPasswordDialog(
-                                  context,
-                                  ref,
-                                  instructor: instructor,
-                                );
-                              },
-                            ),
-                            IconButton(
-                              color: AppDesignTokens.destructive,
-                              icon: const Icon(AppIcons.delete),
-                              onPressed: () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    backgroundColor: AppDesignTokens.surface,
-                                    title: const Text(
-                                      'Delete Instructor',
-                                      style: AppTypography.sectionTitle,
-                                    ),
-                                    content: const Text(
-                                      'Are you sure you want to delete this instructor?',
-                                      style: AppTypography.body,
-                                    ),
-                                    actions: [
-                                      OutlinedButton.icon(
-                                        style: AppButtonStyles.secondary,
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        icon: const Icon(
-                                          AppIcons.close,
-                                          size: 18,
-                                        ),
-                                        label: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton.icon(
-                                        style: AppButtonStyles.destructive,
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        icon: const Icon(
-                                          AppIcons.delete,
-                                          size: 18,
-                                        ),
-                                        label: const Text('Delete'),
-                                      ),
-                                    ],
+                        // The studio owner is returned by the instructor
+                        // endpoint but must not expose instructor management
+                        // actions (edit rewrites role, delete, password reset).
+                        trailing: instructor.role != 'instructor'
+                            ? IconButton(
+                                style: AppButtonStyles.compactIcon,
+                                icon: const Icon(Icons.payments_outlined),
+                                tooltip:
+                                    loc?.translate('editInstructorFees') ??
+                                    'Eğitmen Ücretlerini Düzenle',
+                                onPressed: () {
+                                  _showInstructorFeesDialog(
+                                    context,
+                                    ref,
+                                    instructor: instructor,
+                                  );
+                                },
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    style: AppButtonStyles.compactIcon,
+                                    icon: const Icon(AppIcons.edit),
+                                    onPressed: () {
+                                      _showInstructorDialog(
+                                        context,
+                                        ref,
+                                        salonsState.salons,
+                                        instructor: instructor,
+                                      );
+                                    },
                                   ),
-                                );
-                                if (confirmed == true) {
-                                  final token = await ref
-                                      .read(instructorsProvider.notifier)
-                                      .getToken();
-                                  if (token == null) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
+                                  IconButton(
+                                    style: AppButtonStyles.compactIcon,
+                                    icon: const Icon(Icons.lock_reset),
+                                    tooltip:
+                                        loc?.translate(
+                                          'resetInstructorPassword',
+                                        ) ??
+                                        'Reset Password',
+                                    onPressed: () {
+                                      _showResetInstructorPasswordDialog(
                                         context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('No auth token found.'),
-                                          backgroundColor: Colors.red,
-                                        ),
+                                        ref,
+                                        instructor: instructor,
                                       );
-                                    }
-                                    return;
-                                  }
-                                  await ref
-                                      .read(instructorsProvider.notifier)
-                                      .deleteInstructor(token, instructor.id);
-                                  final err = ref
-                                      .read(instructorsProvider)
-                                      .error;
-                                  if (err == null) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Instructor deleted successfully',
+                                    },
+                                  ),
+                                  IconButton(
+                                    color: AppDesignTokens.destructive,
+                                    icon: const Icon(AppIcons.delete),
+                                    onPressed: () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          backgroundColor:
+                                              AppDesignTokens.surface,
+                                          title: const Text(
+                                            'Delete Instructor',
+                                            style: AppTypography.sectionTitle,
                                           ),
+                                          content: const Text(
+                                            'Are you sure you want to delete this instructor?',
+                                            style: AppTypography.body,
+                                          ),
+                                          actions: [
+                                            OutlinedButton.icon(
+                                              style: AppButtonStyles.secondary,
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              icon: const Icon(
+                                                AppIcons.close,
+                                                size: 18,
+                                              ),
+                                              label: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton.icon(
+                                              style:
+                                                  AppButtonStyles.destructive,
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              icon: const Icon(
+                                                AppIcons.delete,
+                                                size: 18,
+                                              ),
+                                              label: const Text('Delete'),
+                                            ),
+                                          ],
                                         ),
                                       );
-                                    }
-                                  } else {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Error: $err'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                                      if (confirmed == true) {
+                                        final token = await ref
+                                            .read(instructorsProvider.notifier)
+                                            .getToken();
+                                        if (token == null) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'No auth token found.',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+                                        await ref
+                                            .read(instructorsProvider.notifier)
+                                            .deleteInstructor(
+                                              token,
+                                              instructor.id,
+                                            );
+                                        final err = ref
+                                            .read(instructorsProvider)
+                                            .error;
+                                        if (err == null) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Instructor deleted successfully',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Error: $err'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                       ),
                     );
                   },
@@ -1163,6 +1190,149 @@ void _showResetInstructorPasswordDialog(
                                 content: Text(
                                   loc?.translate('instructorPasswordUpdated') ??
                                       'Instructor password updated',
+                                ),
+                              ),
+                            );
+                          }
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(err),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(AppIcons.save, size: 18),
+                label: Text(loc?.translate('save') ?? 'Kaydet'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+void _showInstructorFeesDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required model.Instructor instructor,
+}) {
+  final loc = AppLocalizations.of(context);
+  final formKey = GlobalKey<FormState>();
+  final groupSessionFeeController = TextEditingController(
+    text: instructor.groupSessionFee.toString(),
+  );
+  final individualSessionFeeController = TextEditingController(
+    text: instructor.individualSessionFee.toString(),
+  );
+  bool isSubmitting = false;
+
+  String? validateFee(String? value) {
+    final input = (value ?? '').trim();
+    if (input.isEmpty) return 'Geçerli bir sayı girin';
+    final fee = double.tryParse(input);
+    if (fee == null) return 'Geçerli bir sayı girin';
+    if (fee < 0) return 'Negatif olamaz';
+    return null;
+  }
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppDesignTokens.surface,
+            title: Text(
+              loc?.translate('editInstructorFees') ??
+                  'Eğitmen Ücretlerini Düzenle',
+              style: AppTypography.sectionTitle,
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(instructor.username, style: AppTypography.bodyStrong),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: groupSessionFeeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: _settingsInputDecoration(
+                        loc?.translate('groupSessionFee') ??
+                            'Grup Seans Ücreti',
+                      ),
+                      validator: validateFee,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: individualSessionFeeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: _settingsInputDecoration(
+                        loc?.translate('individualSessionFee') ??
+                            'Bireysel Seans Ücreti',
+                      ),
+                      validator: validateFee,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              OutlinedButton.icon(
+                style: AppButtonStyles.secondary,
+                onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                icon: const Icon(AppIcons.close, size: 18),
+                label: Text(loc?.translate('cancel') ?? 'İptal'),
+              ),
+              ElevatedButton.icon(
+                style: AppButtonStyles.primary,
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() => isSubmitting = true);
+                        await ref
+                            .read(instructorsProvider.notifier)
+                            .updateInstructorFees(
+                              instructorId: instructor.id,
+                              groupSessionFee:
+                                  double.tryParse(
+                                    groupSessionFeeController.text.trim(),
+                                  ) ??
+                                  0,
+                              individualSessionFee:
+                                  double.tryParse(
+                                    individualSessionFeeController.text.trim(),
+                                  ) ??
+                                  0,
+                            );
+                        final err = ref.read(instructorsProvider).error;
+                        setDialogState(() => isSubmitting = false);
+                        if (err == null) {
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  loc?.translate('instructorFeesUpdated') ??
+                                      'Eğitmen ücretleri güncellendi',
                                 ),
                               ),
                             );

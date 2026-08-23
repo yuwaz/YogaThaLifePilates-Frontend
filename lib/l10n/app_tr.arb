@@ -116,6 +116,8 @@
   "newPassword": "Yeni Şifre",
   "resetInstructorPassword": "Şifreyi Sıfırla",
   "instructorPasswordUpdated": "Eğitmen şifresi güncellendi",
+  "editInstructorFees": "Eğitmen Ücretlerini Düzenle",
+  "instructorFeesUpdated": "Eğitmen ücretleri güncellendi",
   "name": "Ad Soyad",
   "phone": "Telefon",
   "memberType": "Üye Tipi",

@@ -80,19 +80,18 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       if (response.statusCode == 200) {
         _clearSignal();
         final List<dynamic> data = json.decode(response.body);
-        // Filter for instructors only
+        // The endpoint is authoritative for teaching eligibility (it also
+        // returns the studio owner), so no role filtering happens here.
         final instructors = <model.Instructor>[];
         for (var i = 0; i < data.length; i++) {
           try {
             final user = data[i];
-            if ((user['role'] ?? '') == 'instructor') {
-              final parsed = model.Instructor.fromJson(user);
-              print(
-                '[fetchInstructors] parsed object $i: ' +
-                    parsed.runtimeType.toString(),
-              );
-              instructors.add(parsed);
-            }
+            final parsed = model.Instructor.fromJson(user);
+            print(
+              '[fetchInstructors] parsed object $i: ' +
+                  parsed.runtimeType.toString(),
+            );
+            instructors.add(parsed);
           } catch (err) {
             print(
               '[fetchInstructors] ERROR parsing item $i: ' + err.toString(),
@@ -248,6 +247,43 @@ class InstructorsProvider extends StateNotifier<InstructorsState> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         _clearSignal();
         state = state.copyWith(isLoading: false, error: null);
+      } else {
+        _reportSignal(response);
+        String backendMsg = '';
+        try {
+          final resp = json.decode(response.body);
+          backendMsg = resp['message']?.toString() ?? response.body;
+        } catch (_) {
+          backendMsg = response.body;
+        }
+        state = state.copyWith(isLoading: false, error: backendMsg);
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Fee-only update; the backend writes nothing else, so the studio owner
+  /// keeps their `admin` role.
+  Future<void> updateInstructorFees({
+    required String instructorId,
+    required double groupSessionFee,
+    required double individualSessionFee,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final url = '$_usersBaseUrl/$instructorId/fees';
+      final response = await http.patch(
+        Uri.parse(url),
+        headers: await _authHeaders(),
+        body: json.encode({
+          'groupSessionFee': groupSessionFee,
+          'individualSessionFee': individualSessionFee,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _clearSignal();
+        await fetchInstructors();
       } else {
         _reportSignal(response);
         String backendMsg = '';

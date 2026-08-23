@@ -115,6 +115,8 @@
   "newPassword": "New Password",
   "resetInstructorPassword": "Reset Password",
   "instructorPasswordUpdated": "Instructor password updated",
+  "editInstructorFees": "Edit Instructor Fees",
+  "instructorFeesUpdated": "Instructor fees updated",
   "name": "Name",
   "phone": "Phone",
   "memberType": "Member Type",

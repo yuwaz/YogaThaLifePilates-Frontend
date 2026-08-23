@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../api_config.dart';
 import '../providers/member_types_provider.dart';
 import '../models/member.dart';
 import '../models/reservation.dart';
@@ -1236,7 +1237,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
   Future<void> _fetchInstructorNames() async {
     try {
       final response = await http.get(
-        Uri.parse('http://204.168.168.23:3000/settings/users/instructors'),
+        Uri.parse('${ApiConfig.baseUrl}/settings/users/instructors'),
         headers: {'Authorization': 'Bearer ${widget.token}'},
       );
 
@@ -1257,7 +1258,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
       final Map<int, String> names = {};
 
       for (final item in decoded) {
-        if (item is Map<String, dynamic> && item['role'] == 'instructor') {
+        if (item is Map<String, dynamic>) {
           final id = item['id'];
           final username = item['username'];
           final name = item['name'];

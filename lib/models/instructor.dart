@@ -9,6 +9,9 @@ class Instructor {
   final double groupSessionFee;
   final double individualSessionFee;
 
+  /// Backend role of the returned user; the studio owner is returned as `admin`.
+  final String role;
+
   Instructor({
     required this.id,
     required this.username,
@@ -17,6 +20,7 @@ class Instructor {
     required this.permissions,
     this.groupSessionFee = 0,
     this.individualSessionFee = 0,
+    this.role = 'instructor',
   });
 
   static double _parseFee(dynamic rawFee) {
@@ -77,6 +81,7 @@ class Instructor {
       permissions: permissions,
       groupSessionFee: groupSessionFee,
       individualSessionFee: individualSessionFee,
+      role: (json['role'] ?? 'instructor').toString(),
     );
   }
 
