@@ -81,16 +81,11 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
           children: [
             methodsAsync.when(
               data: (methods) {
-                List<Map<String, dynamic>> methodObjs = [];
-                if (methods.isNotEmpty &&
-                    methods.first is Map<String, dynamic>) {
-                  methodObjs = List<Map<String, dynamic>>.from(methods);
-                } else if (methods.isNotEmpty) {
-                  methodObjs = List.generate(
-                    methods.length,
-                    (i) => {'id': i + 1, 'name': methods[i]},
-                  );
-                }
+                // methods carry the real backend PaymentMethod id (studio-scoped),
+                // not a synthetic index-based id.
+                final methodObjs = methods
+                    .where((m) => m['id'] != null)
+                    .toList();
                 return DropdownButtonFormField<int>(
                   value: _selectedPaymentMethodId,
                   items: methodObjs
@@ -360,10 +355,10 @@ class _ExpenseFormDialogState extends ConsumerState<ExpenseFormDialog> {
                 const SizedBox(height: 12),
                 methodsAsync.when(
                   data: (methods) {
-                    final methodObjs = List.generate(
-                      methods.length,
-                      (i) => {'id': i + 1, 'name': methods[i]},
-                    );
+                    // methods carry the real backend PaymentMethod id (studio-scoped).
+                    final methodObjs = methods
+                        .where((m) => m['id'] != null)
+                        .toList();
 
                     return DropdownButtonFormField<int>(
                       value: _selectedPaymentMethodId,

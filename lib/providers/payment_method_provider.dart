@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'subscription_enforcement_provider.dart';
 
-final paymentMethodProvider = FutureProvider.family<List<String>, String>((
+final paymentMethodProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((
   ref,
   token,
 ) async {
@@ -55,16 +55,17 @@ final paymentMethodProvider = FutureProvider.family<List<String>, String>((
   clearSubscriptionEnforcementSignal(ref.read);
 
   if (decoded is List) {
-    final methods = decoded.map<String>((item) {
-      if (item is String) {
-        return item;
-      }
+    // Preserve the backend's real PaymentMethod id alongside its display name so
+    // callers send the actual studio-scoped id instead of a fabricated index.
+    final methods = decoded.map<Map<String, dynamic>>((item) {
       if (item is Map<String, dynamic>) {
-        if (item['name'] != null) return item['name'].toString();
-        if (item['method'] != null) return item['method'].toString();
-        if (item['title'] != null) return item['title'].toString();
+        final dynamic rawId = item['id'];
+        final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+        final name = (item['name'] ?? item['method'] ?? item['title'] ?? '')
+            .toString();
+        return {'id': id, 'name': name};
       }
-      return item.toString();
+      return {'id': null, 'name': item.toString()};
     }).toList();
 
     print('[paymentMethodProvider] Parsed methods: $methods');
