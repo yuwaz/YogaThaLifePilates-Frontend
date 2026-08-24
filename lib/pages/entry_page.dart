@@ -13,7 +13,7 @@ class EntryPage extends StatelessWidget {
     final loc = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: AppDesignTokens.backgroundPrimary,
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -34,11 +34,6 @@ class EntryPage extends StatelessWidget {
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.black),
-                        ),
                         child: Column(
                           children: [
                             Image.asset(
@@ -55,6 +50,12 @@ class EntryPage extends StatelessWidget {
                           minimumSize: const WidgetStatePropertyAll(
                             Size.fromHeight(52),
                           ),
+                          backgroundColor: const WidgetStatePropertyAll(
+                            Colors.white,
+                          ),
+                          foregroundColor: const WidgetStatePropertyAll(
+                            Colors.black,
+                          ),
                         ),
                         onPressed: () {
                           Navigator.of(context).push(
@@ -70,6 +71,15 @@ class EntryPage extends StatelessWidget {
                         style: AppButtonStyles.secondary.copyWith(
                           minimumSize: const WidgetStatePropertyAll(
                             Size.fromHeight(52),
+                          ),
+                          backgroundColor: const WidgetStatePropertyAll(
+                            Colors.black,
+                          ),
+                          foregroundColor: const WidgetStatePropertyAll(
+                            Colors.white,
+                          ),
+                          side: const WidgetStatePropertyAll(
+                            BorderSide(color: Colors.white),
                           ),
                         ),
                         onPressed: () {
