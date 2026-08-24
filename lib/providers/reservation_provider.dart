@@ -289,3 +289,48 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
     }
   }
 }
+
+typedef MemberUpcomingReservationsParams = ({int memberId, String token});
+
+String _todayLocalDateString() {
+  final now = DateTime.now();
+  final y = now.year.toString().padLeft(4, '0');
+  final m = now.month.toString().padLeft(2, '0');
+  final d = now.day.toString().padLeft(2, '0');
+  return '$y-$m-$d';
+}
+
+// Member Detail-only: fetches a single member's next 10 upcoming reservations
+// directly, without touching the shared global reservationsProvider state.
+final memberUpcomingReservationsProvider = FutureProvider.autoDispose
+    .family<List<Reservation>, MemberUpcomingReservationsParams>((
+      ref,
+      params,
+    ) async {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/settings/reservations')
+          .replace(
+            queryParameters: {
+              'memberId': params.memberId.toString(),
+              'startDate': _todayLocalDateString(),
+              'limit': '10',
+            },
+          );
+
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Bearer ${params.token}'},
+      );
+
+      if (response.statusCode != 200) {
+        reportSubscriptionEnforcementResponse(
+          read: ref.read,
+          response: response,
+          source: 'memberUpcomingReservations',
+        );
+        throw Exception('Failed to load upcoming reservations');
+      }
+
+      clearSubscriptionEnforcementSignal(ref.read);
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((e) => Reservation.fromJson(e)).toList();
+    });

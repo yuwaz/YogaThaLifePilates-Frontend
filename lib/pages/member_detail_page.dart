@@ -93,22 +93,11 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     };
   }
 
-  // Starts the shared reservations fetch only if it has never completed and isn't already in flight.
-  Future<void> _fetchReservationsIfNeeded() async {
-    final current = ref.read(reservationsProvider);
-    if (current.hasLoadedOnce || current.isLoading) {
-      return;
-    }
-    await ref
-        .read(reservationsProvider.notifier)
-        .fetchReservations(widget.token);
-  }
-
   Future<void> _editReservation(Reservation reservation, Member member) async {
     final auth = ref.read(authProvider);
     final role = auth.role ?? 'admin';
     final assignedSalonIds = role == 'admin' ? <int>[] : auth.assignedSalonIds;
-    await showDialog(
+    final result = await showDialog<String>(
       context: context,
       builder: (ctx) => ReservationFormDialog(
         initialReservation: reservation,
@@ -122,6 +111,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         assignedSalonIds: assignedSalonIds,
       ),
     );
+    if (result != null && result.startsWith('success:')) {
+      ref.invalidate(
+        memberUpcomingReservationsProvider((
+          memberId: member.id,
+          token: widget.token,
+        )),
+      );
+    }
   }
 
   Future<void> _deleteReservation(Reservation reservation) async {
@@ -138,7 +135,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
             widget.token,
             deleteScope: selectedScope,
           );
-      if (errorMessage != null && mounted) {
+      if (errorMessage == null) {
+        ref.invalidate(
+          memberUpcomingReservationsProvider((
+            memberId: reservation.memberId,
+            token: widget.token,
+          )),
+        );
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
@@ -217,7 +221,6 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     super.initState();
     fetchDetail();
     _refreshLatestMeasurementDate();
-    _fetchReservationsIfNeeded();
   }
 
   @override
@@ -453,37 +456,12 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         matchedMemberType != null && matchedMemberType.name.trim().isNotEmpty
         ? matchedMemberType.name
         : '-';
-    final reservationsState = ref.watch(reservationsProvider);
-    final now = DateTime.now();
-    final upcomingReservations =
-        reservationsState.reservations
-            .where((r) => r.memberId == member.id)
-            .where((r) {
-              final reservationDateTime = DateTime(
-                r.date.year,
-                r.date.month,
-                r.date.day,
-                r.hour,
-              );
-              return !reservationDateTime.isBefore(now);
-            })
-            .toList()
-          ..sort((a, b) {
-            final aDateTime = DateTime(
-              a.date.year,
-              a.date.month,
-              a.date.day,
-              a.hour,
-            );
-            final bDateTime = DateTime(
-              b.date.year,
-              b.date.month,
-              b.date.day,
-              b.hour,
-            );
-            return aDateTime.compareTo(bDateTime);
-          });
-    final topUpcomingReservations = upcomingReservations.take(10).toList();
+    final upcomingReservationsAsync = ref.watch(
+      memberUpcomingReservationsProvider((
+        memberId: member.id,
+        token: widget.token,
+      )),
+    );
     final assignedLessonPackages = memberDetail?.assignedLessonPackages;
     if (assignedLessonPackages != null) {
       print(
@@ -970,116 +948,136 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (!reservationsState.hasLoadedOnce ||
-                    reservationsState.isLoading)
-                  const Text(
-                    'Rezervasyonlar yükleniyor...',
-                    style: AppTypography.body,
-                  )
-                else if (topUpcomingReservations.isEmpty)
-                  const Text(
-                    'Yaklaşan rezervasyon yok',
-                    style: AppTypography.body,
-                  )
-                else
-                  ...topUpcomingReservations.map((reservation) {
-                    final day = reservation.date.day.toString().padLeft(2, '0');
-                    final month = reservation.date.month.toString().padLeft(
-                      2,
-                      '0',
-                    );
-                    final year = reservation.date.year.toString();
-                    final hour = reservation.hour.toString().padLeft(2, '0');
-                    final minute = reservation.minute.toString().padLeft(
-                      2,
-                      '0',
-                    );
-                    final salon = widget.salons.firstWhere(
-                      (s) => s.id == reservation.salonId,
-                      orElse: () => Salon(
-                        id: reservation.salonId,
-                        name: 'Salon ${reservation.salonId}',
-                        type: 'Unknown',
-                      ),
-                    );
-                    final equipment = widget.equipment.firstWhere(
-                      (e) => e.id == reservation.equipmentId,
-                      orElse: () => Equipment(
-                        id: reservation.equipmentId,
-                        name: 'Ekipman ${reservation.equipmentId}',
-                        type: 'Unknown',
-                        salonId: reservation.salonId,
-                      ),
-                    );
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 5),
-                      color: AppDesignTokens.surface,
-                      elevation: 2,
-                      shadowColor: const Color(0x17000000),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
+                ...upcomingReservationsAsync.when(
+                  data: (reservations) {
+                    // Defensive check only; the backend already scopes results to this member.
+                    final memberReservations = reservations
+                        .where((r) => r.memberId == member.id)
+                        .toList();
+                    if (memberReservations.isEmpty) {
+                      return const [
+                        Text(
+                          'Yaklaşan rezervasyon yok',
+                          style: AppTypography.body,
                         ),
-                        title: Text(
-                          '$day.$month.$year  $hour:$minute',
-                          style: const TextStyle(
-                            color: AppDesignTokens.textPrimary,
-                            fontWeight: FontWeight.w600,
+                      ];
+                    }
+                    return memberReservations.map((reservation) {
+                      final day = reservation.date.day.toString().padLeft(
+                        2,
+                        '0',
+                      );
+                      final month = reservation.date.month.toString().padLeft(
+                        2,
+                        '0',
+                      );
+                      final year = reservation.date.year.toString();
+                      final hour = reservation.hour.toString().padLeft(2, '0');
+                      final minute = reservation.minute.toString().padLeft(
+                        2,
+                        '0',
+                      );
+                      final salon = widget.salons.firstWhere(
+                        (s) => s.id == reservation.salonId,
+                        orElse: () => Salon(
+                          id: reservation.salonId,
+                          name: 'Salon ${reservation.salonId}',
+                          type: 'Unknown',
+                        ),
+                      );
+                      final equipment = widget.equipment.firstWhere(
+                        (e) => e.id == reservation.equipmentId,
+                        orElse: () => Equipment(
+                          id: reservation.equipmentId,
+                          name: 'Ekipman ${reservation.equipmentId}',
+                          type: 'Unknown',
+                          salonId: reservation.salonId,
+                        ),
+                      );
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        color: AppDesignTokens.surface,
+                        elevation: 2,
+                        shadowColor: const Color(0x17000000),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          title: Text(
+                            '$day.$month.$year  $hour:$minute',
+                            style: const TextStyle(
+                              color: AppDesignTokens.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Salon: ${salon.name}',
+                                style: AppTypography.body,
+                              ),
+                              Text(
+                                'Ekipman: ${equipment.name}',
+                                style: AppTypography.body,
+                              ),
+                              if (reservation.recurrenceGroupId != null &&
+                                  reservation.recurrenceGroupId!.isNotEmpty)
+                                const Text(
+                                  'Tekrarlı rezervasyon',
+                                  style: TextStyle(
+                                    color: AppDesignTokens.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  AppIcons.edit,
+                                  color: AppDesignTokens.textPrimary,
+                                ),
+                                tooltip: loc?.translate('edit') ?? 'Edit',
+                                onPressed: () =>
+                                    _editReservation(reservation, member),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  AppIcons.delete,
+                                  color: AppDesignTokens.destructive,
+                                ),
+                                tooltip: loc?.translate('delete') ?? 'Delete',
+                                onPressed: () =>
+                                    _deleteReservation(reservation),
+                              ),
+                            ],
                           ),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Salon: ${salon.name}',
-                              style: AppTypography.body,
-                            ),
-                            Text(
-                              'Ekipman: ${equipment.name}',
-                              style: AppTypography.body,
-                            ),
-                            if (reservation.recurrenceGroupId != null &&
-                                reservation.recurrenceGroupId!.isNotEmpty)
-                              const Text(
-                                'Tekrarlı rezervasyon',
-                                style: TextStyle(
-                                  color: AppDesignTokens.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                AppIcons.edit,
-                                color: AppDesignTokens.textPrimary,
-                              ),
-                              tooltip: loc?.translate('edit') ?? 'Edit',
-                              onPressed: () =>
-                                  _editReservation(reservation, member),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                AppIcons.delete,
-                                color: AppDesignTokens.destructive,
-                              ),
-                              tooltip: loc?.translate('delete') ?? 'Delete',
-                              onPressed: () => _deleteReservation(reservation),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
+                      );
+                    }).toList();
+                  },
+                  loading: () => const [
+                    Text(
+                      'Rezervasyonlar yükleniyor...',
+                      style: AppTypography.body,
+                    ),
+                  ],
+                  error: (error, stackTrace) => const [
+                    Text(
+                      'Rezervasyonlar yüklenemedi',
+                      style: AppTypography.body,
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 16),
