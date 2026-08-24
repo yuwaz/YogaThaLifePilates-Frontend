@@ -35,9 +35,9 @@ class EntryPage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: AppDesignTokens.surface,
+                          color: Colors.black,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppDesignTokens.border),
+                          border: Border.all(color: Colors.black),
                         ),
                         child: Column(
                           children: [

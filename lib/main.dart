@@ -193,7 +193,7 @@ class _AuthInitState extends ConsumerState<AuthInit> {
     if (_restoring) {
       return const MaterialApp(
         home: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.black,
           body: Center(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 32),
