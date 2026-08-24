@@ -1,11 +1,11 @@
 {
-    "name": "ThaBi",
-    "short_name": "ThaBi",
+    "name": "CepStudio",
+    "short_name": "CepStudio",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FAFAFA",
     "theme_color": "#171717",
-    "description": "ThaBi",
+    "description": "CepStudio",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
