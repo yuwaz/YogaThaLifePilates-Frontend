@@ -14,22 +14,27 @@ class ReservationsState {
   final List<Reservation> reservations;
   final bool isLoading;
   final String? error;
+  // Distinguishes "never fetched" from "fetched successfully with zero results".
+  final bool hasLoadedOnce;
 
   ReservationsState({
     required this.reservations,
     this.isLoading = false,
     this.error,
+    this.hasLoadedOnce = false,
   });
 
   ReservationsState copyWith({
     List<Reservation>? reservations,
     bool? isLoading,
     String? error,
+    bool? hasLoadedOnce,
   }) {
     return ReservationsState(
       reservations: reservations ?? this.reservations,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      hasLoadedOnce: hasLoadedOnce ?? this.hasLoadedOnce,
     );
   }
 }
@@ -87,6 +92,7 @@ class ReservationsNotifier extends StateNotifier<ReservationsState> {
           reservations: reservations,
           isLoading: false,
           error: null,
+          hasLoadedOnce: true,
         );
 
         print(

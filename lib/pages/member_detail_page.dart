@@ -38,9 +38,7 @@ class MemberDetailPage extends ConsumerStatefulWidget {
 }
 
 class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
-  final GlobalKey _reservationsSectionKey = GlobalKey();
   final ScrollController _scrollController = ScrollController();
-  bool _reservationsRequested = false;
 
   final Map<String, String?> _measurements = {
     'Boy': null,
@@ -95,40 +93,15 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     };
   }
 
+  // Starts the shared reservations fetch only if it has never completed and isn't already in flight.
   Future<void> _fetchReservationsIfNeeded() async {
-    if (_reservationsRequested) {
+    final current = ref.read(reservationsProvider);
+    if (current.hasLoadedOnce || current.isLoading) {
       return;
     }
-    _reservationsRequested = true;
     await ref
         .read(reservationsProvider.notifier)
         .fetchReservations(widget.token);
-  }
-
-  void _maybeFetchReservationsIfVisible() {
-    if (_reservationsRequested || !_scrollController.hasClients) {
-      return;
-    }
-
-    final sectionContext = _reservationsSectionKey.currentContext;
-    if (sectionContext == null) {
-      return;
-    }
-
-    final renderObject = sectionContext.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.attached) {
-      return;
-    }
-
-    final position = renderObject.localToGlobal(Offset.zero);
-    final size = renderObject.size;
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final isVisible =
-        position.dy < viewportHeight && position.dy + size.height > 0;
-
-    if (isVisible) {
-      _fetchReservationsIfNeeded();
-    }
   }
 
   Future<void> _editReservation(Reservation reservation, Member member) async {
@@ -244,15 +217,11 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     super.initState();
     fetchDetail();
     _refreshLatestMeasurementDate();
-    _scrollController.addListener(_maybeFetchReservationsIfVisible);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeFetchReservationsIfVisible();
-    });
+    _fetchReservationsIfNeeded();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_maybeFetchReservationsIfVisible);
     _scrollController.dispose();
     super.dispose();
   }
@@ -990,141 +959,128 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                 );
               }),
             const SizedBox(height: 16),
-            Container(
-              key: _reservationsSectionKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Yaklaşan Rezervasyonlar',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppDesignTokens.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Yaklaşan Rezervasyonlar',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppDesignTokens.textPrimary,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  if (!_reservationsRequested &&
-                      !reservationsState.isLoading &&
-                      reservationsState.reservations.isEmpty)
-                    const Text(
-                      'Rezervasyonlar göründüğünde yüklenecek',
-                      style: AppTypography.body,
-                    )
-                  else if (reservationsState.isLoading)
-                    const Text(
-                      'Rezervasyonlar yükleniyor...',
-                      style: AppTypography.body,
-                    )
-                  else if (topUpcomingReservations.isEmpty)
-                    const Text(
-                      'Yaklaşan rezervasyon yok',
-                      style: AppTypography.body,
-                    )
-                  else
-                    ...topUpcomingReservations.map((reservation) {
-                      final day = reservation.date.day.toString().padLeft(
-                        2,
-                        '0',
-                      );
-                      final month = reservation.date.month.toString().padLeft(
-                        2,
-                        '0',
-                      );
-                      final year = reservation.date.year.toString();
-                      final hour = reservation.hour.toString().padLeft(2, '0');
-                      final minute = reservation.minute.toString().padLeft(
-                        2,
-                        '0',
-                      );
-                      final salon = widget.salons.firstWhere(
-                        (s) => s.id == reservation.salonId,
-                        orElse: () => Salon(
-                          id: reservation.salonId,
-                          name: 'Salon ${reservation.salonId}',
-                          type: 'Unknown',
+                ),
+                const SizedBox(height: 8),
+                if (!reservationsState.hasLoadedOnce ||
+                    reservationsState.isLoading)
+                  const Text(
+                    'Rezervasyonlar yükleniyor...',
+                    style: AppTypography.body,
+                  )
+                else if (topUpcomingReservations.isEmpty)
+                  const Text(
+                    'Yaklaşan rezervasyon yok',
+                    style: AppTypography.body,
+                  )
+                else
+                  ...topUpcomingReservations.map((reservation) {
+                    final day = reservation.date.day.toString().padLeft(2, '0');
+                    final month = reservation.date.month.toString().padLeft(
+                      2,
+                      '0',
+                    );
+                    final year = reservation.date.year.toString();
+                    final hour = reservation.hour.toString().padLeft(2, '0');
+                    final minute = reservation.minute.toString().padLeft(
+                      2,
+                      '0',
+                    );
+                    final salon = widget.salons.firstWhere(
+                      (s) => s.id == reservation.salonId,
+                      orElse: () => Salon(
+                        id: reservation.salonId,
+                        name: 'Salon ${reservation.salonId}',
+                        type: 'Unknown',
+                      ),
+                    );
+                    final equipment = widget.equipment.firstWhere(
+                      (e) => e.id == reservation.equipmentId,
+                      orElse: () => Equipment(
+                        id: reservation.equipmentId,
+                        name: 'Ekipman ${reservation.equipmentId}',
+                        type: 'Unknown',
+                        salonId: reservation.salonId,
+                      ),
+                    );
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      color: AppDesignTokens.surface,
+                      elevation: 2,
+                      shadowColor: const Color(0x17000000),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
                         ),
-                      );
-                      final equipment = widget.equipment.firstWhere(
-                        (e) => e.id == reservation.equipmentId,
-                        orElse: () => Equipment(
-                          id: reservation.equipmentId,
-                          name: 'Ekipman ${reservation.equipmentId}',
-                          type: 'Unknown',
-                          salonId: reservation.salonId,
-                        ),
-                      );
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 5),
-                        color: AppDesignTokens.surface,
-                        elevation: 2,
-                        shadowColor: const Color(0x17000000),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: ListTile(
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                        title: Text(
+                          '$day.$month.$year  $hour:$minute',
+                          style: const TextStyle(
+                            color: AppDesignTokens.textPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
-                          title: Text(
-                            '$day.$month.$year  $hour:$minute',
-                            style: const TextStyle(
-                              color: AppDesignTokens.textPrimary,
-                              fontWeight: FontWeight.w600,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Salon: ${salon.name}',
+                              style: AppTypography.body,
                             ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Salon: ${salon.name}',
-                                style: AppTypography.body,
-                              ),
-                              Text(
-                                'Ekipman: ${equipment.name}',
-                                style: AppTypography.body,
-                              ),
-                              if (reservation.recurrenceGroupId != null &&
-                                  reservation.recurrenceGroupId!.isNotEmpty)
-                                const Text(
-                                  'Tekrarlı rezervasyon',
-                                  style: TextStyle(
-                                    color: AppDesignTokens.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                            Text(
+                              'Ekipman: ${equipment.name}',
+                              style: AppTypography.body,
+                            ),
+                            if (reservation.recurrenceGroupId != null &&
+                                reservation.recurrenceGroupId!.isNotEmpty)
+                              const Text(
+                                'Tekrarlı rezervasyon',
+                                style: TextStyle(
+                                  color: AppDesignTokens.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  AppIcons.edit,
-                                  color: AppDesignTokens.textPrimary,
-                                ),
-                                tooltip: loc?.translate('edit') ?? 'Edit',
-                                onPressed: () =>
-                                    _editReservation(reservation, member),
                               ),
-                              IconButton(
-                                icon: const Icon(
-                                  AppIcons.delete,
-                                  color: AppDesignTokens.destructive,
-                                ),
-                                tooltip: loc?.translate('delete') ?? 'Delete',
-                                onPressed: () =>
-                                    _deleteReservation(reservation),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
-                      );
-                    }),
-                ],
-              ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                AppIcons.edit,
+                                color: AppDesignTokens.textPrimary,
+                              ),
+                              tooltip: loc?.translate('edit') ?? 'Edit',
+                              onPressed: () =>
+                                  _editReservation(reservation, member),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                AppIcons.delete,
+                                color: AppDesignTokens.destructive,
+                              ),
+                              tooltip: loc?.translate('delete') ?? 'Delete',
+                              onPressed: () => _deleteReservation(reservation),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+              ],
             ),
             const SizedBox(height: 16),
           ],
