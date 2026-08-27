@@ -54,7 +54,10 @@ class MemberSettingsPage extends ConsumerWidget {
     final loc = AppLocalizations.of(context);
     final auth = ref.watch(memberAuthProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(loc?.translate('settings') ?? 'Settings')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(loc?.translate('settings') ?? 'Settings'),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

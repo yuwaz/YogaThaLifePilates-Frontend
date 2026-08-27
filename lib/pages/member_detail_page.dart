@@ -18,6 +18,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/measurement_formatter.dart';
 
 class MemberDetailPage extends ConsumerStatefulWidget {
   final Member member;
@@ -70,27 +71,20 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     }
   }
 
-  String _formatMeasurementValue(double? value) {
-    if (value == null) {
-      return '-';
-    }
-    if (value.truncateToDouble() == value) {
-      return value.toStringAsFixed(0);
-    }
-    return value.toStringAsFixed(2);
-  }
-
   Map<String, String> _measurementDisplayValues(Member member) {
     return {
-      'Boy': _formatMeasurementValue(member.height),
-      'Kilo': _formatMeasurementValue(member.weight),
-      'Bel': _formatMeasurementValue(member.waist),
-      'Kalca': _formatMeasurementValue(member.hip),
-      'Gogus': _formatMeasurementValue(member.chest),
-      'Kol': _formatMeasurementValue(member.arm),
-      'Bacak': _formatMeasurementValue(member.leg),
-      'Omuz': _formatMeasurementValue(member.shoulder),
-      'Yag Orani': _formatMeasurementValue(member.bodyFatPercentage),
+      'Boy': formatMeasurementValue(member.height, 'Boy'),
+      'Kilo': formatMeasurementValue(member.weight, 'Kilo'),
+      'Bel': formatMeasurementValue(member.waist, 'Bel'),
+      'Kalca': formatMeasurementValue(member.hip, 'Kalca'),
+      'Gogus': formatMeasurementValue(member.chest, 'Gogus'),
+      'Kol': formatMeasurementValue(member.arm, 'Kol'),
+      'Bacak': formatMeasurementValue(member.leg, 'Bacak'),
+      'Omuz': formatMeasurementValue(member.shoulder, 'Omuz'),
+      'Yag Orani': formatMeasurementValue(
+        member.bodyFatPercentage,
+        'Yag Orani',
+      ),
     };
   }
 

@@ -214,6 +214,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     return Scaffold(
       backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         toolbarHeight: 46,
         backgroundColor: AppDesignTokens.surface,
         foregroundColor: AppDesignTokens.textPrimary,

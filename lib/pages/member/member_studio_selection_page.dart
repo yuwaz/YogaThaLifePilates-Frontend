@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../entry_page.dart';
 import '../../providers/member_auth_provider.dart';
 import '../../providers/member_self_provider.dart';
 import '../../theme/app_design_tokens.dart';
@@ -10,24 +11,31 @@ import 'member_root_page.dart';
 class MemberStudioSelectionPage extends ConsumerWidget {
   const MemberStudioSelectionPage({super.key});
 
-  Future<void> _select(
-    BuildContext context,
-    WidgetRef ref,
-    int membershipId,
-  ) async {
+  Future<void> _select(WidgetRef ref, int membershipId) async {
     ref.read(memberSelfProvider.notifier).clear();
     await ref.read(memberAuthProvider.notifier).selectMembership(membershipId);
-    if (!context.mounted) return;
-    if (ref.read(memberAuthProvider).status == MemberSessionStatus.ready) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MemberRootPage()),
-        (route) => false,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<MemberAuthState>(memberAuthProvider, (previous, next) {
+      if (previous?.status == next.status &&
+          previous?.hasContext == next.hasContext) {
+        return;
+      }
+      if (next.status == MemberSessionStatus.ready && next.hasContext) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MemberRootPage()),
+          (route) => false,
+        );
+      } else if (next.status == MemberSessionStatus.signedOut) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const EntryPage()),
+          (route) => false,
+        );
+      }
+    });
+
     final loc = AppLocalizations.of(context);
     final auth = ref.watch(memberAuthProvider);
     return Scaffold(
@@ -71,8 +79,7 @@ class MemberStudioSelectionPage extends ConsumerWidget {
                             style: AppTypography.cardTitle,
                           ),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () =>
-                              _select(context, ref, membership.membershipId),
+                          onTap: () => _select(ref, membership.membershipId),
                         ),
                       );
                     },

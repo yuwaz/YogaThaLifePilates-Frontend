@@ -6,6 +6,7 @@ import '../../models/member_self_models.dart';
 import '../../providers/member_self_provider.dart';
 import '../../theme/app_design_tokens.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/measurement_formatter.dart';
 
 class MemberMeasurementsPage extends ConsumerStatefulWidget {
   const MemberMeasurementsPage({super.key});
@@ -353,47 +354,84 @@ class _MeasurementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final values = <(String, double?)>[
-      (loc?.translate('memberHeight') ?? 'Height', item.height),
-      (loc?.translate('memberWeight') ?? 'Weight', item.weight),
-      (loc?.translate('memberWaist') ?? 'Waist', item.waist),
-      (loc?.translate('memberHip') ?? 'Hip', item.hip),
-      (loc?.translate('memberChest') ?? 'Chest', item.chest),
-      (loc?.translate('memberArm') ?? 'Arm', item.arm),
-      (loc?.translate('memberLeg') ?? 'Leg', item.leg),
-      (loc?.translate('memberShoulder') ?? 'Shoulder', item.shoulder),
-      (loc?.translate('memberBodyFat') ?? 'Body fat', item.bodyFatPercentage),
+    final values = <(String, String, double?)>[
+      (loc?.translate('memberHeight') ?? 'Height', 'height', item.height),
+      (loc?.translate('memberWeight') ?? 'Weight', 'weight', item.weight),
+      (loc?.translate('memberWaist') ?? 'Waist', 'waist', item.waist),
+      (loc?.translate('memberHip') ?? 'Hip', 'hip', item.hip),
+      (loc?.translate('memberChest') ?? 'Chest', 'chest', item.chest),
+      (loc?.translate('memberArm') ?? 'Arm', 'arm', item.arm),
+      (loc?.translate('memberLeg') ?? 'Leg', 'leg', item.leg),
+      (
+        loc?.translate('memberShoulder') ?? 'Shoulder',
+        'shoulder',
+        item.shoulder,
+      ),
+      (
+        loc?.translate('memberBodyFat') ?? 'Body fat',
+        'bodyFatPercentage',
+        item.bodyFatPercentage,
+      ),
     ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_date(item.measuredAt), style: AppTypography.bodyStrong),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = (constraints.maxWidth - 8) / 2;
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: values
-                      .map(
-                        (value) => SizedBox(
-                          width: width,
-                          child: Text(
-                            '${value.$1}: ${value.$2?.toStringAsFixed(1) ?? '-'}',
-                            style: AppTypography.body,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppDesignTokens.surface,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_date(item.measuredAt), style: AppTypography.caption),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 380 ? 2 : 1;
+              final width =
+                  (constraints.maxWidth - (columns == 2 ? 10 : 0)) / columns;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: values
+                    .map(
+                      (value) => SizedBox(
+                        width: width,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppDesignTokens.surface,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppDesignTokens.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(value.$1, style: AppTypography.label),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatMeasurementValue(value.$3, value.$2),
+                                style: AppTypography.bodyStrong,
+                              ),
+                            ],
                           ),
                         ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ],
-        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

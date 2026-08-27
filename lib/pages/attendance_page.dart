@@ -146,6 +146,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
     return Scaffold(
       backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         toolbarHeight: 46,
         backgroundColor: AppDesignTokens.surface,
         foregroundColor: AppDesignTokens.textPrimary,

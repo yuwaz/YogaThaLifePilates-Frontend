@@ -1358,6 +1358,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
       appBar: isLandscape
           ? null
           : AppBar(
+              automaticallyImplyLeading: false,
               toolbarHeight: 46,
               backgroundColor: AppDesignTokens.surface,
               foregroundColor: AppDesignTokens.textPrimary,

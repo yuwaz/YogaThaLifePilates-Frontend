@@ -65,6 +65,7 @@ class MemberSelfProfile {
   final String phone;
   final String? email;
   final String? memberTypeName;
+  final MemberAssignedInstructor? assignedInstructor;
   final DateTime? createdAt;
   final int studioId;
   final String studioName;
@@ -78,6 +79,7 @@ class MemberSelfProfile {
     required this.phone,
     required this.email,
     required this.memberTypeName,
+    required this.assignedInstructor,
     required this.createdAt,
     required this.studioId,
     required this.studioName,
@@ -93,6 +95,11 @@ class MemberSelfProfile {
     final memberType = member['memberType'] is Map
         ? Map<String, dynamic>.from(member['memberType'] as Map)
         : null;
+    final assignedInstructor = json['assignedInstructor'] is Map
+        ? MemberAssignedInstructor.fromJson(
+            Map<String, dynamic>.from(json['assignedInstructor'] as Map),
+          )
+        : null;
     final latestMeasurement = summary['latestMeasurement'] is Map
         ? MemberMeasurement.fromJson(
             Map<String, dynamic>.from(summary['latestMeasurement'] as Map),
@@ -104,6 +111,7 @@ class MemberSelfProfile {
       phone: (member['phone'] ?? '').toString(),
       email: member['email']?.toString(),
       memberTypeName: memberType?['name']?.toString(),
+      assignedInstructor: assignedInstructor,
       createdAt: DateTime.tryParse((member['createdAt'] ?? '').toString()),
       studioId: memberSelfInt(studio['id']),
       studioName: (studio['name'] ?? '').toString(),
@@ -111,6 +119,16 @@ class MemberSelfProfile {
       totalDebt: memberSelfDouble(summary['totalDebt']),
       latestMeasurement: latestMeasurement,
     );
+  }
+}
+
+class MemberAssignedInstructor {
+  final String name;
+
+  const MemberAssignedInstructor({required this.name});
+
+  factory MemberAssignedInstructor.fromJson(Map<String, dynamic> json) {
+    return MemberAssignedInstructor(name: (json['name'] ?? '').toString());
   }
 }
 

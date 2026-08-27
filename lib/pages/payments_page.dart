@@ -751,6 +751,7 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
     return Scaffold(
       backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         toolbarHeight: 46,
         backgroundColor: AppDesignTokens.surface,
         foregroundColor: AppDesignTokens.textPrimary,

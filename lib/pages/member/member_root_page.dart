@@ -28,10 +28,7 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
   @override
   void initState() {
     super.initState();
-    _authSubscription = ref.listenManual<MemberAuthState>(memberAuthProvider, (
-      previous,
-      next,
-    ) {
+    _authSubscription = ref.listenManual(memberAuthProvider, (previous, next) {
       if (!mounted || previous?.status == next.status) return;
       switch (next.status) {
         case MemberSessionStatus.signedOut:
@@ -55,13 +52,9 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
           break;
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final self = ref.read(memberSelfProvider.notifier);
-      self.loadHome();
-      self.loadPackages();
-      self.loadPayments();
-      self.loadAttendances();
-    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ref.read(memberSelfProvider.notifier).loadHome(),
+    );
   }
 
   @override
@@ -73,27 +66,25 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(memberAuthProvider);
-    final self = ref.watch(memberSelfProvider);
-    final pages = [
-      _MemberHomeDashboard(auth: auth, self: self),
-      const MemberProfilePage(),
-      const MemberSettingsPage(),
-    ];
+    if (!auth.hasContext) return const SizedBox.shrink();
     final loc = AppLocalizations.of(context);
     final labels = [
       loc?.translate('memberHome') ?? 'Home',
       loc?.translate('memberProfile') ?? 'Profile',
       loc?.translate('settings') ?? 'Settings',
     ];
-    final icons = const [
-      Icons.home_outlined,
-      Icons.person_outline,
-      Icons.settings_outlined,
-    ];
-    if (!auth.hasContext) return const SizedBox.shrink();
     return Scaffold(
-      appBar: _selectedIndex == 0 ? AppBar(title: Text(labels[0])) : null,
-      body: IndexedStack(index: _selectedIndex, children: pages),
+      appBar: _selectedIndex == 0
+          ? AppBar(automaticallyImplyLeading: false, title: Text(labels[0]))
+          : null,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: const [
+          _MemberHomeDashboard(),
+          MemberProfilePage(),
+          MemberSettingsPage(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppDesignTokens.surface,
         selectedItemColor: AppDesignTokens.selectedForeground,
@@ -103,164 +94,105 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
         unselectedLabelStyle: AppTypography.caption,
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
-        items: List.generate(
-          labels.length,
-          (index) => BottomNavigationBarItem(
-            icon: Icon(icons[index]),
-            label: labels[index],
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home_outlined),
+            label: labels[0],
           ),
-        ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person_outline),
+            label: labels[1],
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.settings_outlined),
+            label: labels[2],
+          ),
+        ],
       ),
     );
   }
 }
 
 class _MemberHomeDashboard extends ConsumerWidget {
-  final MemberAuthState auth;
-  final MemberSelfState self;
-
-  const _MemberHomeDashboard({required this.auth, required this.self});
-
+  const _MemberHomeDashboard();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
-    final profile = self.profile.data;
-    final upcomingReservations =
-        (self.reservations.data ?? [])
-            .where((item) => item.date?.isAfter(DateTime.now()) ?? false)
-            .toList()
-          ..sort(
-            (a, b) =>
-                (a.date ?? DateTime(2100)).compareTo(b.date ?? DateTime(2100)),
-          );
+    final resource = ref.watch(memberSelfProvider).profile;
+    final profile = resource.data;
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: RefreshIndicator(
-            onRefresh: () async {
-              final notifier = ref.read(memberSelfProvider.notifier);
-              await Future.wait([
-                notifier.loadHome(),
-                notifier.loadPackages(),
-                notifier.loadPayments(),
-                notifier.loadAttendances(),
-              ]);
-            },
+            onRefresh: () => ref.read(memberSelfProvider.notifier).loadHome(),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _IdentityHeader(
-                  name: profile?.name ?? '',
-                  studioName: auth.selectedMembership?.studioName ?? '',
-                  memberType: profile?.memberTypeName,
-                ),
-                const SizedBox(height: 18),
                 Text(
-                  loc?.translate('memberInformation') ?? 'Member information',
+                  loc?.translate('membershipSummary') ?? 'Membership summary',
                   style: AppTypography.sectionTitle,
                 ),
                 const SizedBox(height: 10),
-                if (self.profile.isLoading) const LinearProgressIndicator(),
-                if (self.profile.error != null)
-                  _ErrorCard(
+                if (resource.isLoading) const LinearProgressIndicator(),
+                if (resource.error != null)
+                  _RetryCard(
+                    message:
+                        loc?.translate('memberDataError') ??
+                        'Your information could not be loaded.',
                     onRetry: () =>
                         ref.read(memberSelfProvider.notifier).loadHome(),
                   ),
-                if (profile != null) _MemberInfoGrid(profile: profile),
-                const SizedBox(height: 20),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.camera_alt_outlined, size: 32),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            loc?.translate('memberScanQrAttendance') ??
-                                'Scan the QR code for attendance',
-                            style: AppTypography.bodyStrong,
+                if (profile != null) ...[
+                  _MembershipGrid(profile: profile),
+                  const SizedBox(height: 20),
+                  _NavigationSlot(
+                    icon: Icons.calendar_today_outlined,
+                    title:
+                        loc?.translate('memberUpcomingReservations') ??
+                        'Upcoming reservations',
+                    page: const MemberReservationsPage(),
+                  ),
+                  _NavigationSlot(
+                    icon: Icons.inventory_2_outlined,
+                    title:
+                        loc?.translate('memberPurchasedPackages') ??
+                        'Purchased lesson packages',
+                    page: const MemberPackagesPage(),
+                  ),
+                  _NavigationSlot(
+                    icon: Icons.receipt_long_outlined,
+                    title:
+                        loc?.translate('paymentHistory') ?? 'Payment history',
+                    page: const MemberPaymentsPage(),
+                  ),
+                  _NavigationSlot(
+                    icon: Icons.history_outlined,
+                    title:
+                        loc?.translate('memberAttendanceHistory') ??
+                        'Attendance history',
+                    page: const MemberAttendancesPage(),
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.camera_alt_outlined, size: 32),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              loc?.translate('memberScanQrAttendance') ??
+                                  'Scan the QR code for attendance',
+                              style: AppTypography.bodyStrong,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title:
-                      loc?.translate('memberLatestMeasurement') ??
-                      'Latest measurement',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberMeasurementsPage(),
-                    ),
-                  ),
-                ),
-                _MeasurementSummary(measurement: profile?.latestMeasurement),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title: loc?.translate('memberPackages') ?? 'Packages',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberPackagesPage(),
-                    ),
-                  ),
-                ),
-                _PackagesSummary(
-                  resource: self.packages,
-                  onRetry: () =>
-                      ref.read(memberSelfProvider.notifier).loadPackages(),
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title: loc?.translate('memberPayments') ?? 'Payments',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberPaymentsPage(),
-                    ),
-                  ),
-                ),
-                _PaymentsSummary(
-                  resource: self.payments,
-                  onRetry: () =>
-                      ref.read(memberSelfProvider.notifier).loadPayments(),
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title:
-                      loc?.translate('memberUpcomingReservations') ??
-                      'Upcoming reservations',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberReservationsPage(),
-                    ),
-                  ),
-                ),
-                _ReservationsSummary(
-                  reservations: upcomingReservations,
-                  isLoading: self.reservations.isLoading,
-                  hasError: self.reservations.error != null,
-                  onRetry: () =>
-                      ref.read(memberSelfProvider.notifier).loadReservations(),
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title:
-                      loc?.translate('memberAttendanceHistory') ??
-                      'Attendance history',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const MemberAttendancesPage(),
-                    ),
-                  ),
-                ),
-                _AttendanceSummary(
-                  resource: self.attendances,
-                  onRetry: () =>
-                      ref.read(memberSelfProvider.notifier).loadAttendances(),
-                ),
+                ],
               ],
             ),
           ),
@@ -270,71 +202,26 @@ class _MemberHomeDashboard extends ConsumerWidget {
   }
 }
 
-class _IdentityHeader extends StatelessWidget {
-  final String name;
-  final String studioName;
-  final String? memberType;
-
-  const _IdentityHeader({
-    required this.name,
-    required this.studioName,
-    required this.memberType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: AppDesignTokens.backgroundSecondary,
-              child: Text(
-                name.isEmpty ? '?' : name[0],
-                style: AppTypography.pageTitle,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name.isEmpty ? '-' : name,
-                    style: AppTypography.sectionTitle,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(studioName, style: AppTypography.bodyStrong),
-                  if ((memberType ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(memberType!, style: AppTypography.caption),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MemberInfoGrid extends StatelessWidget {
+class _MembershipGrid extends StatelessWidget {
   final MemberSelfProfile profile;
-  const _MemberInfoGrid({required this.profile});
-
+  const _MembershipGrid({required this.profile});
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final values = <(IconData, String, String)>[
-      (Icons.phone_outlined, loc?.translate('phone') ?? 'Phone', profile.phone),
+    final name = profile.assignedInstructor?.name.trim();
+    final fields = <(IconData, String, String)>[
       (
-        Icons.email_outlined,
-        loc?.translate('email') ?? 'Email',
-        profile.email ?? '-',
+        Icons.event_outlined,
+        loc?.translate('membershipStartDate') ?? 'Membership start date',
+        _formatDate(profile.createdAt),
+      ),
+      (
+        Icons.person_outline,
+        loc?.translate('assignedInstructor') ?? 'Assigned instructor',
+        name == null || name.isEmpty
+            ? (loc?.translate('noInstructorAssigned') ??
+                  'No instructor assigned')
+            : name,
       ),
       (
         Icons.menu_book_outlined,
@@ -346,11 +233,6 @@ class _MemberInfoGrid extends StatelessWidget {
         loc?.translate('memberTotalDebt') ?? 'Total debt',
         formatCurrency(profile.totalDebt),
       ),
-      (
-        Icons.event_outlined,
-        loc?.translate('memberSince') ?? 'Member since',
-        _formatDate(profile.createdAt),
-      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -360,14 +242,14 @@ class _MemberInfoGrid extends StatelessWidget {
         return Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: values
+          children: fields
               .map(
-                (item) => SizedBox(
+                (field) => SizedBox(
                   width: width,
-                  child: _InfoCard(
-                    icon: item.$1,
-                    label: item.$2,
-                    value: item.$3,
+                  child: _InformationCard(
+                    icon: field.$1,
+                    label: field.$2,
+                    value: field.$3,
                   ),
                 ),
               )
@@ -378,18 +260,18 @@ class _MemberInfoGrid extends StatelessWidget {
   }
 }
 
-class _InfoCard extends StatelessWidget {
+class _InformationCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _InfoCard({
+  const _InformationCard({
     required this.icon,
     required this.label,
     required this.value,
   });
-
   @override
   Widget build(BuildContext context) => Card(
+    color: AppDesignTokens.surface,
     child: Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -397,7 +279,7 @@ class _InfoCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18),
+              Icon(icon, size: 18, color: AppDesignTokens.textPrimary),
               const SizedBox(width: 8),
               Expanded(child: Text(label, style: AppTypography.label)),
             ],
@@ -415,273 +297,62 @@ class _InfoCard extends StatelessWidget {
   );
 }
 
-class _SectionHeader extends StatelessWidget {
+class _NavigationSlot extends StatelessWidget {
+  final IconData icon;
   final String title;
-  final VoidCallback onPressed;
-  const _SectionHeader({required this.title, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    return Row(
-      children: [
-        Expanded(child: Text(title, style: AppTypography.sectionTitle)),
-        TextButton(
-          onPressed: onPressed,
-          child: Text(loc?.translate('memberViewAll') ?? 'View all'),
-        ),
-      ],
-    );
-  }
-}
-
-class _MeasurementSummary extends StatelessWidget {
-  final MemberMeasurement? measurement;
-  const _MeasurementSummary({required this.measurement});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    if (measurement == null) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            loc?.translate('memberNoMeasurements') ??
-                'No measurement available.',
-          ),
-        ),
-      );
-    }
-    final values = <(String, double?)>[
-      (loc?.translate('memberHeight') ?? 'Height', measurement!.height),
-      (loc?.translate('memberWeight') ?? 'Weight', measurement!.weight),
-      (loc?.translate('memberWaist') ?? 'Waist', measurement!.waist),
-      (loc?.translate('memberHip') ?? 'Hip', measurement!.hip),
-      (loc?.translate('memberChest') ?? 'Chest', measurement!.chest),
-      (loc?.translate('memberArm') ?? 'Arm', measurement!.arm),
-      (loc?.translate('memberLeg') ?? 'Leg', measurement!.leg),
-      (loc?.translate('memberShoulder') ?? 'Shoulder', measurement!.shoulder),
-      (
-        loc?.translate('memberBodyFat') ?? 'Body fat',
-        measurement!.bodyFatPercentage,
-      ),
-    ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _formatDate(measurement!.measuredAt),
-              style: AppTypography.caption,
-            ),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final width = (constraints.maxWidth - 8) / 2;
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: values
-                      .map(
-                        (item) => SizedBox(
-                          width: width,
-                          child: Text(
-                            '${item.$1}: ${item.$2?.toStringAsFixed(1) ?? '-'}',
-                            style: AppTypography.body,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PackagesSummary extends StatelessWidget {
-  final MemberResource<MemberPackagesData> resource;
-  final Future<void> Function() onRetry;
-  const _PackagesSummary({required this.resource, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    if (resource.isLoading) return const LinearProgressIndicator();
-    if (resource.error != null) return _ErrorCard(onRetry: onRetry);
-    final packages = resource.data?.packages ?? [];
-    if (packages.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            loc?.translate('memberNoData') ?? 'No information available.',
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: packages
-          .take(2)
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                child: ListTile(
-                  title: Text(item.name ?? '-'),
-                  subtitle: Text(
-                    '${loc?.translate('lessonCount') ?? 'Lesson count'}: ${item.lessonCount ?? '-'}',
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _PaymentsSummary extends StatelessWidget {
-  final MemberResource<MemberPaymentsData> resource;
-  final Future<void> Function() onRetry;
-  const _PaymentsSummary({required this.resource, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    if (resource.isLoading) return const LinearProgressIndicator();
-    if (resource.error != null) return _ErrorCard(onRetry: onRetry);
-    final payments = resource.data?.payments ?? [];
-    if (payments.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            loc?.translate('memberNoData') ?? 'No information available.',
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: payments
-          .take(3)
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                child: ListTile(
-                  title: Text(formatCurrency(item.amount)),
-                  subtitle: Text(
-                    '${_formatDate(item.date)} ${item.paymentMethodName ?? ''}',
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _ReservationsSummary extends StatelessWidget {
-  final List<MemberReservation> reservations;
-  final bool isLoading;
-  final bool hasError;
-  final Future<void> Function() onRetry;
-  const _ReservationsSummary({
-    required this.reservations,
-    required this.isLoading,
-    required this.hasError,
-    required this.onRetry,
+  final Widget page;
+  const _NavigationSlot({
+    required this.icon,
+    required this.title,
+    required this.page,
   });
-
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    if (isLoading) return const LinearProgressIndicator();
-    if (hasError) return _ReservationErrorCard(onRetry: onRetry);
-    if (reservations.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            loc?.translate('memberNoUpcomingReservation') ??
-                'No upcoming reservation.',
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        color: AppDesignTokens.surface,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => page)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: AppDesignTokens.textPrimary),
+                const SizedBox(width: 12),
+                Expanded(child: Text(title, style: AppTypography.cardTitle)),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppDesignTokens.textSecondary,
+                ),
+              ],
+            ),
           ),
         ),
-      );
-    }
-    return Column(
-      children: reservations
-          .take(3)
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                child: ListTile(
-                  title: Text('${_formatDate(item.date)} ${item.time}'),
-                  subtitle: Text(
-                    [
-                      item.salonName,
-                      item.equipmentName,
-                    ].whereType<String>().join(' - '),
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      ),
     );
   }
 }
 
-class _AttendanceSummary extends StatelessWidget {
-  final MemberResource<List<MemberAttendance>> resource;
+class _RetryCard extends StatelessWidget {
+  final String message;
   final Future<void> Function() onRetry;
-  const _AttendanceSummary({required this.resource, required this.onRetry});
-
+  const _RetryCard({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    if (resource.isLoading) return const LinearProgressIndicator();
-    if (resource.error != null) return _ErrorCard(onRetry: onRetry);
-    final attendances = resource.data ?? [];
-    if (attendances.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            loc?.translate('memberNoData') ?? 'No information available.',
-          ),
+    return Card(
+      child: ListTile(
+        title: Text(message),
+        trailing: IconButton(
+          tooltip: loc?.translate('retry') ?? 'Retry',
+          icon: const Icon(Icons.refresh),
+          onPressed: onRetry,
         ),
-      );
-    }
-    return Column(
-      children: attendances
-          .take(3)
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Card(
-                child: ListTile(
-                  title: Text(_formatDate(item.date)),
-                  subtitle: Text(
-                    [
-                      item.salonName,
-                      item.instructorName,
-                    ].whereType<String>().join(' - '),
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
+      ),
     );
   }
 }
@@ -690,60 +361,16 @@ String _formatDate(DateTime? date) => date == null
     ? '-'
     : '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 
-class _ErrorCard extends StatelessWidget {
-  final Future<void> Function() onRetry;
-  const _ErrorCard({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    return Card(
-      child: ListTile(
-        title: Text(
-          loc?.translate('memberDataError') ??
-              'Your information could not be loaded.',
-        ),
-        trailing: IconButton(
-          tooltip: loc?.translate('retry') ?? 'Retry',
-          icon: const Icon(Icons.refresh),
-          onPressed: onRetry,
-        ),
-      ),
-    );
-  }
-}
-
-class _ReservationErrorCard extends StatelessWidget {
-  final Future<void> Function() onRetry;
-  const _ReservationErrorCard({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    return Card(
-      child: ListTile(
-        title: Text(
-          loc?.translate('memberReservationsUnavailable') ??
-              'Reservations could not be loaded.',
-        ),
-        trailing: IconButton(
-          tooltip: loc?.translate('retry') ?? 'Retry',
-          icon: const Icon(Icons.refresh),
-          onPressed: onRetry,
-        ),
-      ),
-    );
-  }
-}
-
 class MemberNoMembershipsPage extends ConsumerWidget {
   const MemberNoMembershipsPage({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(loc?.translate('memberHome') ?? 'Home')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(loc?.translate('memberHome') ?? 'Home'),
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -769,7 +396,10 @@ class MemberNoMembershipsPage extends ConsumerWidget {
                         AppSessionSurface.member,
                       );
                       if (!context.mounted) return;
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const EntryPage()),
+                        (route) => false,
+                      );
                     },
                     icon: const Icon(Icons.logout),
                     label: Text(loc?.translate('logout') ?? 'Logout'),

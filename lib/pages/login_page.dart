@@ -246,12 +246,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
+  void _goBackToEntry() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => const EntryPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     return Scaffold(
       backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: AppLocalizations.of(context)?.translate('back') ?? 'Back',
+          onPressed: _goBackToEntry,
+        ),
         title: Text(
           AppLocalizations.of(context)?.translate('login') ?? 'Login',
           style: AppTypography.sectionTitle,

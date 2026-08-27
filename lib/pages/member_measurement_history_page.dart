@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'member_measurement_dialog.dart';
 import '../providers/member_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/measurement_formatter.dart';
 
 class MemberMeasurementHistoryPage extends ConsumerStatefulWidget {
   final int memberId;
@@ -103,16 +104,6 @@ class _MemberMeasurementHistoryPageState
     }
   }
 
-  String _formatMeasurementValue(double? value) {
-    if (value == null) {
-      return '-';
-    }
-    if (value.truncateToDouble() == value) {
-      return value.toStringAsFixed(0);
-    }
-    return value.toStringAsFixed(2);
-  }
-
   String _formatDateTime(DateTime? date) {
     if (date == null) {
       return '-';
@@ -124,16 +115,6 @@ class _MemberMeasurementHistoryPageState
     final hour = d.hour.toString().padLeft(2, '0');
     final minute = d.minute.toString().padLeft(2, '0');
     return '$day.$month.$year $hour:$minute';
-  }
-
-  String _formatSignedChange(double value) {
-    if (value > 0) {
-      return '+${_formatMeasurementValue(value)}';
-    }
-    if (value < 0) {
-      return '-${_formatMeasurementValue(value.abs())}';
-    }
-    return '0';
   }
 
   double? _valueForField(MemberMeasurementRecord record, String field) {
@@ -227,7 +208,7 @@ class _MemberMeasurementHistoryPageState
     required double? currentValue,
     required double? previousValue,
   }) {
-    final currentText = _formatMeasurementValue(currentValue);
+    final currentText = formatMeasurementValue(currentValue, field);
     final hasDiff = currentValue != null && previousValue != null;
 
     String? diffText;
@@ -238,7 +219,7 @@ class _MemberMeasurementHistoryPageState
     if (hasDiff) {
       final diff = currentValue - previousValue;
       if (diff != 0) {
-        diffText = _formatSignedChange(diff);
+        diffText = formatSignedMeasurementChange(diff, field);
         diffColor = _changeColorForField(field, diff);
         diffIcon = _changeIconForField(field, diff);
 

@@ -257,7 +257,6 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final memberAuth = ref.watch(memberAuthProvider);
     if (auth.token?.trim().isNotEmpty ?? false) {
       // Non-blocking recovery bootstrap for unfinished native subscription flows.
       ref.watch(subscriptionNativePurchaseRecoveryProvider);
@@ -385,16 +384,13 @@ class MyApp extends ConsumerWidget {
         }
         return const Locale('tr');
       },
-      home: _resolveHome(auth, memberAuth, ref),
+      home: _resolveInitialHome(ref),
     );
   }
 
-  Widget _resolveHome(
-    AuthState auth,
-    MemberAuthState memberAuth,
-    WidgetRef ref,
-  ) {
-    final backofficeAuth = ref.watch(backofficeAuthProvider);
+  Widget _resolveInitialHome(WidgetRef ref) {
+    final auth = ref.read(authProvider);
+    final backofficeAuth = ref.read(backofficeAuthProvider);
     final routeDecision = resolveBackofficeRouteDecision(
       isWeb: kIsWeb,
       path: Uri.base.path,
@@ -407,12 +403,6 @@ class MyApp extends ConsumerWidget {
     }
     if (routeDecision == BackofficeRouteDecision.backofficeShell) {
       return const BackofficeShellPage();
-    }
-
-    if (auth.token == null &&
-        backofficeAuth.token == null &&
-        memberAuth.status == MemberSessionStatus.signedOut) {
-      return const EntryPage();
     }
 
     switch (startupDestination) {

@@ -152,6 +152,7 @@ MemberSelfProfile _profile(String studioName) => MemberSelfProfile(
   phone: '+900000000000',
   email: null,
   memberTypeName: null,
+  assignedInstructor: null,
   createdAt: null,
   studioId: studioName == 'Studio A' ? 1 : 2,
   studioName: studioName,
