@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/member_self_models.dart';
 import '../../providers/member_self_provider.dart';
 import '../../theme/app_design_tokens.dart';
 import 'member_secondary_pages.dart';
@@ -13,7 +14,8 @@ class MemberProfilePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
     final self = ref.watch(memberSelfProvider);
-    final profile = self.profile;
+    final profileResource = self.profile;
+    final profile = profileResource.data;
     return Scaffold(
       appBar: AppBar(title: Text(loc?.translate('memberProfile') ?? 'Profile')),
       body: SafeArea(
@@ -25,12 +27,12 @@ class MemberProfilePage extends ConsumerWidget {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  if (profile == null && self.isLoading)
+                  if (profile == null && profileResource.isLoading)
                     const Padding(
                       padding: EdgeInsets.only(top: 48),
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                  if (profile == null && self.error != null)
+                  if (profile == null && profileResource.error != null)
                     _ProfileError(
                       onRetry: () =>
                           ref.read(memberSelfProvider.notifier).loadHome(),
@@ -65,28 +67,8 @@ class MemberProfilePage extends ConsumerWidget {
                                 loc?.translate('memberNoMeasurements') ??
                                     'No measurement available.',
                               )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _formatDate(
-                                      profile.latestMeasurement!.measuredAt,
-                                    ),
-                                    style: AppTypography.caption,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _MeasurementValue(
-                                    loc?.translate('memberWeight') ?? 'Weight',
-                                    profile.latestMeasurement!.weight,
-                                  ),
-                                  _MeasurementValue(
-                                    loc?.translate('memberBodyFat') ??
-                                        'Body fat',
-                                    profile
-                                        .latestMeasurement!
-                                        .bodyFatPercentage,
-                                  ),
-                                ],
+                            : _MeasurementGrid(
+                                measurement: profile.latestMeasurement!,
                               ),
                       ),
                     ),
@@ -138,19 +120,59 @@ class _InfoRow extends StatelessWidget {
   );
 }
 
-class _MeasurementValue extends StatelessWidget {
-  final String label;
-  final double? value;
-  const _MeasurementValue(this.label, this.value);
+class _MeasurementGrid extends StatelessWidget {
+  final MemberMeasurement measurement;
+  const _MeasurementGrid({required this.measurement});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(
-      '$label: ${value?.toStringAsFixed(1) ?? '-'}',
-      style: AppTypography.body,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final values = <(String, double?)>[
+      (loc?.translate('memberHeight') ?? 'Height', measurement.height),
+      (loc?.translate('memberWeight') ?? 'Weight', measurement.weight),
+      (loc?.translate('memberWaist') ?? 'Waist', measurement.waist),
+      (loc?.translate('memberHip') ?? 'Hip', measurement.hip),
+      (loc?.translate('memberChest') ?? 'Chest', measurement.chest),
+      (loc?.translate('memberArm') ?? 'Arm', measurement.arm),
+      (loc?.translate('memberLeg') ?? 'Leg', measurement.leg),
+      (loc?.translate('memberShoulder') ?? 'Shoulder', measurement.shoulder),
+      (
+        loc?.translate('memberBodyFat') ?? 'Body fat',
+        measurement.bodyFatPercentage,
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_formatDate(measurement.measuredAt), style: AppTypography.caption),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: values
+                  .map(
+                    (value) => SizedBox(
+                      width: width,
+                      child: Text(
+                        '${value.$1}: ${value.$2?.toStringAsFixed(1) ?? '-'}',
+                        style: AppTypography.body,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime? date) => date == null
+      ? '-'
+      : '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 }
 
 class _ProfileError extends StatelessWidget {

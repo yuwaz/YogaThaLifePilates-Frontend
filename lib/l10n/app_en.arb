@@ -456,5 +456,14 @@
 "memberOriginalPrice": "Original price",
 "memberDiscount": "Discount",
 "memberFinalPrice": "Final price",
+"memberNoUpcomingReservation": "No upcoming reservation.",
+"memberHeight": "Height",
+"memberWaist": "Waist",
+"memberHip": "Hip",
+"memberChest": "Chest",
+"memberArm": "Arm",
+"memberLeg": "Leg",
+"memberShoulder": "Shoulder",
+"memberPrice": "Price",
 "showPassword": "Show password"
 }

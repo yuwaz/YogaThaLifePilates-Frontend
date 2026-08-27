@@ -3,39 +3,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/member_self_models.dart';
 import 'member_auth_provider.dart';
 
-class MemberSelfState {
+class MemberResource<T> {
+  final T? data;
   final bool isLoading;
   final String? error;
-  final MemberSelfProfile? profile;
-  final List<MemberMeasurement>? measurements;
-  final List<MemberReservation>? reservations;
-  final MemberPackagesData? packages;
-  final List<MemberAttendance>? attendances;
-  final MemberPaymentsData? payments;
+
+  const MemberResource({this.data, this.isLoading = false, this.error});
+
+  MemberResource<T> loading() => MemberResource(data: data, isLoading: true);
+}
+
+class MemberSelfState {
+  final MemberResource<MemberSelfProfile> profile;
+  final MemberResource<List<MemberMeasurement>> measurements;
+  final MemberResource<List<MemberReservation>> reservations;
+  final MemberResource<MemberPackagesData> packages;
+  final MemberResource<List<MemberAttendance>> attendances;
+  final MemberResource<MemberPaymentsData> payments;
 
   const MemberSelfState({
-    this.isLoading = false,
-    this.error,
-    this.profile,
-    this.measurements,
-    this.reservations,
-    this.packages,
-    this.attendances,
-    this.payments,
+    this.profile = const MemberResource(),
+    this.measurements = const MemberResource(),
+    this.reservations = const MemberResource(),
+    this.packages = const MemberResource(),
+    this.attendances = const MemberResource(),
+    this.payments = const MemberResource(),
   });
 
   MemberSelfState copyWith({
-    bool? isLoading,
-    String? error,
-    MemberSelfProfile? profile,
-    List<MemberMeasurement>? measurements,
-    List<MemberReservation>? reservations,
-    MemberPackagesData? packages,
-    List<MemberAttendance>? attendances,
-    MemberPaymentsData? payments,
+    MemberResource<MemberSelfProfile>? profile,
+    MemberResource<List<MemberMeasurement>>? measurements,
+    MemberResource<List<MemberReservation>>? reservations,
+    MemberResource<MemberPackagesData>? packages,
+    MemberResource<List<MemberAttendance>>? attendances,
+    MemberResource<MemberPaymentsData>? payments,
   }) => MemberSelfState(
-    isLoading: isLoading ?? this.isLoading,
-    error: error,
     profile: profile ?? this.profile,
     measurements: measurements ?? this.measurements,
     reservations: reservations ?? this.reservations,
@@ -69,20 +71,39 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = const MemberSelfState(isLoading: true);
+    state = state.copyWith(
+      profile: state.profile.loading(),
+      reservations: state.reservations.loading(),
+    );
+    final api = _ref.read(memberApiServiceProvider);
     try {
-      final api = _ref.read(memberApiServiceProvider);
       final profile = await api.fetchSelfWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(profile: MemberResource(data: profile));
+    } catch (_) {
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        profile: MemberResource(
+          data: state.profile.data,
+          error: 'memberDataError',
+        ),
+      );
+    }
+    try {
       final reservations = await api.fetchReservationsWithContextToken(
         token,
         limit: 100,
       );
       if (!_isCurrentContext(token, generation)) return;
-      state = MemberSelfState(profile: profile, reservations: reservations);
+      state = state.copyWith(reservations: MemberResource(data: reservations));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = const MemberSelfState(error: 'memberDataError');
+      state = state.copyWith(
+        reservations: MemberResource(
+          data: state.reservations.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 
@@ -90,16 +111,21 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(reservations: state.reservations.loading());
     try {
       final data = await _ref
           .read(memberApiServiceProvider)
           .fetchReservationsWithContextToken(token, limit: 100);
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, reservations: data);
+      state = state.copyWith(reservations: MemberResource(data: data));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, error: 'memberDataError');
+      state = state.copyWith(
+        reservations: MemberResource(
+          data: state.reservations.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 
@@ -107,16 +133,21 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(measurements: state.measurements.loading());
     try {
       final data = await _ref
           .read(memberApiServiceProvider)
           .fetchMeasurementsWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, measurements: data);
+      state = state.copyWith(measurements: MemberResource(data: data));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, error: 'memberDataError');
+      state = state.copyWith(
+        measurements: MemberResource(
+          data: state.measurements.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 
@@ -124,16 +155,21 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(packages: state.packages.loading());
     try {
       final data = await _ref
           .read(memberApiServiceProvider)
           .fetchPackagesWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, packages: data);
+      state = state.copyWith(packages: MemberResource(data: data));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, error: 'memberDataError');
+      state = state.copyWith(
+        packages: MemberResource(
+          data: state.packages.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 
@@ -141,16 +177,21 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(attendances: state.attendances.loading());
     try {
       final data = await _ref
           .read(memberApiServiceProvider)
           .fetchAttendancesWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, attendances: data);
+      state = state.copyWith(attendances: MemberResource(data: data));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, error: 'memberDataError');
+      state = state.copyWith(
+        attendances: MemberResource(
+          data: state.attendances.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 
@@ -158,16 +199,21 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(payments: state.payments.loading());
     try {
       final data = await _ref
           .read(memberApiServiceProvider)
           .fetchPaymentsWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, payments: data);
+      state = state.copyWith(payments: MemberResource(data: data));
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
-      state = state.copyWith(isLoading: false, error: 'memberDataError');
+      state = state.copyWith(
+        payments: MemberResource(
+          data: state.payments.data,
+          error: 'memberDataError',
+        ),
+      );
     }
   }
 }

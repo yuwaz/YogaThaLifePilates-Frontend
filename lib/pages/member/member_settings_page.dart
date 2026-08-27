@@ -23,6 +23,32 @@ class MemberSettingsPage extends ConsumerWidget {
     );
   }
 
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final loc = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(loc?.translate('logoutConfirmTitle') ?? 'Log Out'),
+        content: Text(
+          loc?.translate('logoutConfirmMessage') ??
+              'Are you sure you want to log out?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(loc?.translate('cancel') ?? 'Cancel'),
+          ),
+          ElevatedButton(
+            style: AppButtonStyles.destructive,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(loc?.translate('confirmLogout') ?? 'Yes, Log Out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) await _logout(context, ref);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
@@ -62,7 +88,7 @@ class MemberSettingsPage extends ConsumerWidget {
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   style: AppButtonStyles.destructive,
-                  onPressed: () => _logout(context, ref),
+                  onPressed: () => _confirmLogout(context, ref),
                   icon: const Icon(Icons.logout),
                   label: Text(loc?.translate('logout') ?? 'Logout'),
                 ),

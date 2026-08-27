@@ -22,6 +22,8 @@ class _FakeMemberApiService extends MemberApiService {
   _FakeMemberApiService();
 
   final studioAProfile = Completer<MemberSelfProfile>();
+  bool failPackages = false;
+  bool failReservations = false;
 
   @override
   Future<MemberSelfProfile> fetchSelfWithContextToken(String contextToken) {
@@ -35,7 +37,20 @@ class _FakeMemberApiService extends MemberApiService {
     DateTime? from,
     DateTime? to,
     int? limit,
-  }) => Future.value(const []);
+  }) {
+    if (failReservations) return Future.error(Exception('reservations'));
+    return Future.value(const []);
+  }
+
+  @override
+  Future<MemberPackagesData> fetchPackagesWithContextToken(
+    String contextToken,
+  ) {
+    if (failPackages) return Future.error(Exception('packages'));
+    return Future.value(
+      const MemberPackagesData(remainingLessons: 0, packages: []),
+    );
+  }
 }
 
 MemberSelfProfile _profile(String studioName) => MemberSelfProfile(
@@ -53,11 +68,8 @@ MemberSelfProfile _profile(String studioName) => MemberSelfProfile(
 );
 
 void main() {
-  test(
-    'stale context responses cannot overwrite current member data',
-    () async {
-      final api = _FakeMemberApiService();
-      final container = ProviderContainer(
+  ProviderContainer createContainer(_FakeMemberApiService api) =>
+      ProviderContainer(
         overrides: [
           memberApiServiceProvider.overrideWithValue(api),
           memberAuthProvider.overrideWith(
@@ -65,6 +77,12 @@ void main() {
           ),
         ],
       );
+
+  test(
+    'stale context responses cannot overwrite current member data',
+    () async {
+      final api = _FakeMemberApiService();
+      final container = createContainer(api);
       addTearDown(container.dispose);
 
       final auth =
@@ -83,9 +101,53 @@ void main() {
       await staleLoad;
 
       expect(
-        container.read(memberSelfProvider).profile?.studioName,
+        container.read(memberSelfProvider).profile.data?.studioName,
         'Studio B',
       );
     },
   );
+
+  test('resource failures preserve an already loaded profile', () async {
+    final api = _FakeMemberApiService();
+    final container = createContainer(api);
+    addTearDown(container.dispose);
+    final auth =
+        container.read(memberAuthProvider.notifier) as _TestMemberAuthNotifier;
+    final self = container.read(memberSelfProvider.notifier);
+
+    auth.setContext('studio-b');
+    await self.loadHome();
+    api.failPackages = true;
+    await self.loadPackages();
+    api.failReservations = true;
+    await self.loadReservations();
+
+    final state = container.read(memberSelfProvider);
+    expect(state.profile.data?.studioName, 'Studio B');
+    expect(state.profile.error, isNull);
+    expect(state.packages.error, 'memberDataError');
+    expect(state.reservations.error, 'memberDataError');
+  });
+
+  test('stale context failures cannot overwrite current member data', () async {
+    final api = _FakeMemberApiService();
+    final container = createContainer(api);
+    addTearDown(container.dispose);
+    final auth =
+        container.read(memberAuthProvider.notifier) as _TestMemberAuthNotifier;
+    final self = container.read(memberSelfProvider.notifier);
+
+    auth.setContext('studio-a');
+    final staleLoad = self.loadHome();
+    auth.setContext('studio-b');
+    self.clear();
+    await self.loadHome();
+
+    api.studioAProfile.completeError(Exception('stale profile failure'));
+    await staleLoad;
+
+    final state = container.read(memberSelfProvider);
+    expect(state.profile.data?.studioName, 'Studio B');
+    expect(state.profile.error, isNull);
+  });
 }

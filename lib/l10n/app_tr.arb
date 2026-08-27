@@ -457,5 +457,14 @@
 "memberOriginalPrice": "İlk fiyat",
 "memberDiscount": "İndirim",
 "memberFinalPrice": "Son fiyat",
+"memberNoUpcomingReservation": "Yaklaşan rezervasyon bulunmuyor.",
+"memberHeight": "Boy",
+"memberWaist": "Bel",
+"memberHip": "Kalça",
+"memberChest": "Göğüs",
+"memberArm": "Kol",
+"memberLeg": "Bacak",
+"memberShoulder": "Omuz",
+"memberPrice": "Fiyat",
 "showPassword": "Şifreyi göster"
 }

@@ -6,6 +6,7 @@ import '../../providers/member_auth_provider.dart';
 import '../../providers/member_self_provider.dart';
 import '../../services/app_session_preference.dart';
 import '../../theme/app_design_tokens.dart';
+import '../../utils/currency_formatter.dart';
 import 'member_details_page.dart';
 import 'member_profile_page.dart';
 import 'member_settings_page.dart';
@@ -31,9 +32,9 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
     final loc = AppLocalizations.of(context);
     final auth = ref.watch(memberAuthProvider);
     final self = ref.watch(memberSelfProvider);
-    final profile = self.profile;
+    final profile = self.profile.data;
     final upcomingReservations =
-        (self.reservations ?? [])
+        (self.reservations.data ?? [])
             .where((item) => item.date?.isAfter(DateTime.now()) ?? false)
             .toList()
           ..sort(
@@ -94,8 +95,9 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (self.isLoading) const LinearProgressIndicator(),
-                  if (self.error != null)
+                  if (self.profile.isLoading || self.reservations.isLoading)
+                    const LinearProgressIndicator(),
+                  if (self.profile.error != null)
                     _ErrorCard(
                       onRetry: () =>
                           ref.read(memberSelfProvider.notifier).loadHome(),
@@ -110,7 +112,7 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
                     const SizedBox(height: 8),
                     _SummaryCard(
                       title: loc?.translate('memberTotalDebt') ?? 'Total debt',
-                      value: profile.totalDebt.toStringAsFixed(2),
+                      value: formatCurrency(profile.totalDebt),
                     ),
                   ],
                   if (upcomingReservations.isNotEmpty) ...[
@@ -128,6 +130,19 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
                           _formatDate(upcomingReservations.first.date),
                         ),
                         subtitle: Text(upcomingReservations.first.time),
+                      ),
+                    ),
+                  ] else if (!self.reservations.isLoading &&
+                      self.reservations.error == null) ...[
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          loc?.translate('memberNoUpcomingReservation') ??
+                              'No upcoming reservation.',
+                          style: AppTypography.body,
+                        ),
                       ),
                     ),
                   ],
