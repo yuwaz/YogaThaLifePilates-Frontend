@@ -450,5 +450,12 @@
 "memberNoMemberships": "Erişilebilir stüdyo üyeliği bulunmuyor.",
 "memberNoData": "Bilgi bulunmuyor.",
 "memberDataError": "Bilgileriniz yüklenemedi.",
+"memberStudioSelectionError": "Stüdyo seçilemedi. Tekrar denemek için bir stüdyo seçin.",
+"memberWeight": "Kilo",
+"memberBodyFat": "Yağ oranı",
+"memberAssignedAt": "Atanma tarihi",
+"memberOriginalPrice": "İlk fiyat",
+"memberDiscount": "İndirim",
+"memberFinalPrice": "Son fiyat",
 "showPassword": "Şifreyi göster"
 }

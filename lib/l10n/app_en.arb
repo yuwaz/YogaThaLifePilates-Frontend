@@ -449,5 +449,12 @@
 "memberNoMemberships": "No accessible studio membership is available.",
 "memberNoData": "No information available.",
 "memberDataError": "Your information could not be loaded.",
+"memberStudioSelectionError": "The studio could not be selected. Choose a studio to try again.",
+"memberWeight": "Weight",
+"memberBodyFat": "Body fat",
+"memberAssignedAt": "Assigned",
+"memberOriginalPrice": "Original price",
+"memberDiscount": "Discount",
+"memberFinalPrice": "Final price",
 "showPassword": "Show password"
 }

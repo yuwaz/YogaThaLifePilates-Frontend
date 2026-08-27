@@ -46,10 +46,23 @@ class MemberStudioSelectionPage extends ConsumerWidget {
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: auth.memberships.length,
+                    itemCount:
+                        auth.memberships.length + (auth.error == null ? 0 : 1),
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final membership = auth.memberships[index];
+                      if (auth.error != null && index == 0) {
+                        return Card(
+                          child: ListTile(
+                            title: Text(
+                              loc?.translate('memberStudioSelectionError') ??
+                                  'The studio could not be selected. Choose a studio to try again.',
+                              style: AppTypography.body,
+                            ),
+                          ),
+                        );
+                      }
+                      final membership = auth
+                          .memberships[auth.error == null ? index : index - 1];
                       return Card(
                         child: ListTile(
                           title: Text(

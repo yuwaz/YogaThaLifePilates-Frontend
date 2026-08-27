@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/member_auth_provider.dart';
 import '../../providers/member_self_provider.dart';
+import '../../services/app_session_preference.dart';
 import '../../theme/app_design_tokens.dart';
 import 'member_details_page.dart';
 import 'member_profile_page.dart';
@@ -166,10 +167,16 @@ class _SummaryCard extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: AppTypography.body),
-          Text(value, style: AppTypography.numericKpi),
+          Expanded(child: Text(title, style: AppTypography.body)),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              style: AppTypography.numericKpi,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     ),
@@ -228,6 +235,9 @@ class MemberNoMembershipsPage extends ConsumerWidget {
                     style: AppButtonStyles.destructive,
                     onPressed: () async {
                       await ref.read(memberAuthProvider.notifier).logout();
+                      await AppSessionPreference().clearActiveSurfaceIf(
+                        AppSessionSurface.member,
+                      );
                       if (!context.mounted) return;
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     },

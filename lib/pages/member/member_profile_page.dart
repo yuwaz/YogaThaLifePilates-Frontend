@@ -26,7 +26,15 @@ class MemberProfilePage extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 children: [
                   if (profile == null && self.isLoading)
-                    const Center(child: CircularProgressIndicator()),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 48),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  if (profile == null && self.error != null)
+                    _ProfileError(
+                      onRetry: () =>
+                          ref.read(memberSelfProvider.notifier).loadHome(),
+                    ),
                   if (profile != null) ...[
                     _InfoRow(loc?.translate('name') ?? 'Name', profile.name),
                     _InfoRow(loc?.translate('phone') ?? 'Phone', profile.phone),
@@ -57,11 +65,28 @@ class MemberProfilePage extends ConsumerWidget {
                                 loc?.translate('memberNoMeasurements') ??
                                     'No measurement available.',
                               )
-                            : Text(
-                                _measurementText(
-                                  profile.latestMeasurement!.weight,
-                                  profile.latestMeasurement!.bodyFatPercentage,
-                                ),
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _formatDate(
+                                      profile.latestMeasurement!.measuredAt,
+                                    ),
+                                    style: AppTypography.caption,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _MeasurementValue(
+                                    loc?.translate('memberWeight') ?? 'Weight',
+                                    profile.latestMeasurement!.weight,
+                                  ),
+                                  _MeasurementValue(
+                                    loc?.translate('memberBodyFat') ??
+                                        'Body fat',
+                                    profile
+                                        .latestMeasurement!
+                                        .bodyFatPercentage,
+                                  ),
+                                ],
                               ),
                       ),
                     ),
@@ -92,8 +117,6 @@ class MemberProfilePage extends ConsumerWidget {
   String _formatDate(DateTime? date) => date == null
       ? '-'
       : '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
-  String _measurementText(double? weight, double? bodyFat) =>
-      'Weight: ${weight?.toStringAsFixed(1) ?? '-'}\nBody fat: ${bodyFat?.toStringAsFixed(1) ?? '-'}';
 }
 
 class _InfoRow extends StatelessWidget {
@@ -104,11 +127,59 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Text(label, style: AppTypography.label)),
-        Expanded(child: Text(value, style: AppTypography.bodyStrong)),
+        Text(label, style: AppTypography.label),
+        const SizedBox(height: 2),
+        Text(value, style: AppTypography.bodyStrong),
       ],
     ),
   );
+}
+
+class _MeasurementValue extends StatelessWidget {
+  final String label;
+  final double? value;
+  const _MeasurementValue(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Text(
+      '$label: ${value?.toStringAsFixed(1) ?? '-'}',
+      style: AppTypography.body,
+    ),
+  );
+}
+
+class _ProfileError extends StatelessWidget {
+  final Future<void> Function() onRetry;
+  const _ProfileError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 48),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              loc?.translate('memberDataError') ??
+                  'Unable to load member information.',
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              style: AppButtonStyles.secondary,
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: Text(loc?.translate('retry') ?? 'Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

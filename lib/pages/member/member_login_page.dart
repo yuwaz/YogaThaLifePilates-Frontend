@@ -39,11 +39,16 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
         );
     final state = ref.read(memberAuthProvider);
     if (!mounted) return;
-    if (state.status == MemberSessionStatus.ready) {
+    if (state.status == MemberSessionStatus.ready ||
+        state.status == MemberSessionStatus.noMemberships) {
       await AppSessionPreference().setActiveSurface(AppSessionSurface.member);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MemberRootPage()),
+        MaterialPageRoute(
+          builder: (_) => state.status == MemberSessionStatus.ready
+              ? const MemberRootPage()
+              : const MemberNoMembershipsPage(),
+        ),
         (route) => false,
       );
     } else if (state.status == MemberSessionStatus.needsStudioSelection) {

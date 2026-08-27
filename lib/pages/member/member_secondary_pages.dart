@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/member_self_models.dart';
 import '../../providers/member_self_provider.dart';
 import '../../theme/app_design_tokens.dart';
 
@@ -31,6 +32,7 @@ class _MemberMeasurementsPageState
           AppLocalizations.of(context)?.translate('memberMeasurementHistory') ??
           'Measurement history',
       loading: data.isLoading,
+      error: data.error,
       count: data.measurements?.length ?? 0,
       onRefresh: () => ref.read(memberSelfProvider.notifier).loadMeasurements(),
       itemBuilder: (context, index) {
@@ -46,18 +48,35 @@ class _MemberMeasurementsPageState
   }
 }
 
-class MemberReservationsPage extends ConsumerWidget {
+class MemberReservationsPage extends ConsumerStatefulWidget {
   const MemberReservationsPage({super.key});
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MemberReservationsPage> createState() =>
+      _MemberReservationsPageState();
+}
+
+class _MemberReservationsPageState
+    extends ConsumerState<MemberReservationsPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ref.read(memberSelfProvider.notifier).loadReservations(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final data = ref.watch(memberSelfProvider);
     return _MemberListScaffold(
       title:
           AppLocalizations.of(context)?.translate('reservations') ??
           'Reservations',
       loading: data.isLoading,
+      error: data.error,
       count: data.reservations?.length ?? 0,
-      onRefresh: () => ref.read(memberSelfProvider.notifier).loadHome(),
+      onRefresh: () => ref.read(memberSelfProvider.notifier).loadReservations(),
       itemBuilder: (context, index) {
         final item = data.reservations![index];
         return Card(
@@ -100,6 +119,7 @@ class _MemberPackagesPageState extends ConsumerState<MemberPackagesPage> {
           AppLocalizations.of(context)?.translate('memberPackagesLessons') ??
           'Packages and remaining lessons',
       loading: data.isLoading,
+      error: data.error,
       header: packages == null
           ? null
           : Text(
@@ -113,7 +133,11 @@ class _MemberPackagesPageState extends ConsumerState<MemberPackagesPage> {
         return Card(
           child: ListTile(
             title: Text(item.name ?? '-'),
-            subtitle: Text('${item.lessonCount ?? 0}'),
+            subtitle: Text(
+              _packageDetails(context, item),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         );
       },
@@ -145,6 +169,7 @@ class _MemberAttendancesPageState extends ConsumerState<MemberAttendancesPage> {
           AppLocalizations.of(context)?.translate('memberAttendanceHistory') ??
           'Attendance history',
       loading: data.isLoading,
+      error: data.error,
       count: data.attendances?.length ?? 0,
       onRefresh: () => ref.read(memberSelfProvider.notifier).loadAttendances(),
       itemBuilder: (context, index) {
@@ -152,7 +177,12 @@ class _MemberAttendancesPageState extends ConsumerState<MemberAttendancesPage> {
         return Card(
           child: ListTile(
             title: Text(_date(item.date)),
-            subtitle: Text(item.salonName ?? '-'),
+            subtitle: Text(
+              [item.salonName, item.instructorName]
+                  .whereType<String>()
+                  .where((value) => value.isNotEmpty)
+                  .join(' - '),
+            ),
           ),
         );
       },
@@ -184,6 +214,7 @@ class _MemberPaymentsPageState extends ConsumerState<MemberPaymentsPage> {
           AppLocalizations.of(context)?.translate('memberPaymentsDebt') ??
           'Payments and debt',
       loading: data.isLoading,
+      error: data.error,
       header: payments == null
           ? null
           : Text(
@@ -210,6 +241,7 @@ class _MemberPaymentsPageState extends ConsumerState<MemberPaymentsPage> {
 class _MemberListScaffold extends StatelessWidget {
   final String title;
   final bool loading;
+  final String? error;
   final Widget? header;
   final int count;
   final Future<void> Function() onRefresh;
@@ -218,6 +250,7 @@ class _MemberListScaffold extends StatelessWidget {
   const _MemberListScaffold({
     required this.title,
     required this.loading,
+    required this.error,
     this.header,
     required this.count,
     required this.onRefresh,
@@ -238,6 +271,29 @@ class _MemberListScaffold extends StatelessWidget {
               onRefresh: onRefresh,
               child: loading
                   ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              loc?.translate('memberDataError') ??
+                                  'Unable to load member information.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              style: AppButtonStyles.secondary,
+                              onPressed: onRefresh,
+                              icon: const Icon(Icons.refresh),
+                              label: Text(loc?.translate('retry') ?? 'Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: itemCount,
@@ -272,3 +328,17 @@ class _MemberListScaffold extends StatelessWidget {
 String _date(DateTime? date) => date == null
     ? '-'
     : '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+
+String _packageDetails(BuildContext context, MemberPackageAssignment item) {
+  final loc = AppLocalizations.of(context);
+  final details = <String>[
+    '${loc?.translate('lessonCount') ?? 'Lesson count'}: ${item.lessonCount ?? '-'}',
+    if (item.assignedAt != null)
+      '${loc?.translate('memberAssignedAt') ?? 'Assigned'}: ${_date(item.assignedAt)}',
+    '${loc?.translate('memberOriginalPrice') ?? 'Original price'}: ${item.originalPrice.toStringAsFixed(2)}',
+    if (item.discountType != null || item.discountValue != null)
+      '${loc?.translate('memberDiscount') ?? 'Discount'}: ${item.discountType ?? '-'} ${item.discountValue?.toStringAsFixed(2) ?? '-'}',
+    '${loc?.translate('memberFinalPrice') ?? 'Final price'}: ${item.finalPrice.toStringAsFixed(2)}',
+  ];
+  return details.join('\n');
+}
