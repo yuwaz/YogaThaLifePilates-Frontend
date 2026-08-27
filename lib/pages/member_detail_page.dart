@@ -39,6 +39,7 @@ class MemberDetailPage extends ConsumerStatefulWidget {
 
 class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
   final ScrollController _scrollController = ScrollController();
+  bool _isGeneratingActivationCode = false;
 
   final Map<String, String?> _measurements = {
     'Boy': null,
@@ -303,6 +304,57 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
     await _refreshLatestMeasurementDate();
   }
 
+  Future<void> _generateActivationCode(Member member) async {
+    if (_isGeneratingActivationCode) return;
+    setState(() => _isGeneratingActivationCode = true);
+    final code = await ref
+        .read(memberProvider.notifier)
+        .generateActivationCode(memberId: member.id, token: widget.token);
+    if (!mounted) return;
+    setState(() => _isGeneratingActivationCode = false);
+    final loc = AppLocalizations.of(context);
+    if (code == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            loc?.translate('activationCodeGenerationFailed') ??
+                'Activation code could not be generated.',
+          ),
+          backgroundColor: AppDesignTokens.error,
+        ),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          loc?.translate('activationCode') ?? 'Activation Code',
+          style: AppTypography.sectionTitle,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(code, style: AppTypography.numericKpi),
+            const SizedBox(height: 8),
+            Text(
+              loc?.translate('activationCodeGenerated') ??
+                  'Share this code with the member.',
+              style: AppTypography.body,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(loc?.translate('close') ?? 'Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> fetchDetail() async {
     final baseUrl = ApiConfig.baseUrl;
     final url = '$baseUrl/settings/members/${widget.member.id}';
@@ -447,6 +499,7 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final member = memberDetail ?? widget.member;
+    final isAdmin = (ref.watch(authProvider).role ?? '').trim() == 'admin';
     final memberTypesState = ref.watch(memberTypesProvider);
     final memberTypeMap = {
       for (final mt in memberTypesState.memberTypes) mt.id: mt,
@@ -655,7 +708,45 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                 );
               },
             ),
-            const SizedBox(height: 20),
+            if (isAdmin) ...[
+              const SizedBox(height: 20),
+              Card(
+                color: AppDesignTokens.surface,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        loc?.translate('memberAccess') ?? 'Member Access',
+                        style: AppTypography.sectionTitle,
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        style: AppButtonStyles.secondary,
+                        onPressed: _isGeneratingActivationCode
+                            ? null
+                            : () => _generateActivationCode(member),
+                        icon: _isGeneratingActivationCode
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.key_outlined, size: 18),
+                        label: Text(
+                          loc?.translate('generateActivationCode') ??
+                              'Generate Activation Code',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(

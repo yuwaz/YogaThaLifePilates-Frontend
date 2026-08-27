@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -34,7 +35,7 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
     await ref
         .read(memberAuthProvider.notifier)
         .login(
-          phone: _phoneController.text,
+          phone: '+90${_phoneController.text.trim()}',
           password: _passwordController.text,
         );
     final state = ref.read(memberAuthProvider);
@@ -106,12 +107,27 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                       decoration: InputDecoration(
                         labelText: loc?.translate('phone') ?? 'Phone',
                         labelStyle: AppTypography.label,
+                        prefixText: '+90 ',
                       ),
                       style: AppTypography.body,
-                      validator: (value) => (value ?? '').trim().isEmpty
-                          ? loc?.translate('phoneRequired') ??
-                                'Phone is required'
-                          : null,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      validator: (value) {
+                        final phone = (value ?? '').trim();
+                        if (phone.isEmpty) {
+                          return loc?.translate('phoneRequired') ??
+                              'Phone is required';
+                        }
+                        if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+                          return loc?.translate(
+                                'memberTurkishPhoneValidation',
+                              ) ??
+                              'Enter a valid 10-digit Turkish phone number';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

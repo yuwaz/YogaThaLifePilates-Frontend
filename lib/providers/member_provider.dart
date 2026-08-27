@@ -205,6 +205,34 @@ class MemberNotifier extends StateNotifier<MemberState> {
     }
   }
 
+  Future<String?> generateActivationCode({
+    required int memberId,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$BASE_URL/$memberId/activation-code'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode != 201) {
+        _reportSignal(response);
+        return null;
+      }
+      final decoded = jsonDecode(response.body);
+      final code = decoded is Map ? decoded['code'] : null;
+      if (code is! String || !RegExp(r'^\d{6}$').hasMatch(code)) {
+        return null;
+      }
+      _clearSignal();
+      return code;
+    } catch (_) {
+      return null;
+    }
+  }
+
   MemberNotifier(this._ref) : super(MemberState(members: []));
 
   Future<void> fetchAllMembers(String token) async {
