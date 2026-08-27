@@ -77,19 +77,23 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
       _ => loc?.translate('memberSessionError') ?? 'Unable to sign in.',
     };
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
-        title: Text(loc?.translate('memberLogin') ?? 'Member Login'),
+        title: Text(
+          loc?.translate('memberLogin') ?? 'Member Login',
+          style: AppTypography.sectionTitle,
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 520),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -101,7 +105,9 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
                         labelText: loc?.translate('phone') ?? 'Phone',
+                        labelStyle: AppTypography.label,
                       ),
+                      style: AppTypography.body,
                       validator: (value) => (value ?? '').trim().isEmpty
                           ? loc?.translate('phoneRequired') ??
                                 'Phone is required'
@@ -115,6 +121,7 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                       onFieldSubmitted: (_) => isLoading ? null : _login(),
                       decoration: InputDecoration(
                         labelText: loc?.translate('password') ?? 'Password',
+                        labelStyle: AppTypography.label,
                         suffixIcon: IconButton(
                           tooltip:
                               loc?.translate('showPassword') ?? 'Show password',
@@ -128,6 +135,7 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                           ),
                         ),
                       ),
+                      style: AppTypography.body,
                       validator: (value) => (value ?? '').isEmpty
                           ? loc?.translate('password') ?? 'Password'
                           : null,
@@ -143,17 +151,7 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                     ],
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      style: AppButtonStyles.primary.copyWith(
-                        minimumSize: const WidgetStatePropertyAll(
-                          Size.fromHeight(52),
-                        ),
-                        backgroundColor: const WidgetStatePropertyAll(
-                          Colors.white,
-                        ),
-                        foregroundColor: const WidgetStatePropertyAll(
-                          Colors.black,
-                        ),
-                      ),
+                      style: AppButtonStyles.primary,
                       onPressed: isLoading ? null : _login,
                       child: isLoading
                           ? const SizedBox(
@@ -175,7 +173,7 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                       child: Text(
                         loc?.translate('memberFirstTime') ??
                             'I am logging in for the first time',
-                        style: AppTypography.body.copyWith(color: Colors.white),
+                        style: AppTypography.body,
                       ),
                     ),
                   ],

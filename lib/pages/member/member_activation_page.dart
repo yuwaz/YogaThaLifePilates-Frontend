@@ -79,19 +79,23 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppDesignTokens.backgroundPrimary,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: AppDesignTokens.surface,
+        foregroundColor: AppDesignTokens.textPrimary,
+        iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
-        title: Text(loc?.translate('memberActivate') ?? 'Activate Membership'),
+        title: Text(
+          loc?.translate('memberActivate') ?? 'Activate Membership',
+          style: AppTypography.sectionTitle,
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 520),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -102,7 +106,9 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         labelText: loc?.translate('phone') ?? 'Phone',
+                        labelStyle: AppTypography.label,
                       ),
+                      style: AppTypography.body,
                       validator: (value) => (value ?? '').trim().isEmpty
                           ? loc?.translate('phoneRequired') ??
                                 'Phone is required'
@@ -117,7 +123,9 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                         labelText:
                             loc?.translate('memberActivationCode') ??
                             'Activation code',
+                        labelStyle: AppTypography.label,
                       ),
+                      style: AppTypography.body,
                       validator: (value) =>
                           RegExp(r'^\d{6}$').hasMatch(value ?? '')
                           ? null
@@ -130,6 +138,7 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: loc?.translate('password') ?? 'Password',
+                        labelStyle: AppTypography.label,
                         suffixIcon: IconButton(
                           tooltip:
                               loc?.translate('showPassword') ?? 'Show password',
@@ -143,6 +152,7 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                           ),
                         ),
                       ),
+                      style: AppTypography.body,
                       validator: (value) => (value ?? '').length >= 8
                           ? null
                           : loc?.translate('memberPasswordMinLength') ??
@@ -156,7 +166,9 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                         labelText:
                             loc?.translate('confirmPassword') ??
                             'Confirm password',
+                        labelStyle: AppTypography.label,
                       ),
+                      style: AppTypography.body,
                       validator: (value) => value == _passwordController.text
                           ? null
                           : loc?.translate('confirmPasswordMismatch') ??
@@ -173,17 +185,7 @@ class _MemberActivationPageState extends ConsumerState<MemberActivationPage> {
                     ],
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      style: AppButtonStyles.primary.copyWith(
-                        minimumSize: const WidgetStatePropertyAll(
-                          Size.fromHeight(52),
-                        ),
-                        backgroundColor: const WidgetStatePropertyAll(
-                          Colors.white,
-                        ),
-                        foregroundColor: const WidgetStatePropertyAll(
-                          Colors.black,
-                        ),
-                      ),
+                      style: AppButtonStyles.primary,
                       onPressed: _isLoading ? null : _activate,
                       child: _isLoading
                           ? const SizedBox(
