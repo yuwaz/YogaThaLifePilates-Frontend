@@ -101,6 +101,14 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
     final l10n = AppLocalizations.of(context);
     final memberTypesState = ref.watch(memberTypesProvider);
     final memberTypes = memberTypesState.memberTypes;
+    final selectedMemberTypeId =
+        memberTypes.any(
+          (type) => int.tryParse(type.id.toString()) == _memberTypeId,
+        )
+        ? _memberTypeId
+        : (memberTypes.isNotEmpty
+              ? int.tryParse(memberTypes.first.id.toString())
+              : null);
     debugPrint(
       '[MemberEditDialog] memberTypes: \\${memberTypes.map((e) => e.name).toList()}',
     );
@@ -262,15 +270,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value:
-                    memberTypes.any(
-                      (type) =>
-                          int.tryParse(type.id.toString()) == _memberTypeId,
-                    )
-                    ? _memberTypeId
-                    : (memberTypes.isNotEmpty
-                          ? int.tryParse(memberTypes.first.id.toString())
-                          : null),
+                value: selectedMemberTypeId,
                 decoration: InputDecoration(
                   labelText: l10n?.translate('memberType') ?? 'Member Type',
                   labelStyle: AppTypography.label,
@@ -363,7 +363,7 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                     _nameController.text.trim(),
                     fullPhone,
                     _emailController.text.trim(),
-                    _memberTypeId,
+                    selectedMemberTypeId!,
                     _selectedSalonIds,
                     [], // No equipment
                     0,
