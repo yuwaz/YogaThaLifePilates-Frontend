@@ -457,6 +457,8 @@
 "memberDiscount": "Discount",
 "memberFinalPrice": "Final price",
 "memberNoUpcomingReservation": "No upcoming reservation.",
+"memberReservationsUnavailable": "Reservations could not be loaded.",
+"memberServiceUnavailable": "The member service is temporarily unavailable. Please try again.",
 "memberHeight": "Height",
 "memberWaist": "Waist",
 "memberHip": "Hip",

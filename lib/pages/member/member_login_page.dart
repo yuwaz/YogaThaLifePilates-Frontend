@@ -66,12 +66,16 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
     final loc = AppLocalizations.of(context);
     final auth = ref.watch(memberAuthProvider);
     final isLoading = auth.status == MemberSessionStatus.loading;
-    final error = auth.error == 'invalidCredentials'
-        ? loc?.translate('memberInvalidCredentials') ??
-              'Invalid phone or password'
-        : auth.error == null
-        ? null
-        : loc?.translate('memberSessionError') ?? 'Unable to sign in.';
+    final error = switch (auth.error) {
+      'invalidCredentials' =>
+        loc?.translate('memberInvalidCredentials') ??
+            'Invalid phone or password',
+      'memberServiceUnavailable' =>
+        loc?.translate('memberServiceUnavailable') ??
+            'The member service is temporarily unavailable. Please try again.',
+      null => null,
+      _ => loc?.translate('memberSessionError') ?? 'Unable to sign in.',
+    };
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(

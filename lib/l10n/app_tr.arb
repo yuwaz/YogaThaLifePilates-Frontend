@@ -458,6 +458,8 @@
 "memberDiscount": "İndirim",
 "memberFinalPrice": "Son fiyat",
 "memberNoUpcomingReservation": "Yaklaşan rezervasyon bulunmuyor.",
+"memberReservationsUnavailable": "Rezervasyonlar yüklenemedi.",
+"memberServiceUnavailable": "Üye hizmeti şu anda kullanılamıyor. Lütfen tekrar deneyin.",
 "memberHeight": "Boy",
 "memberWaist": "Bel",
 "memberHip": "Kalça",

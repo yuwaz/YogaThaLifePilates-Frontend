@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/member_self_models.dart';
 import 'member_auth_provider.dart';
+import '../services/member_api_service.dart';
 
 class MemberResource<T> {
   final T? data;
@@ -55,10 +56,19 @@ final memberSelfProvider =
 class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
   final Ref _ref;
   int _contextGeneration = 0;
+  String? _lastRecoveredContextToken;
   MemberSelfNotifier(this._ref) : super(const MemberSelfState());
 
   void clear() {
     _contextGeneration++;
+    _lastRecoveredContextToken = null;
+    state = const MemberSelfState();
+  }
+
+  void _clearForRecoveredContext(String contextToken) {
+    if (_lastRecoveredContextToken == contextToken) return;
+    _contextGeneration++;
+    _lastRecoveredContextToken = contextToken;
     state = const MemberSelfState();
   }
 
@@ -67,7 +77,32 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
   bool _isCurrentContext(String token, int generation) =>
       generation == _contextGeneration && token == _contextToken;
 
-  Future<void> loadHome() async {
+  Future<bool> _recoverExpiredContext(String token, int generation) async {
+    final auth = _ref.read(memberAuthProvider);
+    final membershipId = auth.selectedMembership?.membershipId;
+    if (!_isCurrentContext(token, generation) || membershipId == null) {
+      return false;
+    }
+    final result = await _ref
+        .read(memberAuthProvider.notifier)
+        .recoverContext(
+          expectedContextToken: token,
+          expectedMembershipId: membershipId,
+        );
+    if (result == MemberContextRecoveryResult.recovered) {
+      final refreshedToken = _contextToken;
+      if (refreshedToken == null || refreshedToken.isEmpty) return false;
+      _clearForRecoveredContext(refreshedToken);
+      return true;
+    }
+    if (result == MemberContextRecoveryResult.signedOut ||
+        result == MemberContextRecoveryResult.stale) {
+      clear();
+    }
+    return false;
+  }
+
+  Future<void> loadHome({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -80,6 +115,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
       final profile = await api.fetchSelfWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(profile: MemberResource(data: profile));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadHome(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        profile: MemberResource(
+          data: state.profile.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -96,6 +145,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
       );
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(reservations: MemberResource(data: reservations));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadHome(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        reservations: MemberResource(
+          data: state.reservations.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -107,7 +170,7 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     }
   }
 
-  Future<void> loadReservations() async {
+  Future<void> loadReservations({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -118,6 +181,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
           .fetchReservationsWithContextToken(token, limit: 100);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(reservations: MemberResource(data: data));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadReservations(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        reservations: MemberResource(
+          data: state.reservations.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -129,7 +206,7 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     }
   }
 
-  Future<void> loadMeasurements() async {
+  Future<void> loadMeasurements({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -140,6 +217,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
           .fetchMeasurementsWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(measurements: MemberResource(data: data));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadMeasurements(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        measurements: MemberResource(
+          data: state.measurements.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -151,7 +242,7 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     }
   }
 
-  Future<void> loadPackages() async {
+  Future<void> loadPackages({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -162,6 +253,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
           .fetchPackagesWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(packages: MemberResource(data: data));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadPackages(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        packages: MemberResource(
+          data: state.packages.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -173,7 +278,7 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     }
   }
 
-  Future<void> loadAttendances() async {
+  Future<void> loadAttendances({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -184,6 +289,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
           .fetchAttendancesWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(attendances: MemberResource(data: data));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadAttendances(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        attendances: MemberResource(
+          data: state.attendances.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(
@@ -195,7 +314,7 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
     }
   }
 
-  Future<void> loadPayments() async {
+  Future<void> loadPayments({bool allowRecovery = true}) async {
     final token = _contextToken;
     if (token == null || token.isEmpty) return;
     final generation = _contextGeneration;
@@ -206,6 +325,20 @@ class MemberSelfNotifier extends StateNotifier<MemberSelfState> {
           .fetchPaymentsWithContextToken(token);
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(payments: MemberResource(data: data));
+    } on MemberApiException catch (error) {
+      if (!_isCurrentContext(token, generation)) return;
+      if (allowRecovery &&
+          error.isAuthenticationFailure &&
+          await _recoverExpiredContext(token, generation)) {
+        return loadPayments(allowRecovery: false);
+      }
+      if (!_isCurrentContext(token, generation)) return;
+      state = state.copyWith(
+        payments: MemberResource(
+          data: state.payments.data,
+          error: 'memberDataError',
+        ),
+      );
     } catch (_) {
       if (!_isCurrentContext(token, generation)) return;
       state = state.copyWith(

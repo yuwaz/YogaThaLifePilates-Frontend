@@ -10,6 +10,8 @@ import '../models/member_self_models.dart';
 class MemberApiException implements Exception {
   final int statusCode;
   const MemberApiException(this.statusCode);
+
+  bool get isAuthenticationFailure => statusCode == 401 || statusCode == 403;
 }
 
 class MemberAuthResponse {

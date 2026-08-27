@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../pages/entry_page.dart';
 import '../../providers/member_auth_provider.dart';
 import '../../providers/member_self_provider.dart';
 import '../../services/app_session_preference.dart';
@@ -10,6 +11,7 @@ import '../../utils/currency_formatter.dart';
 import 'member_details_page.dart';
 import 'member_profile_page.dart';
 import 'member_settings_page.dart';
+import 'member_studio_selection_page.dart';
 
 class MemberRootPage extends ConsumerStatefulWidget {
   const MemberRootPage({super.key});
@@ -19,12 +21,47 @@ class MemberRootPage extends ConsumerStatefulWidget {
 }
 
 class _MemberRootPageState extends ConsumerState<MemberRootPage> {
+  late final ProviderSubscription<MemberAuthState> _authSubscription;
+
   @override
   void initState() {
     super.initState();
+    _authSubscription = ref.listenManual<MemberAuthState>(memberAuthProvider, (
+      previous,
+      next,
+    ) {
+      if (!mounted || previous?.status == next.status) return;
+      switch (next.status) {
+        case MemberSessionStatus.signedOut:
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const EntryPage()),
+            (route) => false,
+          );
+        case MemberSessionStatus.needsStudioSelection:
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => const MemberStudioSelectionPage(),
+            ),
+            (route) => false,
+          );
+        case MemberSessionStatus.noMemberships:
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const MemberNoMembershipsPage()),
+            (route) => false,
+          );
+        default:
+          break;
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(memberSelfProvider.notifier).loadHome();
     });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.close();
+    super.dispose();
   }
 
   @override
@@ -132,6 +169,13 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
                         subtitle: Text(upcomingReservations.first.time),
                       ),
                     ),
+                  ] else if (self.reservations.error != null) ...[
+                    const SizedBox(height: 12),
+                    _ReservationErrorCard(
+                      onRetry: () => ref
+                          .read(memberSelfProvider.notifier)
+                          .loadReservations(),
+                    ),
                   ] else if (!self.reservations.isLoading &&
                       self.reservations.error == null) ...[
                     const SizedBox(height: 12),
@@ -210,6 +254,29 @@ class _ErrorCard extends StatelessWidget {
         title: Text(
           loc?.translate('memberDataError') ??
               'Your information could not be loaded.',
+        ),
+        trailing: IconButton(
+          tooltip: loc?.translate('retry') ?? 'Retry',
+          icon: const Icon(Icons.refresh),
+          onPressed: onRetry,
+        ),
+      ),
+    );
+  }
+}
+
+class _ReservationErrorCard extends StatelessWidget {
+  final Future<void> Function() onRetry;
+  const _ReservationErrorCard({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Card(
+      child: ListTile(
+        title: Text(
+          loc?.translate('memberReservationsUnavailable') ??
+              'Reservations could not be loaded.',
         ),
         trailing: IconButton(
           tooltip: loc?.translate('retry') ?? 'Retry',
