@@ -1,0 +1,72 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../providers/member_auth_provider.dart';
+import '../../providers/member_self_provider.dart';
+import '../../theme/app_design_tokens.dart';
+import 'member_root_page.dart';
+
+class MemberStudioSelectionPage extends ConsumerWidget {
+  const MemberStudioSelectionPage({super.key});
+
+  Future<void> _select(
+    BuildContext context,
+    WidgetRef ref,
+    int membershipId,
+  ) async {
+    ref.read(memberSelfProvider.notifier).clear();
+    await ref.read(memberAuthProvider.notifier).selectMembership(membershipId);
+    if (!context.mounted) return;
+    if (ref.read(memberAuthProvider).status == MemberSessionStatus.ready) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MemberRootPage()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
+    final auth = ref.watch(memberAuthProvider);
+    return Scaffold(
+      backgroundColor: AppDesignTokens.backgroundPrimary,
+      appBar: AppBar(
+        title: Text(
+          loc?.translate('memberSelectStudio') ?? 'Select studio',
+          style: AppTypography.sectionTitle,
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: auth.status == MemberSessionStatus.loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: auth.memberships.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final membership = auth.memberships[index];
+                      return Card(
+                        child: ListTile(
+                          title: Text(
+                            membership.studioName ??
+                                (loc?.translate('memberStudio') ?? 'Studio'),
+                            style: AppTypography.cardTitle,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () =>
+                              _select(context, ref, membership.membershipId),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}

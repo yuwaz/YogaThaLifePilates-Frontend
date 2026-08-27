@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../pages/login_page.dart';
 import '../providers/session_lifecycle_provider.dart';
+import '../services/app_session_preference.dart';
 import '../theme/app_design_tokens.dart';
 
 class LogoutButton extends ConsumerWidget {
@@ -38,6 +39,9 @@ class LogoutButton extends ConsumerWidget {
       if (confirmed != true) return;
 
       await ref.read(sessionLifecycleControllerProvider).logout();
+      await AppSessionPreference().clearActiveSurfaceIf(
+        AppSessionSurface.staff,
+      );
 
       if (!context.mounted) return;
 

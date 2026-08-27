@@ -1,0 +1,181 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../providers/member_auth_provider.dart';
+import '../../services/app_session_preference.dart';
+import '../../theme/app_design_tokens.dart';
+import 'member_activation_page.dart';
+import 'member_root_page.dart';
+import 'member_studio_selection_page.dart';
+
+class MemberLoginPage extends ConsumerStatefulWidget {
+  const MemberLoginPage({super.key});
+
+  @override
+  ConsumerState<MemberLoginPage> createState() => _MemberLoginPageState();
+}
+
+class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    await ref
+        .read(memberAuthProvider.notifier)
+        .login(
+          phone: _phoneController.text,
+          password: _passwordController.text,
+        );
+    final state = ref.read(memberAuthProvider);
+    if (!mounted) return;
+    if (state.status == MemberSessionStatus.ready) {
+      await AppSessionPreference().setActiveSurface(AppSessionSurface.member);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MemberRootPage()),
+        (route) => false,
+      );
+    } else if (state.status == MemberSessionStatus.needsStudioSelection) {
+      await AppSessionPreference().setActiveSurface(AppSessionSurface.member);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MemberStudioSelectionPage()),
+        (route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final auth = ref.watch(memberAuthProvider);
+    final isLoading = auth.status == MemberSessionStatus.loading;
+    final error = auth.error == 'invalidCredentials'
+        ? loc?.translate('memberInvalidCredentials') ??
+              'Invalid phone or password'
+        : auth.error == null
+        ? null
+        : loc?.translate('memberSessionError') ?? 'Unable to sign in.';
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(loc?.translate('memberLogin') ?? 'Member Login'),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: loc?.translate('phone') ?? 'Phone',
+                      ),
+                      validator: (value) => (value ?? '').trim().isEmpty
+                          ? loc?.translate('phoneRequired') ??
+                                'Phone is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => isLoading ? null : _login(),
+                      decoration: InputDecoration(
+                        labelText: loc?.translate('password') ?? 'Password',
+                        suffixIcon: IconButton(
+                          tooltip:
+                              loc?.translate('showPassword') ?? 'Show password',
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                      validator: (value) => (value ?? '').isEmpty
+                          ? loc?.translate('password') ?? 'Password'
+                          : null,
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        error,
+                        style: AppTypography.body.copyWith(
+                          color: AppDesignTokens.error,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: AppButtonStyles.primary.copyWith(
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size.fromHeight(52),
+                        ),
+                        backgroundColor: const WidgetStatePropertyAll(
+                          Colors.white,
+                        ),
+                        foregroundColor: const WidgetStatePropertyAll(
+                          Colors.black,
+                        ),
+                      ),
+                      onPressed: isLoading ? null : _login,
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(loc?.translate('login') ?? 'Login'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MemberActivationPage(),
+                              ),
+                            ),
+                      child: Text(
+                        loc?.translate('memberFirstTime') ??
+                            'I am logging in for the first time',
+                        style: AppTypography.body.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -9,6 +9,7 @@ import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
 import '../providers/session_lifecycle_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
+import '../services/app_session_preference.dart';
 import '../utils/app_bootstrap.dart';
 import 'entry_page.dart';
 import 'main_page.dart';
@@ -138,6 +139,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           final storage = ref.read(secureStorageProvider);
           await storage.saveAuthData(token, role, assignedSalonIds);
           await storage.savePermissions(permissions);
+          await AppSessionPreference().setActiveSurface(
+            AppSessionSurface.staff,
+          );
           if (studioCode.isNotEmpty) {
             await storage.saveLastStudioCode(studioCode);
           }

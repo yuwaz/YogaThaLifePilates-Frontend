@@ -9,15 +9,20 @@ import 'pages/entry_page.dart';
 import 'pages/backoffice/backoffice_login_page.dart';
 import 'pages/login_page.dart';
 import 'pages/main_page.dart';
+import 'pages/member/member_root_page.dart';
+import 'pages/member/member_studio_selection_page.dart';
 import 'pages/studio_onboarding_page.dart';
 import 'providers/auth_provider.dart';
 import 'providers/backoffice_auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/member_auth_provider.dart';
 import 'providers/session_lifecycle_provider.dart';
 import 'providers/subscription_native_purchase_recovery_provider.dart';
 import 'providers/secure_storage_service.dart';
 import 'providers/studio_onboarding_provider.dart';
 import 'services/backoffice_secure_storage.dart';
+import 'services/app_session_preference.dart';
+import 'services/member_secure_storage.dart';
 import 'pages/backoffice/backoffice_shell_page.dart';
 import 'utils/app_bootstrap.dart';
 import 'utils/auth_token_utils.dart';
@@ -62,7 +67,16 @@ class AuthInit extends ConsumerStatefulWidget {
   ConsumerState<AuthInit> createState() => _AuthInitState();
 }
 
-enum StartupDestination { entry, login, main, onboarding, backoffice }
+enum StartupDestination {
+  entry,
+  login,
+  main,
+  onboarding,
+  backoffice,
+  memberRoot,
+  memberStudioSelection,
+  memberNoMemberships,
+}
 
 class _AuthInitState extends ConsumerState<AuthInit> {
   static const _minimumSplashDuration = Duration(milliseconds: 2500);
@@ -94,6 +108,8 @@ class _AuthInitState extends ConsumerState<AuthInit> {
       final assignedSalonIds = await storage.getSalonIds();
       final permissions = await storage.getPermissions();
       final backofficeToken = await backofficeStorage.getToken();
+      final memberToken = await MemberSecureStorage().getGlobalToken();
+      final activeSurface = await AppSessionPreference().getActiveSurface();
       final backofficeRouteDecision = resolveBackofficeRouteDecision(
         isWeb: kIsWeb,
         path: Uri.base.path,
@@ -116,7 +132,27 @@ class _AuthInitState extends ConsumerState<AuthInit> {
             backofficeRouteDecision == BackofficeRouteDecision.backofficeShell
             ? StartupDestination.backoffice
             : StartupDestination.entry;
-      } else if (tenantToken != null && tenantToken.isNotEmpty) {
+      } else if (activeSurface == AppSessionSurface.member &&
+          memberToken != null &&
+          memberToken.isNotEmpty) {
+        await ref.read(memberAuthProvider.notifier).restore();
+        switch (ref.read(memberAuthProvider).status) {
+          case MemberSessionStatus.ready:
+            _startupDestination = StartupDestination.memberRoot;
+            break;
+          case MemberSessionStatus.needsStudioSelection:
+            _startupDestination = StartupDestination.memberStudioSelection;
+            break;
+          case MemberSessionStatus.noMemberships:
+            _startupDestination = StartupDestination.memberNoMemberships;
+            break;
+          default:
+            _startupDestination = StartupDestination.entry;
+        }
+      } else if ((activeSurface == AppSessionSurface.staff ||
+              (activeSurface == null && memberToken == null)) &&
+          tenantToken != null &&
+          tenantToken.isNotEmpty) {
         if (isJwtExpired(tenantToken)) {
           await ref.read(sessionLifecycleControllerProvider).logout();
           _startupDestination = StartupDestination.login;
@@ -383,6 +419,12 @@ class MyApp extends ConsumerWidget {
         return const StudioOnboardingPage();
       case StartupDestination.backoffice:
         return const BackofficeShellPage();
+      case StartupDestination.memberRoot:
+        return const MemberRootPage();
+      case StartupDestination.memberStudioSelection:
+        return const MemberStudioSelectionPage();
+      case StartupDestination.memberNoMemberships:
+        return const MemberNoMembershipsPage();
     }
   }
 }

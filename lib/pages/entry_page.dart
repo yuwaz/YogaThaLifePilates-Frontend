@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
-import 'login_page.dart';
+import 'login_choice_page.dart';
 import 'studio_registration_page.dart';
 import '../theme/app_design_tokens.dart';
 
@@ -60,7 +60,7 @@ class EntryPage extends StatelessWidget {
                         onPressed: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => const LoginPage(),
+                              builder: (_) => const LoginChoicePage(),
                             ),
                           );
                         },

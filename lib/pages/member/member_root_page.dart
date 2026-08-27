@@ -1,0 +1,245 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../providers/member_auth_provider.dart';
+import '../../providers/member_self_provider.dart';
+import '../../theme/app_design_tokens.dart';
+import 'member_details_page.dart';
+import 'member_profile_page.dart';
+import 'member_settings_page.dart';
+
+class MemberRootPage extends ConsumerStatefulWidget {
+  const MemberRootPage({super.key});
+
+  @override
+  ConsumerState<MemberRootPage> createState() => _MemberRootPageState();
+}
+
+class _MemberRootPageState extends ConsumerState<MemberRootPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(memberSelfProvider.notifier).loadHome();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final auth = ref.watch(memberAuthProvider);
+    final self = ref.watch(memberSelfProvider);
+    final profile = self.profile;
+    final upcomingReservations =
+        (self.reservations ?? [])
+            .where((item) => item.date?.isAfter(DateTime.now()) ?? false)
+            .toList()
+          ..sort(
+            (a, b) =>
+                (a.date ?? DateTime(2100)).compareTo(b.date ?? DateTime(2100)),
+          );
+    if (!auth.hasContext) return const SizedBox.shrink();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(loc?.translate('memberHome') ?? 'Home'),
+        actions: [
+          IconButton(
+            tooltip: loc?.translate('memberProfile') ?? 'Profile',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MemberProfilePage()),
+            ),
+          ),
+          IconButton(
+            tooltip: loc?.translate('settings') ?? 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MemberSettingsPage()),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: RefreshIndicator(
+              onRefresh: () => ref.read(memberSelfProvider.notifier).loadHome(),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(
+                    auth.selectedMembership?.studioName ?? '',
+                    style: AppTypography.sectionTitle,
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Icon(Icons.qr_code_2, size: 64),
+                          const SizedBox(height: 8),
+                          Text(
+                            loc?.translate('memberCheckInComingSoon') ??
+                                'Check-in will be available here soon.',
+                            style: AppTypography.body,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (self.isLoading) const LinearProgressIndicator(),
+                  if (self.error != null)
+                    _ErrorCard(
+                      onRetry: () =>
+                          ref.read(memberSelfProvider.notifier).loadHome(),
+                    ),
+                  if (profile != null) ...[
+                    _SummaryCard(
+                      title:
+                          loc?.translate('remainingLessons') ??
+                          'Remaining lessons',
+                      value: profile.remainingLessons.toString(),
+                    ),
+                    const SizedBox(height: 8),
+                    _SummaryCard(
+                      title: loc?.translate('memberTotalDebt') ?? 'Total debt',
+                      value: profile.totalDebt.toStringAsFixed(2),
+                    ),
+                  ],
+                  if (upcomingReservations.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      loc?.translate('memberNextReservation') ??
+                          'Next reservation',
+                      style: AppTypography.cardTitle,
+                    ),
+                    const SizedBox(height: 6),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.calendar_today_outlined),
+                        title: Text(
+                          _formatDate(upcomingReservations.first.date),
+                        ),
+                        subtitle: Text(upcomingReservations.first.time),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: AppButtonStyles.secondary,
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MemberDetailsPage(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.list_alt_outlined),
+                    label: Text(loc?.translate('memberDetails') ?? 'Details'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '-';
+    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final String value;
+  const _SummaryCard({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: AppTypography.body),
+          Text(value, style: AppTypography.numericKpi),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ErrorCard extends StatelessWidget {
+  final Future<void> Function() onRetry;
+  const _ErrorCard({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Card(
+      child: ListTile(
+        title: Text(
+          loc?.translate('memberDataError') ??
+              'Your information could not be loaded.',
+        ),
+        trailing: IconButton(
+          tooltip: loc?.translate('retry') ?? 'Retry',
+          icon: const Icon(Icons.refresh),
+          onPressed: onRetry,
+        ),
+      ),
+    );
+  }
+}
+
+class MemberNoMembershipsPage extends ConsumerWidget {
+  const MemberNoMembershipsPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(loc?.translate('memberHome') ?? 'Home')),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    loc?.translate('memberNoMemberships') ??
+                        'No accessible studio membership is available.',
+                    style: AppTypography.body,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    style: AppButtonStyles.destructive,
+                    onPressed: () async {
+                      await ref.read(memberAuthProvider.notifier).logout();
+                      if (!context.mounted) return;
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+                    icon: const Icon(Icons.logout),
+                    label: Text(loc?.translate('logout') ?? 'Logout'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
