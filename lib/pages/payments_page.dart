@@ -15,6 +15,7 @@ import '../models/payment.dart';
 import '../l10n/app_localizations.dart';
 import 'member_payment_details_page.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/action_feedback.dart';
 import '../theme/app_design_tokens.dart';
 
 // PaymentFormDialog for adding a payment
@@ -1081,8 +1082,10 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              loc?.translate('add') ??
-                                                  'Payment added successfully',
+                                              actionSuccessMessage(
+                                                context,
+                                                ActionFeedback.paymentCreate,
+                                              ),
                                             ),
                                             backgroundColor:
                                                 AppDesignTokens.success,
@@ -1096,7 +1099,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                           context,
                                         ).showSnackBar(
                                           SnackBar(
-                                            content: Text(result),
+                                            content: Text(
+                                              actionFailureMessage(
+                                                context,
+                                                ActionFeedback.paymentCreate,
+                                                result,
+                                              ),
+                                            ),
                                             backgroundColor: Colors.red,
                                           ),
                                         );
@@ -1297,9 +1306,12 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
-                                            const SnackBar(
+                                            SnackBar(
                                               content: Text(
-                                                'Gider güncellendi',
+                                                actionSuccessMessage(
+                                                  context,
+                                                  ActionFeedback.expenseUpdate,
+                                                ),
                                               ),
                                               backgroundColor:
                                                   AppDesignTokens.success,
@@ -1311,7 +1323,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(result),
+                                              content: Text(
+                                                actionFailureMessage(
+                                                  context,
+                                                  ActionFeedback.expenseUpdate,
+                                                  result,
+                                                ),
+                                              ),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
@@ -1367,8 +1385,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Gider silindi'),
+                                            SnackBar(
+                                              content: Text(
+                                                actionSuccessMessage(
+                                                  context,
+                                                  ActionFeedback.expenseDelete,
+                                                ),
+                                              ),
                                               backgroundColor:
                                                   AppDesignTokens.success,
                                             ),
@@ -1378,7 +1401,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(error),
+                                              content: Text(
+                                                actionFailureMessage(
+                                                  context,
+                                                  ActionFeedback.expenseDelete,
+                                                  error,
+                                                ),
+                                              ),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
@@ -1421,8 +1450,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                       .fetchExpenses(widget.token);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Gider eklendi'),
+                      SnackBar(
+                        content: Text(
+                          actionSuccessMessage(
+                            context,
+                            ActionFeedback.expenseCreate,
+                          ),
+                        ),
                         backgroundColor: AppDesignTokens.success,
                       ),
                     );
@@ -1430,7 +1464,13 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                 } else if (result is String && result.isNotEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(result),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          ActionFeedback.expenseCreate,
+                          result,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );

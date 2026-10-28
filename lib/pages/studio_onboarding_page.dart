@@ -12,6 +12,7 @@ import '../providers/studio_onboarding_provider.dart';
 import '../widgets/logout_button.dart';
 import 'main_page.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 
 const List<String> _memberTypeColorHexes = [
   '#F08080',
@@ -155,7 +156,6 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
       'completeStepBeforeContinuing',
       'Complete this step before continuing.',
     );
-    final genericErrorMessage = _tr(context, 'error', 'Error');
 
     final result = await ref
         .read(studioOnboardingProvider.notifier)
@@ -188,7 +188,14 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
       return;
     }
 
-    _showError(context, result.userMessage ?? genericErrorMessage);
+    _showError(
+      context,
+      actionFailureMessage(
+        context,
+        ActionFeedback.onboardingSetup,
+        result.userMessage,
+      ),
+    );
   }
 
   Future<void> _createSalon() async {
@@ -207,12 +214,18 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
 
     final err = ref.read(salonsProvider).error;
     if (err != null && err.trim().isNotEmpty) {
-      _showError(context, err);
+      _showError(
+        context,
+        actionFailureMessage(context, ActionFeedback.salonCreate, err),
+      );
       return;
     }
 
     _salonNameController.clear();
-    _showInfo(context, _tr(context, 'salonSaved', 'Salon saved'));
+    _showInfo(
+      context,
+      actionSuccessMessage(context, ActionFeedback.salonCreate),
+    );
   }
 
   Future<void> _createMemberType() async {
@@ -250,14 +263,20 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
     final err = ref.read(member_types.memberTypesProvider).error;
 
     if (err != null && err.trim().isNotEmpty) {
-      _showError(context, err);
+      _showError(
+        context,
+        actionFailureMessage(context, ActionFeedback.memberTypeCreate, err),
+      );
       return;
     }
 
     _memberTypeNameController.clear();
     _memberTypeCardBased = false;
     _memberTypeCardFeeController.clear();
-    _showInfo(context, _tr(context, 'save', 'Save'));
+    _showInfo(
+      context,
+      actionSuccessMessage(context, ActionFeedback.memberTypeCreate),
+    );
   }
 
   Future<void> _createPaymentMethod() async {
@@ -278,12 +297,18 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
 
     final err = ref.read(payment_methods.paymentMethodsProvider).error;
     if (err != null && err.trim().isNotEmpty) {
-      _showError(context, err);
+      _showError(
+        context,
+        actionFailureMessage(context, ActionFeedback.paymentMethodCreate, err),
+      );
       return;
     }
 
     _paymentMethodNameController.clear();
-    _showInfo(context, _tr(context, 'save', 'Save'));
+    _showInfo(
+      context,
+      actionSuccessMessage(context, ActionFeedback.paymentMethodCreate),
+    );
   }
 
   Future<void> _createEquipment() async {
@@ -325,12 +350,18 @@ class _StudioOnboardingPageState extends ConsumerState<StudioOnboardingPage> {
 
     final err = ref.read(equipmentProvider).error;
     if (err != null && err.trim().isNotEmpty) {
-      _showError(context, err);
+      _showError(
+        context,
+        actionFailureMessage(context, ActionFeedback.equipmentCreate, err),
+      );
       return;
     }
 
     _equipmentNameController.clear();
-    _showInfo(context, _tr(context, 'save', 'Save'));
+    _showInfo(
+      context,
+      actionSuccessMessage(context, ActionFeedback.equipmentCreate),
+    );
   }
 
   Widget _buildProgress(

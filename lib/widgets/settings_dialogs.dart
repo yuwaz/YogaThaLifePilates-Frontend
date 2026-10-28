@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/action_feedback.dart';
 
 const Color kBrandTextColor = Color(0xFF116478);
 const Color kBrandBackgroundColor = Color(0xFFF6F6D7);
@@ -94,7 +95,13 @@ Future<void> showSalonDialog(
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  '${loc?.translate('error') ?? 'Error'}: $e',
+                                  actionFailureMessage(
+                                    context,
+                                    salon == null
+                                        ? ActionFeedback.salonCreate
+                                        : ActionFeedback.salonUpdate,
+                                    e,
+                                  ),
                                 ),
                                 backgroundColor: Colors.red,
                               ),
@@ -290,7 +297,11 @@ Future<void> showInstructorDialog(
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  '${loc?.translate('error') ?? 'Error'}: $e',
+                                  actionFailureMessage(
+                                    context,
+                                    ActionFeedback.instructorCreate,
+                                    e,
+                                  ),
                                 ),
                                 backgroundColor: Colors.red,
                               ),

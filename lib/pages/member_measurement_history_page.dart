@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'member_measurement_dialog.dart';
 import '../providers/member_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 import '../utils/measurement_formatter.dart';
 
 class MemberMeasurementHistoryPage extends ConsumerStatefulWidget {
@@ -197,9 +198,14 @@ class _MemberMeasurementHistoryPageState
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Yeni ölçüm kaydedildi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            actionSuccessMessage(context, ActionFeedback.measurementCreate),
+          ),
+          backgroundColor: AppDesignTokens.success,
+        ),
+      );
     }
   }
 

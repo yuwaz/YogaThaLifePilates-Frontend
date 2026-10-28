@@ -14,6 +14,7 @@ import '../providers/salons_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../providers/lesson_packages_provider.dart';
+import '../utils/action_feedback.dart';
 import 'member_detail_page.dart';
 import 'member_edit_dialog.dart';
 
@@ -840,7 +841,14 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(restoreResult),
+                                              content: Text(
+                                                actionFailureMessage(
+                                                  context,
+                                                  ActionFeedback
+                                                      .memberReactivate,
+                                                  restoreResult,
+                                                ),
+                                              ),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
@@ -940,7 +948,12 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                         ).showSnackBar(
                                                           SnackBar(
                                                             content: Text(
-                                                              updateResult,
+                                                              actionFailureMessage(
+                                                                dialogContext,
+                                                                ActionFeedback
+                                                                    .memberUpdate,
+                                                                updateResult,
+                                                              ),
                                                             ),
                                                             backgroundColor:
                                                                 Colors.red,
@@ -1471,7 +1484,12 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                   ).showSnackBar(
                                                     SnackBar(
                                                       content: Text(
-                                                        deleteResult,
+                                                        actionFailureMessage(
+                                                          context,
+                                                          ActionFeedback
+                                                              .memberDeactivate,
+                                                          deleteResult,
+                                                        ),
                                                       ),
                                                       backgroundColor:
                                                           Colors.red,
@@ -1550,7 +1568,14 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                   context,
                                                 ).showSnackBar(
                                                   SnackBar(
-                                                    content: Text(deleteResult),
+                                                    content: Text(
+                                                      actionFailureMessage(
+                                                        context,
+                                                        ActionFeedback
+                                                            .memberDeactivate,
+                                                        deleteResult,
+                                                      ),
+                                                    ),
                                                     backgroundColor: Colors.red,
                                                   ),
                                                 );
@@ -1681,7 +1706,13 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                       if (!dialogContext.mounted) return addResult;
                       ScaffoldMessenger.of(dialogContext).showSnackBar(
                         SnackBar(
-                          content: Text(addResult),
+                          content: Text(
+                            actionFailureMessage(
+                              dialogContext,
+                              ActionFeedback.memberCreate,
+                              addResult,
+                            ),
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );

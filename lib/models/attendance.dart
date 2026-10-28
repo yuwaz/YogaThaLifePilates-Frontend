@@ -5,6 +5,8 @@ class Attendance {
   final int? equipmentId;
   final DateTime date;
   final bool deleted;
+  final int? instructorId;
+  final String? instructorName;
 
   Attendance({
     required this.id,
@@ -13,9 +15,28 @@ class Attendance {
     this.equipmentId,
     required this.date,
     this.deleted = false,
+    this.instructorId,
+    this.instructorName,
   });
 
+  static int? _parseIntId(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   factory Attendance.fromJson(Map<String, dynamic> json) {
+    int? instructorId = _parseIntId(json['instructorId']);
+    String? instructorName;
+    // Staff API returns `Instructor {id, username}`; member-self API uses
+    // lowercase `instructor.name`. Accept both shapes.
+    final rawInstructor = json['Instructor'] ?? json['instructor'];
+    if (rawInstructor is Map) {
+      instructorName = (rawInstructor['username'] ?? rawInstructor['name'])
+          ?.toString();
+      instructorId ??= _parseIntId(rawInstructor['id']);
+    }
     return Attendance(
       id: json['id'],
       memberId: json['memberId'],
@@ -23,6 +44,8 @@ class Attendance {
       equipmentId: json['equipmentId'],
       date: DateTime.parse(json['date']),
       deleted: json['deleted'] ?? false,
+      instructorId: instructorId,
+      instructorName: instructorName,
     );
   }
 
@@ -34,6 +57,8 @@ class Attendance {
       'equipmentId': equipmentId,
       'date': date.toIso8601String(),
       'deleted': deleted,
+      'instructorId': instructorId,
+      'instructorName': instructorName,
     };
   }
 }

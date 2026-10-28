@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/instructors_provider.dart';
 import '../providers/member_provider.dart';
 import '../models/attendance.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
+import '../widgets/instructor_picker_field.dart';
 
 class MemberAttendanceDetailsPage extends ConsumerWidget {
   final int memberId;
@@ -50,6 +54,14 @@ class MemberAttendanceDetailsPage extends ConsumerWidget {
                 '${attendance.date.toString().split(' ')[0]}  ${attendance.date.toString().split(' ')[1].substring(0, 5)}',
                 style: AppTypography.bodyStrong,
               ),
+              subtitle:
+                  attendance.instructorName != null &&
+                      attendance.instructorName!.isNotEmpty
+                  ? Text(
+                      '${AppLocalizations.of(context)?.translate('instructor') ?? 'Eğitmen'}: ${attendance.instructorName}',
+                      style: AppTypography.caption,
+                    )
+                  : null,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -58,11 +70,16 @@ class MemberAttendanceDetailsPage extends ConsumerWidget {
                     style: AppButtonStyles.compactIcon,
                     tooltip: 'Edit',
                     onPressed: () async {
-                      final result = await showDialog<DateTime>(
-                        context: context,
-                        builder: (ctx) =>
-                            _EditAttendanceDialog(attendance: attendance),
-                      );
+                      final result =
+                          await showDialog<
+                            ({DateTime date, int? instructorId})
+                          >(
+                            context: context,
+                            builder: (ctx) => _EditAttendanceDialog(
+                              attendance: attendance,
+                              token: token,
+                            ),
+                          );
 
                       if (result != null) {
                         final updatedAttendance = Attendance(
@@ -70,11 +87,12 @@ class MemberAttendanceDetailsPage extends ConsumerWidget {
                           memberId: attendance.memberId,
                           salonId: attendance.salonId,
                           equipmentId: attendance.equipmentId,
-                          date: result,
+                          date: result.date,
                           deleted: attendance.deleted,
+                          instructorId: result.instructorId,
                         );
 
-                        await ref
+                        final updateError = await ref
                             .read(attendanceProvider.notifier)
                             .updateAttendance(updatedAttendance, token);
                         await ref
@@ -83,6 +101,26 @@ class MemberAttendanceDetailsPage extends ConsumerWidget {
                         await ref
                             .read(memberProvider.notifier)
                             .fetchMembers(token);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              updateError == null
+                                  ? actionSuccessMessage(
+                                      context,
+                                      ActionFeedback.attendanceUpdate,
+                                    )
+                                  : actionFailureMessage(
+                                      context,
+                                      ActionFeedback.attendanceUpdate,
+                                      updateError,
+                                    ),
+                            ),
+                            backgroundColor: updateError == null
+                                ? AppDesignTokens.success
+                                : Colors.red,
+                          ),
+                        );
                       }
                     },
                   ),
@@ -140,136 +178,213 @@ class MemberAttendanceDetailsPage extends ConsumerWidget {
   }
 }
 
-class _EditAttendanceDialog extends StatefulWidget {
+class _EditAttendanceDialog extends ConsumerStatefulWidget {
   final Attendance attendance;
+  final String token;
 
-  const _EditAttendanceDialog({required this.attendance});
+  const _EditAttendanceDialog({required this.attendance, required this.token});
 
   @override
-  State<_EditAttendanceDialog> createState() => _EditAttendanceDialogState();
+  ConsumerState<_EditAttendanceDialog> createState() =>
+      _EditAttendanceDialogState();
 }
 
-class _EditAttendanceDialogState extends State<_EditAttendanceDialog> {
+class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
   late DateTime _selectedDateTime;
+  int? _selectedInstructorId;
 
   @override
   void initState() {
     super.initState();
     _selectedDateTime = widget.attendance.date;
+    // Legacy records may have no instructor; leave the picker unselected so
+    // the user must choose explicitly instead of silently attributing the
+    // record to the logged-in user.
+    _selectedInstructorId = widget.attendance.instructorId;
   }
 
   @override
   Widget build(BuildContext context) {
+    final instructorsState = ref.watch(instructorsProvider);
+    final instructors = instructorsState.instructors;
+    final instructorsLoading = instructorsState.isLoading;
+    final instructorsError = instructorsState.error;
+    // Never save without an explicitly resolved valid instructorId.
+    final instructorSelectionValid =
+        _selectedInstructorId != null &&
+        instructors.any((i) => int.tryParse(i.id) == _selectedInstructorId);
+    final canSubmit =
+        !instructorsLoading &&
+        instructorsError == null &&
+        instructorSelectionValid;
     return AlertDialog(
       backgroundColor: AppDesignTokens.surface,
       title: const Text('Edit Attendance', style: AppTypography.sectionTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: Text(
-              _selectedDateTime.toString().split(' ')[0],
-              style: AppTypography.body,
-            ),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _selectedDateTime,
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2100),
-              );
-
-              if (picked != null) {
-                setState(() {
-                  _selectedDateTime = DateTime(
-                    picked.year,
-                    picked.month,
-                    picked.day,
-                    _selectedDateTime.hour,
-                    _selectedDateTime.minute,
-                  );
-                });
-              }
-            },
-          ),
-          ListTile(
-            title: Text(
-              '${_selectedDateTime.hour.toString().padLeft(2, '0')}:${_selectedDateTime.minute.toString().padLeft(2, '0')}',
-              style: AppTypography.body,
-            ),
-            trailing: const Icon(Icons.access_time),
-            onTap: () async {
-              DateTime tempDateTime = _selectedDateTime;
-
-              final picked = await showModalBottomSheet<DateTime>(
-                context: context,
-                builder: (ctx) {
-                  return SizedBox(
-                    height: 260,
-                    child: Material(
-                      color: AppDesignTokens.surface,
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  icon: const Icon(AppIcons.close, size: 18),
-                                  label: const Text('Cancel'),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () =>
-                                      Navigator.pop(ctx, tempDateTime),
-                                  icon: const Icon(AppIcons.save, size: 18),
-                                  label: const Text('Done'),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: CupertinoDatePicker(
-                              mode: CupertinoDatePickerMode.time,
-                              use24hFormat: true,
-                              initialDateTime: _selectedDateTime,
-                              onDateTimeChanged: (value) {
-                                tempDateTime = DateTime(
-                                  _selectedDateTime.year,
-                                  _selectedDateTime.month,
-                                  _selectedDateTime.day,
-                                  value.hour,
-                                  value.minute,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (instructorsLoading)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)?.translate('loading') ??
+                            'Loading...',
+                        style: AppTypography.caption,
                       ),
                     ),
-                  );
-                },
-              );
+                  ],
+                ),
+              )
+            else if (instructorsError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(
+                              context,
+                            )?.translate('instructorsLoadError') ??
+                            'Instructors could not be loaded.',
+                        style: AppTypography.caption.copyWith(
+                          color: AppDesignTokens.error,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref
+                          .read(instructorsProvider.notifier)
+                          .fetchInstructors(),
+                      child: Text(
+                        AppLocalizations.of(context)?.translate('retry') ??
+                            'Retry',
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              InstructorPickerField(
+                instructors: instructors,
+                selectedInstructorId: _selectedInstructorId,
+                onSelected: (id) => setState(() => _selectedInstructorId = id),
+              ),
+            ListTile(
+              title: Text(
+                _selectedDateTime.toString().split(' ')[0],
+                style: AppTypography.body,
+              ),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDateTime,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
 
-              if (picked != null) {
-                setState(() {
-                  _selectedDateTime = DateTime(
-                    _selectedDateTime.year,
-                    _selectedDateTime.month,
-                    _selectedDateTime.day,
-                    picked.hour,
-                    picked.minute,
-                  );
-                });
-              }
-            },
-          ),
-        ],
+                if (picked != null) {
+                  setState(() {
+                    _selectedDateTime = DateTime(
+                      picked.year,
+                      picked.month,
+                      picked.day,
+                      _selectedDateTime.hour,
+                      _selectedDateTime.minute,
+                    );
+                  });
+                }
+              },
+            ),
+            ListTile(
+              title: Text(
+                '${_selectedDateTime.hour.toString().padLeft(2, '0')}:${_selectedDateTime.minute.toString().padLeft(2, '0')}',
+                style: AppTypography.body,
+              ),
+              trailing: const Icon(Icons.access_time),
+              onTap: () async {
+                DateTime tempDateTime = _selectedDateTime;
+
+                final picked = await showModalBottomSheet<DateTime>(
+                  context: context,
+                  builder: (ctx) {
+                    return SizedBox(
+                      height: 260,
+                      child: Material(
+                        color: AppDesignTokens.surface,
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    icon: const Icon(AppIcons.close, size: 18),
+                                    label: const Text('Cancel'),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, tempDateTime),
+                                    icon: const Icon(AppIcons.save, size: 18),
+                                    label: const Text('Done'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: CupertinoDatePicker(
+                                mode: CupertinoDatePickerMode.time,
+                                use24hFormat: true,
+                                initialDateTime: _selectedDateTime,
+                                onDateTimeChanged: (value) {
+                                  tempDateTime = DateTime(
+                                    _selectedDateTime.year,
+                                    _selectedDateTime.month,
+                                    _selectedDateTime.day,
+                                    value.hour,
+                                    value.minute,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+
+                if (picked != null) {
+                  setState(() {
+                    _selectedDateTime = DateTime(
+                      _selectedDateTime.year,
+                      _selectedDateTime.month,
+                      _selectedDateTime.day,
+                      picked.hour,
+                      picked.minute,
+                    );
+                  });
+                }
+              },
+            ),
+          ],
+        ),
       ),
       actions: [
         OutlinedButton.icon(
@@ -280,7 +395,14 @@ class _EditAttendanceDialogState extends State<_EditAttendanceDialog> {
         ),
         ElevatedButton.icon(
           style: AppButtonStyles.primary,
-          onPressed: () => Navigator.pop(context, _selectedDateTime),
+          onPressed: !canSubmit
+              ? null
+              : () {
+                  Navigator.pop(context, (
+                    date: _selectedDateTime,
+                    instructorId: _selectedInstructorId,
+                  ));
+                },
           icon: const Icon(AppIcons.save, size: 18),
           label: const Text('Save'),
         ),

@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/attendance.dart';
+import '../models/subscription_purchase_scope.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/instructors_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/instructor_picker_field.dart';
 import 'member_attendance_details_page.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 
 class AttendancePage extends ConsumerStatefulWidget {
   final String token;
@@ -182,7 +186,10 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      loc?.translate('attendanceMarked') ?? 'Attendance marked',
+                      actionSuccessMessage(
+                        context,
+                        ActionFeedback.attendanceCreate,
+                      ),
                     ),
                     backgroundColor: AppDesignTokens.success,
                   ),
@@ -453,10 +460,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                                   ).showSnackBar(
                                                     SnackBar(
                                                       content: Text(
-                                                        loc?.translate(
-                                                              'attendanceMarked',
-                                                            ) ??
-                                                            'Attendance marked',
+                                                        actionSuccessMessage(
+                                                          context,
+                                                          ActionFeedback
+                                                              .attendanceCreate,
+                                                        ),
                                                       ),
                                                       backgroundColor:
                                                           AppDesignTokens
@@ -562,6 +570,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
                                                 AppDesignTokens.textSecondary,
                                           ),
                                         ),
+                                        if (a.instructorName != null &&
+                                            a.instructorName!.isNotEmpty)
+                                          Text(
+                                            '${loc?.translate('instructor') ?? 'Eğitmen'}: ${a.instructorName}',
+                                            style: AppTypography.caption
+                                                .copyWith(
+                                                  color: AppDesignTokens
+                                                      .textSecondary,
+                                                ),
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -598,7 +616,7 @@ InputDecoration _attendanceInputDecoration(String label) {
   );
 }
 
-class _AddAttendanceDialog extends StatefulWidget {
+class _AddAttendanceDialog extends ConsumerStatefulWidget {
   final List members;
   final String token;
   final WidgetRef ref;
@@ -614,11 +632,15 @@ class _AddAttendanceDialog extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<_AddAttendanceDialog> createState() => _AddAttendanceDialogState();
+  ConsumerState<_AddAttendanceDialog> createState() =>
+      _AddAttendanceDialogState();
 }
 
-class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
+class _AddAttendanceDialogState extends ConsumerState<_AddAttendanceDialog> {
   int? _selectedMemberId;
+  int? _selectedInstructorId;
+  int? _currentUserId;
+  bool _didApplyInstructorDefault = false;
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _memberPreselected = false;
@@ -626,6 +648,9 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
   @override
   void initState() {
     super.initState();
+    _currentUserId = parseSubscriptionPurchaseScopeIdentityFromAuthToken(
+      widget.token,
+    )?.userId;
     if (widget.initialMember != null) {
       _selectedMemberId = widget.initialMember.id;
       _memberPreselected = true;
@@ -635,132 +660,207 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final instructorsState = ref.watch(instructorsProvider);
+    final instructors = instructorsState.instructors;
+    final instructorsLoading = instructorsState.isLoading;
+    final instructorsError = instructorsState.error;
+    // Default to the logged-in user once the eligible list is available.
+    if (!_didApplyInstructorDefault && instructors.isNotEmpty) {
+      _didApplyInstructorDefault = true;
+      final userId = _currentUserId;
+      if (userId != null &&
+          instructors.any((i) => int.tryParse(i.id) == userId)) {
+        _selectedInstructorId = userId;
+      }
+    }
+    // Never submit without an explicitly resolved valid instructorId.
+    final instructorSelectionValid =
+        _selectedInstructorId != null &&
+        instructors.any((i) => int.tryParse(i.id) == _selectedInstructorId);
+    final canSubmit =
+        !instructorsLoading &&
+        instructorsError == null &&
+        instructorSelectionValid;
     return AlertDialog(
       backgroundColor: AppDesignTokens.surface,
       title: Text(
         loc?.translate('addAttendance') ?? 'Add Attendance',
         style: AppTypography.sectionTitle,
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<int>(
-            value: _selectedMemberId,
-            items: widget.members
-                .map<DropdownMenuItem<int>>(
-                  (member) => DropdownMenuItem(
-                    value: member.id,
-                    child: Text(member.name),
-                  ),
-                )
-                .toList(),
-            onChanged: _memberPreselected
-                ? null
-                : (value) => setState(() => _selectedMemberId = value),
-            decoration: _attendanceInputDecoration(
-              loc?.translate('member') ?? 'Member',
-            ),
-          ),
-          ListTile(
-            title: Text(
-              _selectedDate.toString().split(' ')[0],
-              style: AppTypography.body,
-            ),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2100),
-              );
-              if (picked != null) setState(() => _selectedDate = picked);
-            },
-          ),
-          ListTile(
-            title: Text(
-              '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-              style: AppTypography.body,
-            ),
-            trailing: const Icon(Icons.access_time),
-            onTap: () async {
-              int tempHour = _selectedTime.hour;
-              int tempMinute = _selectedTime.minute;
-              await showModalBottomSheet(
-                context: context,
-                builder: (context) {
-                  return Container(
-                    height: 250,
-                    color: AppDesignTokens.surface,
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: CupertinoPicker(
-                                  scrollController: FixedExtentScrollController(
-                                    initialItem: tempHour,
-                                  ),
-                                  itemExtent: 32.0,
-                                  onSelectedItemChanged: (int value) {
-                                    tempHour = value;
-                                  },
-                                  children: List<Widget>.generate(24, (
-                                    int index,
-                                  ) {
-                                    return Center(
-                                      child: Text(
-                                        index.toString().padLeft(2, '0'),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
-                              const Text(":", style: TextStyle(fontSize: 20)),
-                              Expanded(
-                                child: CupertinoPicker(
-                                  scrollController: FixedExtentScrollController(
-                                    initialItem: tempMinute,
-                                  ),
-                                  itemExtent: 32.0,
-                                  onSelectedItemChanged: (int value) {
-                                    tempMinute = value;
-                                  },
-                                  children: List<Widget>.generate(60, (
-                                    int index,
-                                  ) {
-                                    return Center(
-                                      child: Text(
-                                        index.toString().padLeft(2, '0'),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        CupertinoButton(
-                          child: Text(loc?.translate('set') ?? 'Set'),
-                          onPressed: () {
-                            setState(() {
-                              _selectedTime = TimeOfDay(
-                                hour: tempHour,
-                                minute: tempMinute,
-                              );
-                            });
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      ],
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<int>(
+              value: _selectedMemberId,
+              items: widget.members
+                  .map<DropdownMenuItem<int>>(
+                    (member) => DropdownMenuItem(
+                      value: member.id,
+                      child: Text(member.name),
                     ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
+                  )
+                  .toList(),
+              onChanged: _memberPreselected
+                  ? null
+                  : (value) => setState(() => _selectedMemberId = value),
+              decoration: _attendanceInputDecoration(
+                loc?.translate('member') ?? 'Member',
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (instructorsLoading)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        loc?.translate('loading') ?? 'Loading...',
+                        style: AppTypography.caption,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (instructorsError != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        loc?.translate('instructorsLoadError') ??
+                            'Instructors could not be loaded.',
+                        style: AppTypography.caption.copyWith(
+                          color: AppDesignTokens.error,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => ref
+                          .read(instructorsProvider.notifier)
+                          .fetchInstructors(),
+                      child: Text(loc?.translate('retry') ?? 'Retry'),
+                    ),
+                  ],
+                ),
+              )
+            else
+              InstructorPickerField(
+                instructors: instructors,
+                selectedInstructorId: _selectedInstructorId,
+                onSelected: (id) => setState(() => _selectedInstructorId = id),
+              ),
+            ListTile(
+              title: Text(
+                _selectedDate.toString().split(' ')[0],
+                style: AppTypography.body,
+              ),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) setState(() => _selectedDate = picked);
+              },
+            ),
+            ListTile(
+              title: Text(
+                '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+                style: AppTypography.body,
+              ),
+              trailing: const Icon(Icons.access_time),
+              onTap: () async {
+                int tempHour = _selectedTime.hour;
+                int tempMinute = _selectedTime.minute;
+                await showModalBottomSheet(
+                  context: context,
+                  builder: (context) {
+                    return Container(
+                      height: 250,
+                      color: AppDesignTokens.surface,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: CupertinoPicker(
+                                    scrollController:
+                                        FixedExtentScrollController(
+                                          initialItem: tempHour,
+                                        ),
+                                    itemExtent: 32.0,
+                                    onSelectedItemChanged: (int value) {
+                                      tempHour = value;
+                                    },
+                                    children: List<Widget>.generate(24, (
+                                      int index,
+                                    ) {
+                                      return Center(
+                                        child: Text(
+                                          index.toString().padLeft(2, '0'),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                                const Text(":", style: TextStyle(fontSize: 20)),
+                                Expanded(
+                                  child: CupertinoPicker(
+                                    scrollController:
+                                        FixedExtentScrollController(
+                                          initialItem: tempMinute,
+                                        ),
+                                    itemExtent: 32.0,
+                                    onSelectedItemChanged: (int value) {
+                                      tempMinute = value;
+                                    },
+                                    children: List<Widget>.generate(60, (
+                                      int index,
+                                    ) {
+                                      return Center(
+                                        child: Text(
+                                          index.toString().padLeft(2, '0'),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          CupertinoButton(
+                            child: Text(loc?.translate('set') ?? 'Set'),
+                            onPressed: () {
+                              setState(() {
+                                _selectedTime = TimeOfDay(
+                                  hour: tempHour,
+                                  minute: tempMinute,
+                                );
+                              });
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ),
       actions: [
         OutlinedButton.icon(
@@ -771,106 +871,118 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
         ),
         ElevatedButton.icon(
           style: AppButtonStyles.primary,
-          onPressed: () async {
-            if (_selectedMemberId == null) return;
-            final dateTime = DateTime(
-              _selectedDate.year,
-              _selectedDate.month,
-              _selectedDate.day,
-              _selectedTime.hour,
-              _selectedTime.minute,
-            );
-            final existingAttendances =
-                widget.ref.read(attendanceProvider).value ?? [];
-            final hasSameDayAttendance = existingAttendances.any((a) {
-              return a.memberId == _selectedMemberId &&
-                  a.date.year == dateTime.year &&
-                  a.date.month == dateTime.month &&
-                  a.date.day == dateTime.day;
-            });
+          onPressed: !canSubmit
+              ? null
+              : () async {
+                  if (_selectedMemberId == null) return;
+                  final dateTime = DateTime(
+                    _selectedDate.year,
+                    _selectedDate.month,
+                    _selectedDate.day,
+                    _selectedTime.hour,
+                    _selectedTime.minute,
+                  );
+                  final existingAttendances =
+                      widget.ref.read(attendanceProvider).value ?? [];
+                  final hasSameDayAttendance = existingAttendances.any((a) {
+                    return a.memberId == _selectedMemberId &&
+                        a.date.year == dateTime.year &&
+                        a.date.month == dateTime.month &&
+                        a.date.day == dateTime.day;
+                  });
 
-            if (hasSameDayAttendance) {
-              final confirmDuplicate = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Tekrar yoklama alınsın mı?'),
-                  content: const Text(
-                    'Bu üye için bugün zaten yoklama alınmış. Yine de tekrar yoklama almak istiyor musunuz?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text('Vazgeç'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Evet, Yoklama Al'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmDuplicate != true) {
-                return;
-              }
-            }
-            // Find the selected member's assignedSalonIds
-            final member = widget.members.firstWhere(
-              (m) => m.id == _selectedMemberId,
-            );
-            // --- Attendance eligibility logic update (memberType lookup, no provider) ---
-            MemberType? memberType;
-            try {
-              memberType = widget.memberTypes.firstWhere(
-                (t) => t.id.toString() == member.memberTypeId.toString(),
-              );
-            } catch (_) {
-              memberType = null;
-            }
-            final isCardBased = memberType?.isCardBased == true;
-            if (member.remainingLessons <= 0 && !isCardBased) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Kalan ders yok, yoklama alınamaz.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-              return;
-            }
-            int? selectedSalonId;
-            if (member.assignedSalonIds is List &&
-                member.assignedSalonIds.isNotEmpty) {
-              if (member.assignedSalonIds.length == 1) {
-                selectedSalonId = member.assignedSalonIds.first;
-              } else {
-                selectedSalonId = member.assignedSalonIds.first;
-              }
-            } else {
-              selectedSalonId = null;
-            }
-            final attendance = Attendance(
-              id: 0, // id will be set by backend
-              memberId: _selectedMemberId!,
-              salonId: selectedSalonId!, // type fix: int? to int
-              date: dateTime,
-            );
-            print(
-              '[attendance] ADD SUBMIT memberId: ${attendance.memberId}, salonId: ${attendance.salonId}, date: ${attendance.date.toIso8601String()}',
-            );
-            final result = await widget.ref
-                .read(attendanceProvider.notifier)
-                .addAttendance(attendance, widget.token);
-            if (result == null) {
-              Navigator.pop(context, true); // success
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result), backgroundColor: Colors.red),
-                );
-              }
-            }
-          },
+                  if (hasSameDayAttendance) {
+                    final confirmDuplicate = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Tekrar yoklama alınsın mı?'),
+                        content: const Text(
+                          'Bu üye için bugün zaten yoklama alınmış. Yine de tekrar yoklama almak istiyor musunuz?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Vazgeç'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: const Text('Evet, Yoklama Al'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmDuplicate != true) {
+                      return;
+                    }
+                  }
+                  // Find the selected member's assignedSalonIds
+                  final member = widget.members.firstWhere(
+                    (m) => m.id == _selectedMemberId,
+                  );
+                  // --- Attendance eligibility logic update (memberType lookup, no provider) ---
+                  MemberType? memberType;
+                  try {
+                    memberType = widget.memberTypes.firstWhere(
+                      (t) => t.id.toString() == member.memberTypeId.toString(),
+                    );
+                  } catch (_) {
+                    memberType = null;
+                  }
+                  final isCardBased = memberType?.isCardBased == true;
+                  if (member.remainingLessons <= 0 && !isCardBased) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Kalan ders yok, yoklama alınamaz.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+                  int? selectedSalonId;
+                  if (member.assignedSalonIds is List &&
+                      member.assignedSalonIds.isNotEmpty) {
+                    if (member.assignedSalonIds.length == 1) {
+                      selectedSalonId = member.assignedSalonIds.first;
+                    } else {
+                      selectedSalonId = member.assignedSalonIds.first;
+                    }
+                  } else {
+                    selectedSalonId = null;
+                  }
+                  final attendance = Attendance(
+                    id: 0, // id will be set by backend
+                    memberId: _selectedMemberId!,
+                    salonId: selectedSalonId!, // type fix: int? to int
+                    date: dateTime,
+                    instructorId: _selectedInstructorId,
+                  );
+                  print(
+                    '[attendance] ADD SUBMIT memberId: ${attendance.memberId}, salonId: ${attendance.salonId}, date: ${attendance.date.toIso8601String()}',
+                  );
+                  final result = await widget.ref
+                      .read(attendanceProvider.notifier)
+                      .addAttendance(attendance, widget.token);
+                  if (result == null) {
+                    Navigator.pop(context, true); // success
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            actionFailureMessage(
+                              context,
+                              ActionFeedback.attendanceCreate,
+                              result,
+                            ),
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
           icon: const Icon(AppIcons.save, size: 18),
           label: Text(loc?.translate('add') ?? 'Add'),
         ),

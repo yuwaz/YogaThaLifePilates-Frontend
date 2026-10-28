@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/payment_method_provider.dart';
 import '../providers/payment_provider.dart';
 import '../models/payment.dart';
+import '../utils/action_feedback.dart';
 
 const kBrandTextColor = Color(0xFF116478);
 const kBrandAccentColor = Color(0xFF8CB2AB);
@@ -168,7 +169,13 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(error),
+                        content: Text(
+                          actionFailureMessage(
+                            context,
+                            ActionFeedback.paymentCreate,
+                            error,
+                          ),
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );

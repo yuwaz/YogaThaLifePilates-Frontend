@@ -39,17 +39,21 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
   Future<String?> updateAttendance(Attendance attendance, String token) async {
     lastError = null;
     try {
+      final payload = <String, dynamic>{
+        'memberId': attendance.memberId,
+        'salonId': attendance.salonId,
+        'date': _formatDateOnly(attendance.date),
+      };
+      if (attendance.instructorId != null) {
+        payload['instructorId'] = attendance.instructorId;
+      }
       final response = await http.put(
         Uri.parse('$baseUrl/${attendance.id}'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({
-          'memberId': attendance.memberId,
-          'salonId': attendance.salonId,
-          'date': _formatDateOnly(attendance.date),
-        }),
+        body: json.encode(payload),
       );
       if (response.statusCode == 200) {
         _clearSignal();
@@ -62,8 +66,9 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
           final body = json.decode(response.body);
           if (body is Map && body['error'] != null) errorMsg = body['error'];
         } catch (_) {}
-        lastError = errorMsg;
-        return errorMsg;
+        // Status code suffix lets action_feedback map to a localized reason.
+        lastError = '$errorMsg (status code: ${response.statusCode})';
+        return lastError;
       }
     } catch (e) {
       lastError = e.toString();
@@ -142,11 +147,15 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
-      final body = json.encode({
+      final payload = <String, dynamic>{
         'memberId': attendance.memberId,
         'salonId': attendance.salonId,
         'date': _formatDateOnly(attendance.date),
-      });
+      };
+      if (attendance.instructorId != null) {
+        payload['instructorId'] = attendance.instructorId;
+      }
+      final body = json.encode(payload);
       print('[attendance] addAttendance URL: $url');
       final response = await http.post(
         Uri.parse(url),
@@ -168,8 +177,9 @@ class AttendanceNotifier extends StateNotifier<AsyncValue<List<Attendance>>> {
           if (respBody is Map && respBody['error'] != null)
             errorMsg = respBody['error'];
         } catch (_) {}
-        lastError = errorMsg;
-        return errorMsg;
+        // Status code suffix lets action_feedback map to a localized reason.
+        lastError = '$errorMsg (status code: ${response.statusCode})';
+        return lastError;
       }
     } catch (e) {
       print('[attendance] addAttendance error: $e');

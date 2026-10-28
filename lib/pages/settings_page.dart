@@ -21,6 +21,7 @@ import '../providers/locale_provider.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/subscription_settings_section.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 import 'login_page.dart';
 
 // Predefined member type colors (must match requirements)
@@ -379,9 +380,17 @@ class _ChangePasswordSectionState
 
     final token = ref.read(authProvider).token;
     if (token == null || token.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Şifre güncellenemedi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            actionFailureMessage(
+              context,
+              ActionFeedback.passwordChange,
+              'no auth token',
+            ),
+          ),
+        ),
+      );
       return;
     }
 
@@ -405,19 +414,31 @@ class _ChangePasswordSectionState
         _confirmPasswordController.clear();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Şifre başarıyla güncellendi')),
+          SnackBar(
+            content: Text(
+              actionSuccessMessage(context, ActionFeedback.passwordChange),
+            ),
+          ),
         );
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Şifre güncellenemedi')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              actionFailureMessage(context, ActionFeedback.passwordChange),
+            ),
+          ),
+        );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Şifre güncellenemedi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            actionFailureMessage(context, ActionFeedback.passwordChange),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -693,9 +714,14 @@ class _InstructorsSection extends ConsumerWidget {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'No auth token found.',
+                                                  actionFailureMessage(
+                                                    context,
+                                                    ActionFeedback
+                                                        .instructorDelete,
+                                                    'no auth token',
+                                                  ),
                                                 ),
                                                 backgroundColor: Colors.red,
                                               ),
@@ -717,9 +743,13 @@ class _InstructorsSection extends ConsumerWidget {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'Instructor deleted successfully',
+                                                  actionSuccessMessage(
+                                                    context,
+                                                    ActionFeedback
+                                                        .instructorDelete,
+                                                  ),
                                                 ),
                                               ),
                                             );
@@ -730,7 +760,14 @@ class _InstructorsSection extends ConsumerWidget {
                                               context,
                                             ).showSnackBar(
                                               SnackBar(
-                                                content: Text('Error: $err'),
+                                                content: Text(
+                                                  actionFailureMessage(
+                                                    context,
+                                                    ActionFeedback
+                                                        .instructorDelete,
+                                                    err,
+                                                  ),
+                                                ),
                                                 backgroundColor: Colors.red,
                                               ),
                                             );
@@ -963,13 +1000,27 @@ void _showInstructorDialog(
                 if (!formKey.currentState!.validate()) return;
                 if (selectedSalonIds.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Select at least one salon')),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(
+                              context,
+                            )?.translate('selectAtLeastOneSalon') ??
+                            'Please select at least one salon.',
+                      ),
+                    ),
                   );
                   return;
                 }
                 if (permissions.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('En az bir yetki seçin')),
+                    SnackBar(
+                      content: Text(
+                        AppLocalizations.of(
+                              context,
+                            )?.translate('selectAtLeastOnePermission') ??
+                            'Please select at least one permission.',
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -1031,9 +1082,12 @@ void _showInstructorDialog(
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          isEdit
-                              ? 'Instructor updated successfully'
-                              : 'Instructor added successfully',
+                          actionSuccessMessage(
+                            context,
+                            isEdit
+                                ? ActionFeedback.instructorUpdate
+                                : ActionFeedback.instructorCreate,
+                          ),
                         ),
                       ),
                     );
@@ -1041,7 +1095,18 @@ void _showInstructorDialog(
                 } else {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(err), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text(
+                          actionFailureMessage(
+                            context,
+                            isEdit
+                                ? ActionFeedback.instructorUpdate
+                                : ActionFeedback.instructorCreate,
+                            err,
+                          ),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
@@ -1052,7 +1117,15 @@ void _showInstructorDialog(
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Exception: ' + e.toString()),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.instructorUpdate
+                              : ActionFeedback.instructorCreate,
+                          e,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -1189,8 +1262,10 @@ void _showResetInstructorPasswordDialog(
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  loc?.translate('instructorPasswordUpdated') ??
-                                      'Instructor password updated',
+                                  actionSuccessMessage(
+                                    context,
+                                    ActionFeedback.instructorPasswordUpdate,
+                                  ),
                                 ),
                               ),
                             );
@@ -1199,7 +1274,13 @@ void _showResetInstructorPasswordDialog(
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(err),
+                                content: Text(
+                                  actionFailureMessage(
+                                    context,
+                                    ActionFeedback.instructorPasswordUpdate,
+                                    err,
+                                  ),
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -1332,8 +1413,10 @@ void _showInstructorFeesDialog(
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  loc?.translate('instructorFeesUpdated') ??
-                                      'Eğitmen ücretleri güncellendi',
+                                  actionSuccessMessage(
+                                    context,
+                                    ActionFeedback.instructorFeesUpdate,
+                                  ),
                                 ),
                               ),
                             );
@@ -1342,7 +1425,13 @@ void _showInstructorFeesDialog(
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(err),
+                                content: Text(
+                                  actionFailureMessage(
+                                    context,
+                                    ActionFeedback.instructorFeesUpdate,
+                                    err,
+                                  ),
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -1470,8 +1559,14 @@ class _LessonPackagesSection extends ConsumerWidget {
                                 if (token == null) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
+                                      SnackBar(
+                                        content: Text(
+                                          actionFailureMessage(
+                                            context,
+                                            ActionFeedback.lessonPackageDelete,
+                                            'no auth token',
+                                          ),
+                                        ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -1487,9 +1582,12 @@ class _LessonPackagesSection extends ConsumerWidget {
                                 if (err == null) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Lesson package deleted successfully',
+                                          actionSuccessMessage(
+                                            context,
+                                            ActionFeedback.lessonPackageDelete,
+                                          ),
                                         ),
                                       ),
                                     );
@@ -1498,7 +1596,13 @@ class _LessonPackagesSection extends ConsumerWidget {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Error: $err'),
+                                        content: Text(
+                                          actionFailureMessage(
+                                            context,
+                                            ActionFeedback.lessonPackageDelete,
+                                            err,
+                                          ),
+                                        ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -1679,9 +1783,12 @@ void _showLessonPackageDialog(
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          isEdit
-                              ? 'Lesson package updated successfully'
-                              : 'Lesson package added successfully',
+                          actionSuccessMessage(
+                            context,
+                            isEdit
+                                ? ActionFeedback.lessonPackageUpdate
+                                : ActionFeedback.lessonPackageCreate,
+                          ),
                         ),
                       ),
                     );
@@ -1689,7 +1796,18 @@ void _showLessonPackageDialog(
                 } else {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(err), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text(
+                          actionFailureMessage(
+                            context,
+                            isEdit
+                                ? ActionFeedback.lessonPackageUpdate
+                                : ActionFeedback.lessonPackageCreate,
+                            err,
+                          ),
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
@@ -1733,7 +1851,15 @@ void _showLessonPackageDialog(
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Exception: ' + e.toString()),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.lessonPackageUpdate
+                              : ActionFeedback.lessonPackageCreate,
+                          e,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -1895,8 +2021,14 @@ class _MemberTypesSection extends ConsumerWidget {
                                 if (token == null) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('No auth token found.'),
+                                      SnackBar(
+                                        content: Text(
+                                          actionFailureMessage(
+                                            context,
+                                            ActionFeedback.memberTypeDelete,
+                                            'no auth token',
+                                          ),
+                                        ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -1914,9 +2046,12 @@ class _MemberTypesSection extends ConsumerWidget {
                                 if (err == null) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Member type deleted successfully',
+                                          actionSuccessMessage(
+                                            context,
+                                            ActionFeedback.memberTypeDelete,
+                                          ),
                                         ),
                                       ),
                                     );
@@ -1925,7 +2060,13 @@ class _MemberTypesSection extends ConsumerWidget {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Error: $err'),
+                                        content: Text(
+                                          actionFailureMessage(
+                                            context,
+                                            ActionFeedback.memberTypeDelete,
+                                            err,
+                                          ),
+                                        ),
                                         backgroundColor: Colors.red,
                                       ),
                                     );
@@ -2153,9 +2294,12 @@ void _showMemberTypeDialog(
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            isEdit
-                                ? 'Üye tipi güncellendi'
-                                : 'Üye tipi eklendi',
+                            actionSuccessMessage(
+                              context,
+                              isEdit
+                                  ? ActionFeedback.memberTypeUpdate
+                                  : ActionFeedback.memberTypeCreate,
+                            ),
                           ),
                         ),
                       );
@@ -2164,7 +2308,15 @@ void _showMemberTypeDialog(
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Backend error: $err'),
+                          content: Text(
+                            actionFailureMessage(
+                              context,
+                              isEdit
+                                  ? ActionFeedback.memberTypeUpdate
+                                  : ActionFeedback.memberTypeCreate,
+                              err,
+                            ),
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -2289,8 +2441,15 @@ class _PaymentMethodsSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('No auth token found.'),
+                                        SnackBar(
+                                          content: Text(
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback
+                                                  .paymentMethodDelete,
+                                              'no auth token',
+                                            ),
+                                          ),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -2314,9 +2473,13 @@ class _PaymentMethodsSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                            'Payment method deleted successfully',
+                                            actionSuccessMessage(
+                                              context,
+                                              ActionFeedback
+                                                  .paymentMethodDelete,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -2328,9 +2491,12 @@ class _PaymentMethodsSection extends ConsumerWidget {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            err.isNotEmpty
-                                                ? err
-                                                : 'Silme işlemi başarısız oldu.',
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback
+                                                  .paymentMethodDelete,
+                                              err,
+                                            ),
                                           ),
                                           backgroundColor: Colors.red,
                                         ),
@@ -2426,9 +2592,12 @@ void _showPaymentMethodDialog(
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isEdit
-                            ? 'Payment method updated successfully'
-                            : 'Payment method added successfully',
+                        actionSuccessMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.paymentMethodUpdate
+                              : ActionFeedback.paymentMethodCreate,
+                        ),
                       ),
                     ),
                   );
@@ -2437,7 +2606,15 @@ void _showPaymentMethodDialog(
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Backend error: $err'),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.paymentMethodUpdate
+                              : ActionFeedback.paymentMethodCreate,
+                          err,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -2549,8 +2726,14 @@ class _SalonsSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('No auth token found.'),
+                                        SnackBar(
+                                          content: Text(
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback.salonDelete,
+                                              'no auth token',
+                                            ),
+                                          ),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -2566,9 +2749,12 @@ class _SalonsSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                            'Salon deleted successfully',
+                                            actionSuccessMessage(
+                                              context,
+                                              ActionFeedback.salonDelete,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -2580,9 +2766,11 @@ class _SalonsSection extends ConsumerWidget {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            err.isNotEmpty
-                                                ? err
-                                                : 'Silme işlemi başarısız oldu.',
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback.salonDelete,
+                                              err,
+                                            ),
                                           ),
                                           backgroundColor: Colors.red,
                                         ),
@@ -2689,9 +2877,12 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isEdit
-                            ? 'Salon updated successfully'
-                            : 'Salon added successfully',
+                        actionSuccessMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.salonUpdate
+                              : ActionFeedback.salonCreate,
+                        ),
                       ),
                     ),
                   );
@@ -2700,7 +2891,15 @@ void _showSalonDialog(BuildContext context, WidgetRef ref, {Salon? salon}) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Backend error: $err'),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.salonUpdate
+                              : ActionFeedback.salonCreate,
+                          err,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -2829,8 +3028,14 @@ class _EquipmentSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('No auth token found.'),
+                                        SnackBar(
+                                          content: Text(
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback.equipmentDelete,
+                                              'no auth token',
+                                            ),
+                                          ),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -2846,9 +3051,12 @@ class _EquipmentSection extends ConsumerWidget {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                            'Equipment deleted successfully',
+                                            actionSuccessMessage(
+                                              context,
+                                              ActionFeedback.equipmentDelete,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -2860,9 +3068,11 @@ class _EquipmentSection extends ConsumerWidget {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            err.isNotEmpty
-                                                ? err
-                                                : 'Silme işlemi başarısız oldu.',
+                                            actionFailureMessage(
+                                              context,
+                                              ActionFeedback.equipmentDelete,
+                                              err,
+                                            ),
                                           ),
                                           backgroundColor: Colors.red,
                                         ),
@@ -3010,9 +3220,12 @@ void _showEquipmentDialog(
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        isEdit
-                            ? 'Equipment updated successfully'
-                            : 'Equipment added successfully',
+                        actionSuccessMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.equipmentUpdate
+                              : ActionFeedback.equipmentCreate,
+                        ),
                       ),
                     ),
                   );
@@ -3021,7 +3234,15 @@ void _showEquipmentDialog(
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Backend error: $err'),
+                      content: Text(
+                        actionFailureMessage(
+                          context,
+                          isEdit
+                              ? ActionFeedback.equipmentUpdate
+                              : ActionFeedback.equipmentCreate,
+                          err,
+                        ),
+                      ),
                       backgroundColor: Colors.red,
                     ),
                   );

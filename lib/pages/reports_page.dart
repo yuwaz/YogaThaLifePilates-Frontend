@@ -6,6 +6,7 @@ import '../providers/member_provider.dart';
 import '../providers/salons_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/action_feedback.dart';
 import '../widgets/manual_card_usage_dialog.dart';
 import 'manual_card_usage_history_page.dart';
 import '../theme/app_design_tokens.dart';
@@ -890,9 +891,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     if (created == true) {
       await _refreshReports();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Manuel kullanım eklendi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            actionSuccessMessage(context, ActionFeedback.manualCardUsageCreate),
+          ),
+          backgroundColor: AppDesignTokens.success,
+        ),
+      );
     }
   }
 

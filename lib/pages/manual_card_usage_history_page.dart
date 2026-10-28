@@ -7,6 +7,7 @@ import '../providers/manual_card_usage_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../widgets/manual_card_usage_dialog.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 
 class ManualCardUsageHistoryPage extends ConsumerStatefulWidget {
   final Future<void> Function()? onManualUsageChanged;
@@ -49,8 +50,14 @@ class _ManualCardUsageHistoryPageState
     if (token == null || !mounted) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Oturum bulunamadı, lütfen tekrar giriş yapın'),
+        SnackBar(
+          content: Text(
+            actionFailureMessage(
+              context,
+              ActionFeedback.manualCardUsageCreate,
+              'no auth token',
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -126,9 +133,14 @@ class _ManualCardUsageHistoryPageState
 
     if (!mounted || created != true) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Manuel kullanım eklendi')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          actionSuccessMessage(context, ActionFeedback.manualCardUsageCreate),
+        ),
+        backgroundColor: AppDesignTokens.success,
+      ),
+    );
     await _refreshHistory(scrollToTop: true);
   }
 
@@ -141,7 +153,12 @@ class _ManualCardUsageHistoryPageState
     if (!mounted || updated != true) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Manuel kullanım güncellendi')),
+      SnackBar(
+        content: Text(
+          actionSuccessMessage(context, ActionFeedback.manualCardUsageUpdate),
+        ),
+        backgroundColor: AppDesignTokens.success,
+      ),
     );
     await _refreshHistory(scrollToTop: false);
   }
@@ -191,14 +208,28 @@ class _ManualCardUsageHistoryPageState
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+            actionFailureMessage(
+              context,
+              ActionFeedback.manualCardUsageDelete,
+              error,
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Manuel kullanım silindi')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          actionSuccessMessage(context, ActionFeedback.manualCardUsageDelete),
+        ),
+        backgroundColor: AppDesignTokens.success,
+      ),
+    );
     await _refreshHistory(scrollToTop: false);
   }
 

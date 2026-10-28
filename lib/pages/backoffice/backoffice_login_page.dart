@@ -7,6 +7,7 @@ import '../../services/backoffice_api_service.dart';
 import '../../services/backoffice_secure_storage.dart';
 import 'backoffice_shell_page.dart';
 import '../../theme/app_design_tokens.dart';
+import '../../utils/action_feedback.dart';
 
 String? parseBackofficeAccessToken(Map<String, dynamic> response) {
   final token = response['accessToken'] ?? response['token'] ?? response['jwt'];
@@ -90,8 +91,14 @@ class _BackofficeLoginPageState extends ConsumerState<BackofficeLoginPage> {
       notifier.setError('Invalid email or password.');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid email or password.'),
+          SnackBar(
+            content: Text(
+              actionFailureMessage(
+                context,
+                ActionFeedback.login,
+                'invalid email or password',
+              ),
+            ),
             backgroundColor: Colors.red,
           ),
         );

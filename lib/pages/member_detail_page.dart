@@ -18,6 +18,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 import '../utils/measurement_formatter.dart';
 
 class MemberDetailPage extends ConsumerStatefulWidget {
@@ -139,7 +140,16 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
         );
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              actionFailureMessage(
+                context,
+                ActionFeedback.reservationDelete,
+                errorMessage,
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -275,9 +285,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       await fetchDetail();
       await _refreshLatestMeasurementDate();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Yeni ölçüm kaydedildi')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              actionSuccessMessage(context, ActionFeedback.measurementCreate),
+            ),
+            backgroundColor: AppDesignTokens.success,
+          ),
+        );
       }
     }
   }

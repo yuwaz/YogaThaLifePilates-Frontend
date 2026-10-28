@@ -7,6 +7,7 @@ import '../models/member.dart';
 import '../providers/auth_provider.dart';
 import '../providers/lesson_packages_provider.dart';
 import '../providers/member_provider.dart';
+import '../utils/action_feedback.dart';
 import '../utils/currency_formatter.dart';
 
 class MemberDetailDialog extends ConsumerWidget {
@@ -114,7 +115,13 @@ class MemberDetailDialog extends ConsumerWidget {
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(error),
+                                  content: Text(
+                                    actionFailureMessage(
+                                      context,
+                                      ActionFeedback.assignedPackageRemove,
+                                      error,
+                                    ),
+                                  ),
                                   backgroundColor: Colors.red,
                                 ),
                               );

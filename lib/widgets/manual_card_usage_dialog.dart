@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../providers/manual_card_usage_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 
 class ManualCardUsageDialog extends ConsumerStatefulWidget {
   final ManualCardUsage? initialUsage;
@@ -68,8 +69,14 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
     if (token == null || token.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Oturum bulunamadı, lütfen tekrar giriş yapın'),
+        SnackBar(
+          content: Text(
+            actionFailureMessage(
+              context,
+              ActionFeedback.manualCardUsageCreate,
+              'no auth token',
+            ),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -103,9 +110,20 @@ class _ManualCardUsageDialogState extends ConsumerState<ManualCardUsageDialog> {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          actionFailureMessage(
+            context,
+            isEdit
+                ? ActionFeedback.manualCardUsageUpdate
+                : ActionFeedback.manualCardUsageCreate,
+            error,
+          ),
+        ),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override

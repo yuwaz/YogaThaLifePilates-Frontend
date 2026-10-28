@@ -18,6 +18,7 @@ import '../providers/subscription_enforcement_provider.dart';
 import '../providers/reservation_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_design_tokens.dart';
+import '../utils/action_feedback.dart';
 
 const int reservationDurationMinutes = 50;
 const double hourRowHeight = 64;
@@ -440,13 +441,26 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
 
     if (errorMessage != null) {
       scaffoldMessenger?.showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+            actionFailureMessage(
+              context,
+              ActionFeedback.reservationMove,
+              errorMessage,
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     scaffoldMessenger?.showSnackBar(
-      const SnackBar(content: Text('Rezervasyon taşındı.')),
+      SnackBar(
+        content: Text(
+          actionSuccessMessage(context, ActionFeedback.reservationMove),
+        ),
+      ),
     );
     if (pageState != null) {
       await pageState._refreshReservationsDataQuick();
@@ -490,7 +504,6 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
     int hour,
     Set<String> slotStartSet,
   ) {
-    final loc = AppLocalizations.of(context);
     final slots = <Widget>[];
     for (final equipment in widget.equipmentList) {
       final hasStartReservation = slotStartSet.contains(
@@ -536,10 +549,15 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                   }
                 }
                 final message = isSuccess
-                    ? (loc?.translate('add') ?? 'Reservation created!')
-                    : (result is String
-                          ? '${loc?.translate('error') ?? 'Error'}: $result'
-                          : (loc?.translate('error') ?? 'Error'));
+                    ? actionSuccessMessage(
+                        context,
+                        ActionFeedback.reservationCreate,
+                      )
+                    : actionFailureMessage(
+                        context,
+                        ActionFeedback.reservationCreate,
+                        result,
+                      );
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(message),
@@ -749,11 +767,28 @@ class _EquipmentReservationGridState extends State<_EquipmentReservationGrid> {
                     if (errorMessage != null && context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(errorMessage),
+                          content: Text(
+                            actionFailureMessage(
+                              context,
+                              ActionFeedback.reservationDelete,
+                              errorMessage,
+                            ),
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
                     } else if (pageState != null && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            actionSuccessMessage(
+                              context,
+                              ActionFeedback.reservationDelete,
+                            ),
+                          ),
+                          backgroundColor: AppDesignTokens.success,
+                        ),
+                      );
                       await pageState._refreshReservationsDataQuick();
                     }
                   }
@@ -1414,11 +1449,15 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                         await _refreshReservationsDataQuick();
                       }
                       final message = isSuccess
-                          ? (loc?.translate('reservationCreated') ??
-                                'Reservation created!')
-                          : (result is String
-                                ? '${loc?.translate('error') ?? 'Error'}: $result'
-                                : (loc?.translate('error') ?? 'Error'));
+                          ? actionSuccessMessage(
+                              context,
+                              ActionFeedback.reservationCreate,
+                            )
+                          : actionFailureMessage(
+                              context,
+                              ActionFeedback.reservationCreate,
+                              result,
+                            );
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(message),

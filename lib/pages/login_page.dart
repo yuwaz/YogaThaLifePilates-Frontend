@@ -11,6 +11,7 @@ import '../providers/session_lifecycle_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
 import '../services/app_session_preference.dart';
 import '../utils/app_bootstrap.dart';
+import '../utils/action_feedback.dart';
 import 'entry_page.dart';
 import 'main_page.dart';
 import 'studio_onboarding_page.dart';
@@ -127,8 +128,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 .setError('Malformed response: missing token or role');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Malformed response: missing token or role'),
+                SnackBar(
+                  content: Text(
+                    actionFailureMessage(context, ActionFeedback.login),
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -209,7 +212,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Malformed backend response: $e'),
+                content: Text(
+                  actionFailureMessage(context, ActionFeedback.login, e),
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -227,7 +232,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ref.read(authProvider.notifier).setError(errorMsg);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(
+                actionFailureMessage(context, ActionFeedback.login, errorMsg),
+              ),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -236,7 +246,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login failed: $e'),
+            content: Text(
+              actionFailureMessage(context, ActionFeedback.login, e),
+            ),
             backgroundColor: Colors.red,
           ),
         );
