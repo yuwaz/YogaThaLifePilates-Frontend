@@ -13,6 +13,9 @@ class Member {
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? deletedAt;
+  // Portal account lifecycle: 'pending' | 'active' | 'disabled'. Null when the
+  // backend does not report it (older responses) — treat as unknown.
+  final String? accountStatus;
   final List<dynamic>? assignedLessonPackages;
   final int? assignedInstructorId;
   final double? height;
@@ -40,6 +43,7 @@ class Member {
     this.isActive = true,
     this.createdAt,
     this.deletedAt,
+    this.accountStatus,
     this.assignedLessonPackages,
     this.assignedInstructorId,
     this.height,
@@ -120,6 +124,16 @@ class Member {
       if (json['deletedAt'] != null) {
         deletedAt = DateTime.tryParse(json['deletedAt'].toString());
       }
+      String? accountStatus;
+      final rawAccountStatus = json['accountStatus'];
+      if (rawAccountStatus != null) {
+        final normalized = rawAccountStatus.toString().trim().toLowerCase();
+        if (normalized == 'pending' ||
+            normalized == 'active' ||
+            normalized == 'disabled') {
+          accountStatus = normalized;
+        }
+      }
       // --- Assigned Instructor Debug ---
       final rawAssignedInstructorId = json['assignedInstructorId'];
       int? parsedAssignedInstructorId;
@@ -158,6 +172,7 @@ class Member {
         isActive: isActive,
         createdAt: createdAt,
         deletedAt: deletedAt,
+        accountStatus: accountStatus,
         assignedLessonPackages: json['assignedLessonPackages'],
         assignedInstructorId: parsedAssignedInstructorId,
         height: _parseNullableDouble(json['height']),

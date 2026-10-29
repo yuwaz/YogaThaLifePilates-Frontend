@@ -162,6 +162,48 @@ class MemberApiService {
     return MemberAuthResponse.fromJson(await _readObject(response));
   }
 
+  /// Reset password using a studio-issued 6-digit recovery code.
+  /// Unauthenticated; identified by the global account login phone.
+  Future<void> resetPassword({
+    required String phone,
+    required String code,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('${ApiConfig.baseUrl}/member-auth/reset-password'),
+      headers: _headers(),
+      body: jsonEncode({
+        'phone': phone.trim(),
+        'code': code.trim(),
+        'password': password,
+        'passwordConfirmation': passwordConfirmation,
+      }),
+    );
+    await _readObject(response);
+  }
+
+  /// Change password for the logged-in member. Uses the GLOBAL member token,
+  /// never the per-studio context token. Backend expects `newPassword` /
+  /// `newPasswordConfirmation` field names.
+  Future<void> changePassword({
+    required String globalToken,
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('${ApiConfig.baseUrl}/member-auth/change-password'),
+      headers: _headers(globalToken),
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': password,
+        'newPasswordConfirmation': passwordConfirmation,
+      }),
+    );
+    await _readObject(response);
+  }
+
   Future<MemberAuthResponse> fetchAccountWithGlobalToken(
     String globalToken,
   ) async {

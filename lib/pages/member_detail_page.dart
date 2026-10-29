@@ -42,6 +42,7 @@ class MemberDetailPage extends ConsumerStatefulWidget {
 class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isGeneratingActivationCode = false;
+  bool _isGeneratingRecoveryCode = false;
 
   final Map<String, String?> _measurements = {
     'Boy': null,
@@ -334,21 +335,64 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
       );
       return;
     }
+    await _showCodeDialog(
+      code: code,
+      title: loc?.translate('activationCode') ?? 'Activation Code',
+      message:
+          loc?.translate('activationCodeGenerated') ??
+          'Share this code with the member.',
+    );
+    // Refresh so an activated account flips from pending to active.
+    await fetchDetail();
+  }
+
+  Future<void> _generateRecoveryCode(Member member) async {
+    if (_isGeneratingRecoveryCode) return;
+    setState(() => _isGeneratingRecoveryCode = true);
+    final code = await ref
+        .read(memberProvider.notifier)
+        .generateRecoveryCode(memberId: member.id, token: widget.token);
+    if (!mounted) return;
+    setState(() => _isGeneratingRecoveryCode = false);
+    final loc = AppLocalizations.of(context);
+    if (code == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            loc?.translate('recoveryCodeGenerationFailed') ??
+                'Recovery code could not be generated.',
+          ),
+          backgroundColor: AppDesignTokens.error,
+        ),
+      );
+      return;
+    }
+    await _showCodeDialog(
+      code: code,
+      title: loc?.translate('recoveryCode') ?? 'Recovery Code',
+      message:
+          loc?.translate('recoveryCodeGenerated') ??
+          'Share this code with the member.',
+    );
+  }
+
+  Future<void> _showCodeDialog({
+    required String code,
+    required String title,
+    required String message,
+  }) async {
+    final loc = AppLocalizations.of(context);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          loc?.translate('activationCode') ?? 'Activation Code',
-          style: AppTypography.sectionTitle,
-        ),
+        title: Text(title, style: AppTypography.sectionTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(code, style: AppTypography.numericKpi),
             const SizedBox(height: 8),
             Text(
-              loc?.translate('activationCodeGenerated') ??
-                  'Share this code with the member.',
+              message,
               style: AppTypography.body,
               textAlign: TextAlign.center,
             ),
@@ -445,6 +489,50 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+
+  Widget _buildAccountStatusRow(Member member, AppLocalizations? loc) {
+    final status = member.accountStatus;
+    final (label, color) = switch (status) {
+      'active' => (
+        loc?.translate('accountStatusActive') ?? 'Active Account',
+        AppDesignTokens.success,
+      ),
+      'disabled' => (
+        loc?.translate('accountStatusDisabled') ?? 'Disabled',
+        AppDesignTokens.error,
+      ),
+      'pending' => (
+        loc?.translate('accountStatusPending') ?? 'Pending Activation',
+        AppDesignTokens.textSecondary,
+      ),
+      _ => (
+        loc?.translate('accountStatusUnknown') ?? 'Unknown',
+        AppDesignTokens.textMuted,
+      ),
+    };
+    return Row(
+      children: [
+        Text(
+          '${loc?.translate('accountStatus') ?? 'Account Status'}: ',
+          style: AppTypography.body,
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -731,25 +819,48 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                         style: AppTypography.sectionTitle,
                       ),
                       const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        style: AppButtonStyles.secondary,
-                        onPressed: _isGeneratingActivationCode
-                            ? null
-                            : () => _generateActivationCode(member),
-                        icon: _isGeneratingActivationCode
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.key_outlined, size: 18),
-                        label: Text(
-                          loc?.translate('generateActivationCode') ??
-                              'Generate Activation Code',
+                      _buildAccountStatusRow(member, loc),
+                      const SizedBox(height: 12),
+                      if (member.accountStatus == 'active')
+                        OutlinedButton.icon(
+                          style: AppButtonStyles.secondary,
+                          onPressed: _isGeneratingRecoveryCode
+                              ? null
+                              : () => _generateRecoveryCode(member),
+                          icon: _isGeneratingRecoveryCode
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.key_outlined, size: 18),
+                          label: Text(
+                            loc?.translate('generateRecoveryCode') ??
+                                'Generate Recovery Code',
+                          ),
+                        )
+                      else if (member.accountStatus == 'pending')
+                        OutlinedButton.icon(
+                          style: AppButtonStyles.secondary,
+                          onPressed: _isGeneratingActivationCode
+                              ? null
+                              : () => _generateActivationCode(member),
+                          icon: _isGeneratingActivationCode
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.key_outlined, size: 18),
+                          label: Text(
+                            loc?.translate('generateActivationCode') ??
+                                'Generate Activation Code',
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

@@ -169,6 +169,16 @@ class _MemberEditDialogState extends ConsumerState<MemberEditDialog> {
                   return null;
                 },
               ),
+              if (widget.member != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  l10n?.translate('memberPhoneIdentityNotice') ??
+                      'This contact phone may differ from the member\'s login phone. Changing it here does not change the login phone.',
+                  style: AppTypography.caption.copyWith(
+                    color: AppDesignTokens.textMuted,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               TextFormField(
                 controller: _emailController,

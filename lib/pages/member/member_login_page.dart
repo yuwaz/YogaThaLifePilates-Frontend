@@ -7,6 +7,7 @@ import '../../providers/member_auth_provider.dart';
 import '../../services/app_session_preference.dart';
 import '../../theme/app_design_tokens.dart';
 import 'member_activation_page.dart';
+import 'member_recovery_page.dart';
 import 'member_root_page.dart';
 import 'member_studio_selection_page.dart';
 
@@ -178,6 +179,19 @@ class _MemberLoginPageState extends ConsumerState<MemberLoginPage> {
                           : Text(loc?.translate('login') ?? 'Login'),
                     ),
                     const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MemberRecoveryPage(),
+                              ),
+                            ),
+                      child: Text(
+                        loc?.translate('forgotPassword') ?? 'Forgot Password',
+                        style: AppTypography.body,
+                      ),
+                    ),
                     TextButton(
                       onPressed: isLoading
                           ? null
