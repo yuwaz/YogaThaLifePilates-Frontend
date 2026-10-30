@@ -153,6 +153,44 @@ void main() {
       expect(registeredTokens, ['fcm-token-1', 'fcm-token-rotated']);
     });
 
+    test('retries getToken until available (iOS APNs timing)', () async {
+      // Simulates iOS: getToken() returns null until the APNs token arrives.
+      final messaging = _FakePushMessagingClient()
+        ..tokenSequence = [null, null, 'fcm-token-delayed'];
+      var callCount = 0;
+      String? registeredToken;
+      final service = PushNotificationService(
+        messaging: messaging,
+        httpClient: MockClient((request) async {
+          callCount++;
+          registeredToken =
+              (jsonDecode(request.body) as Map)['token'] as String;
+          return http.Response(jsonEncode({'registered': true}), 201);
+        }),
+      );
+
+      await service.registerDevice(owner: PushOwner.member, authToken: 't');
+
+      expect(callCount, 1);
+      expect(registeredToken, 'fcm-token-delayed');
+    });
+
+    test('gives up after max retries when token never available', () async {
+      final messaging = _FakePushMessagingClient()..token = null;
+      var callCount = 0;
+      final service = PushNotificationService(
+        messaging: messaging,
+        httpClient: MockClient((_) async {
+          callCount++;
+          return http.Response('{}', 200);
+        }),
+      );
+
+      await service.registerDevice(owner: PushOwner.member, authToken: 't');
+
+      expect(callCount, 0);
+    });
+
     test('does not register when token is null', () async {
       var callCount = 0;
       final messaging = _FakePushMessagingClient()..token = null;
@@ -268,6 +306,8 @@ class _FakePushMessagingClient implements PushMessagingClient {
     providesAppNotificationSettings: AppleNotificationSetting.notSupported,
   );
   String? token;
+  List<String?>? tokenSequence;
+  int _tokenCallCount = 0;
   final StreamController<String> tokenRefreshController =
       StreamController<String>.broadcast();
   final StreamController<RemoteMessage> messageController =
@@ -279,7 +319,17 @@ class _FakePushMessagingClient implements PushMessagingClient {
   Future<NotificationSettings> requestPermission() async => permission;
 
   @override
-  Future<String?> getToken() async => token;
+  Future<String?> getToken() async {
+    final sequence = tokenSequence;
+    if (sequence != null) {
+      final index = _tokenCallCount < sequence.length
+          ? _tokenCallCount
+          : sequence.length - 1;
+      _tokenCallCount++;
+      return sequence[index];
+    }
+    return token;
+  }
 
   @override
   Stream<String> get onTokenRefresh => tokenRefreshController.stream;

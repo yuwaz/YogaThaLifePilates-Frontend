@@ -18,6 +18,7 @@ import 'entry_page.dart';
 import 'main_page.dart';
 import 'studio_onboarding_page.dart';
 import '../theme/app_design_tokens.dart';
+import '../widgets/dismiss_keyboard.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorageService());
 
@@ -300,148 +301,153 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: _studioCodeController,
-                      autocorrect: false,
-                      textCapitalization: TextCapitalization.none,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText:
-                            AppLocalizations.of(
-                              context,
-                            )?.translate('studioCode') ??
-                            'Studio Code',
-                        helperText:
-                            AppLocalizations.of(
-                              context,
-                            )?.translate('studioCodeHelper') ??
-                            'Leave blank if you use the original CepStudio studio.',
-                        labelStyle: AppTypography.label,
-                      ),
-                      style: AppTypography.body,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _usernameController,
-                      autocorrect: false,
-                      textCapitalization: TextCapitalization.none,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText:
-                            AppLocalizations.of(
-                              context,
-                            )?.translate('username') ??
-                            'Username',
-                        labelStyle: AppTypography.label,
-                      ),
-                      style: AppTypography.body,
-                      validator: (v) {
-                        final loc = AppLocalizations.of(context);
-                        return v == null || v.isEmpty
-                            ? (loc?.translate('username') ?? 'Enter username')
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscure,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) {
-                        if (!auth.isLoading) {
-                          _login();
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText:
-                            AppLocalizations.of(
-                              context,
-                            )?.translate('password') ??
-                            'Password',
-                        labelStyle: AppTypography.label,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscure ? Icons.visibility : Icons.visibility_off,
-                            color: AppDesignTokens.textPrimary,
-                          ),
-                          onPressed: () => setState(() => _obscure = !_obscure),
+      body: DismissKeyboard(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: _studioCodeController,
+                        autocorrect: false,
+                        textCapitalization: TextCapitalization.none,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(
+                                context,
+                              )?.translate('studioCode') ??
+                              'Studio Code',
+                          helperText:
+                              AppLocalizations.of(
+                                context,
+                              )?.translate('studioCodeHelper') ??
+                              'Leave blank if you use the original CepStudio studio.',
+                          labelStyle: AppTypography.label,
                         ),
+                        style: AppTypography.body,
                       ),
-                      style: AppTypography.body,
-                      validator: (v) {
-                        final loc = AppLocalizations.of(context);
-                        return v == null || v.isEmpty
-                            ? (loc?.translate('password') ?? 'Enter password')
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    if (auth.error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          auth.error!,
-                          style: AppTypography.body.copyWith(
-                            color: AppDesignTokens.error,
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _usernameController,
+                        autocorrect: false,
+                        textCapitalization: TextCapitalization.none,
+                        textInputAction: TextInputAction.next,
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(
+                                context,
+                              )?.translate('username') ??
+                              'Username',
+                          labelStyle: AppTypography.label,
+                        ),
+                        style: AppTypography.body,
+                        validator: (v) {
+                          final loc = AppLocalizations.of(context);
+                          return v == null || v.isEmpty
+                              ? (loc?.translate('username') ?? 'Enter username')
+                              : null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscure,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          if (!auth.isLoading) {
+                            _login();
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(
+                                context,
+                              )?.translate('password') ??
+                              'Password',
+                          labelStyle: AppTypography.label,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: AppDesignTokens.textPrimary,
+                            ),
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
                           ),
                         ),
+                        style: AppTypography.body,
+                        validator: (v) {
+                          final loc = AppLocalizations.of(context);
+                          return v == null || v.isEmpty
+                              ? (loc?.translate('password') ?? 'Enter password')
+                              : null;
+                        },
                       ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: AppButtonStyles.primary,
-                        onPressed: auth.isLoading ? null : _login,
-                        child: auth.isLoading
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      color: Colors.white,
+                      const SizedBox(height: 24),
+                      if (auth.error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            auth.error!,
+                            style: AppTypography.body.copyWith(
+                              color: AppDesignTokens.error,
+                            ),
+                          ),
+                        ),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: AppButtonStyles.primary,
+                          onPressed: auth.isLoading ? null : _login,
+                          child: auth.isLoading
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Text('Giriş yapılıyor...'),
-                                ],
-                              )
-                            : Text(
-                                AppLocalizations.of(
-                                      context,
-                                    )?.translate('login') ??
-                                    'Login',
-                              ),
-                      ),
-                    ),
-                    if (auth.isLoading) ...[
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Bilgiler güncelleniyor...',
-                        style: TextStyle(
-                          color: AppDesignTokens.textPrimary,
-                          fontWeight: FontWeight.w600,
+                                    SizedBox(width: 10),
+                                    Text('Giriş yapılıyor...'),
+                                  ],
+                                )
+                              : Text(
+                                  AppLocalizations.of(
+                                        context,
+                                      )?.translate('login') ??
+                                      'Login',
+                                ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Lütfen bekleyin',
-                        style: AppTypography.caption,
-                      ),
+                      if (auth.isLoading) ...[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Bilgiler güncelleniyor...',
+                          style: TextStyle(
+                            color: AppDesignTokens.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Lütfen bekleyin',
+                          style: AppTypography.caption,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

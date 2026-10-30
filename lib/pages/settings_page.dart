@@ -18,6 +18,7 @@ import '../providers/salons_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/instructors_provider.dart' show instructorsProvider;
 import '../providers/locale_provider.dart';
+import '../widgets/dismiss_keyboard.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/notification_bell_button.dart';
 import '../widgets/notification_settings_section.dart';
@@ -457,69 +458,71 @@ class _ChangePasswordSectionState
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Şifre Değiştir', style: AppTypography.sectionTitle),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _oldPasswordController,
-              obscureText: true,
-              decoration: _settingsInputDecoration('Mevcut Şifre'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Bu alan zorunludur';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _newPasswordController,
-              obscureText: true,
-              decoration: _settingsInputDecoration('Yeni Şifre'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Bu alan zorunludur';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: _settingsInputDecoration('Yeni Şifre Tekrar'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Bu alan zorunludur';
-                }
-                if (value.trim() != _newPasswordController.text.trim()) {
-                  return 'Yeni şifreler eşleşmiyor';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: AppButtonStyles.primary,
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Güncelle'),
+    return DismissKeyboard(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Şifre Değiştir', style: AppTypography.sectionTitle),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _oldPasswordController,
+                obscureText: true,
+                decoration: _settingsInputDecoration('Mevcut Şifre'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bu alan zorunludur';
+                  }
+                  return null;
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _newPasswordController,
+                obscureText: true,
+                decoration: _settingsInputDecoration('Yeni Şifre'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bu alan zorunludur';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: _settingsInputDecoration('Yeni Şifre Tekrar'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bu alan zorunludur';
+                  }
+                  if (value.trim() != _newPasswordController.text.trim()) {
+                    return 'Yeni şifreler eşleşmiyor';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: AppButtonStyles.primary,
+                  onPressed: _isSubmitting ? null : _submit,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Güncelle'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -7,6 +7,7 @@ import '../../providers/member_auth_provider.dart';
 import '../../providers/member_self_provider.dart';
 import '../../services/app_session_preference.dart';
 import '../../theme/app_design_tokens.dart';
+import '../../widgets/dismiss_keyboard.dart';
 import 'member_login_page.dart';
 import 'member_studio_selection_page.dart';
 
@@ -59,46 +60,51 @@ class MemberSettingsPage extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: Text(loc?.translate('settings') ?? 'Settings'),
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Card(
-                  child: ListTile(
-                    title: Text(
-                      loc?.translate('memberCurrentStudio') ?? 'Current studio',
-                    ),
-                    subtitle: Text(auth.selectedMembership?.studioName ?? '-'),
-                  ),
-                ),
-                if (auth.memberships.length > 1) ...[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    style: AppButtonStyles.secondary,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const MemberStudioSelectionPage(),
+      body: DismissKeyboard(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    child: ListTile(
+                      title: Text(
+                        loc?.translate('memberCurrentStudio') ??
+                            'Current studio',
+                      ),
+                      subtitle: Text(
+                        auth.selectedMembership?.studioName ?? '-',
                       ),
                     ),
-                    icon: const Icon(Icons.swap_horiz),
-                    label: Text(
-                      loc?.translate('memberSwitchStudio') ?? 'Switch studio',
+                  ),
+                  if (auth.memberships.length > 1) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      style: AppButtonStyles.secondary,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MemberStudioSelectionPage(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.swap_horiz),
+                      label: Text(
+                        loc?.translate('memberSwitchStudio') ?? 'Switch studio',
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  const _MemberChangePasswordSection(),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    style: AppButtonStyles.destructive,
+                    onPressed: () => _confirmLogout(context, ref),
+                    icon: const Icon(Icons.logout),
+                    label: Text(loc?.translate('logout') ?? 'Logout'),
                   ),
                 ],
-                const SizedBox(height: 16),
-                const _MemberChangePasswordSection(),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  style: AppButtonStyles.destructive,
-                  onPressed: () => _confirmLogout(context, ref),
-                  icon: const Icon(Icons.logout),
-                  label: Text(loc?.translate('logout') ?? 'Logout'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

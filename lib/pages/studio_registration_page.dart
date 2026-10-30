@@ -12,6 +12,7 @@ import '../providers/secure_storage_service.dart';
 import 'entry_page.dart' show EntryPage;
 import 'studio_onboarding_page.dart';
 import '../theme/app_design_tokens.dart';
+import '../widgets/dismiss_keyboard.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorageService());
 
@@ -366,313 +367,326 @@ class _StudioRegistrationPageState
         iconTheme: const IconThemeData(color: AppDesignTokens.textPrimary),
         elevation: 0,
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final contentMaxWidth = constraints.maxWidth >= 700 ? 440.0 : 520.0;
+      body: DismissKeyboard(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentMaxWidth = constraints.maxWidth >= 700
+                  ? 440.0
+                  : 520.0;
 
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 24,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppDesignTokens.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppDesignTokens.border),
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppDesignTokens.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppDesignTokens.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loc?.translate('studioInformation') ??
+                                      'Studio Information',
+                                  style: AppTypography.cardTitle,
+                                ),
+                                const SizedBox(height: 14),
+                                TextFormField(
+                                  controller: _studioNameController,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('studioName') ??
+                                        'Studio Name',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  validator: (v) =>
+                                      _validateRequired(context, v),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  autocorrect: false,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('email') ?? 'Email',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  validator: (v) => _validateEmail(context, v),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('phone') ?? 'Phone',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _country,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('country') ?? 'Country',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  items: _countryCodes
+                                      .map(
+                                        (code) => DropdownMenuItem<String>(
+                                          value: code,
+                                          child: Text(code),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      _country = value;
+                                      if (!_currencyManuallyChanged) {
+                                        _currency =
+                                            _suggestedCurrencyForCountry(value);
+                                      }
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _currency,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('currency') ??
+                                        'Currency',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  items: _currencyCodes
+                                      .map(
+                                        (code) => DropdownMenuItem<String>(
+                                          value: code,
+                                          child: Text(code),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() {
+                                      _currency = value;
+                                      _currencyManuallyChanged = true;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _timezone,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('timezone') ??
+                                        'Timezone',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  items: _timezones
+                                      .map(
+                                        (tz) => DropdownMenuItem<String>(
+                                          value: tz,
+                                          child: Text(tz),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setState(() => _timezone = value);
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                loc?.translate('studioInformation') ??
-                                    'Studio Information',
-                                style: AppTypography.cardTitle,
-                              ),
-                              const SizedBox(height: 14),
-                              TextFormField(
-                                controller: _studioNameController,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('studioName') ??
-                                      'Studio Name',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppDesignTokens.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppDesignTokens.border),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loc?.translate('ownerAccount') ??
+                                      'Owner Account',
+                                  style: AppTypography.cardTitle,
                                 ),
-                                validator: (v) => _validateRequired(context, v),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                autocorrect: false,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  labelText: loc?.translate('email') ?? 'Email',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                const SizedBox(height: 14),
+                                TextFormField(
+                                  controller: _usernameController,
+                                  autocorrect: false,
+                                  textCapitalization: TextCapitalization.none,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('username') ??
+                                        'Username',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
+                                  validator: (v) =>
+                                      _validateRequired(context, v),
                                 ),
-                                validator: (v) => _validateEmail(context, v),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _phoneController,
-                                keyboardType: TextInputType.phone,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  labelText: loc?.translate('phone') ?? 'Phone',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: _country,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('country') ?? 'Country',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                items: _countryCodes
-                                    .map(
-                                      (code) => DropdownMenuItem<String>(
-                                        value: code,
-                                        child: Text(code),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('password') ??
+                                        'Password',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
                                       ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    _country = value;
-                                    if (!_currencyManuallyChanged) {
-                                      _currency = _suggestedCurrencyForCountry(
-                                        value,
-                                      );
+                                      onPressed: () {
+                                        setState(
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  validator: (v) =>
+                                      _validatePassword(context, v),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: _obscureConfirmPassword,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) {
+                                    if (!_isSubmitting) {
+                                      _submitRegistration();
                                     }
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: _currency,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('currency') ?? 'Currency',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                items: _currencyCodes
-                                    .map(
-                                      (code) => DropdownMenuItem<String>(
-                                        value: code,
-                                        child: Text(code),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() {
-                                    _currency = value;
-                                    _currencyManuallyChanged = true;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: _timezone,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('timezone') ?? 'Timezone',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                items: _timezones
-                                    .map(
-                                      (tz) => DropdownMenuItem<String>(
-                                        value: tz,
-                                        child: Text(tz),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (value) {
-                                  if (value == null) return;
-                                  setState(() => _timezone = value);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppDesignTokens.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppDesignTokens.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                loc?.translate('ownerAccount') ??
-                                    'Owner Account',
-                                style: AppTypography.cardTitle,
-                              ),
-                              const SizedBox(height: 14),
-                              TextFormField(
-                                controller: _usernameController,
-                                autocorrect: false,
-                                textCapitalization: TextCapitalization.none,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('username') ?? 'Username',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                validator: (v) => _validateRequired(context, v),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('password') ?? 'Password',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
+                                  },
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        loc?.translate('confirmPassword') ??
+                                        'Confirm Password',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
-                                    onPressed: () {
-                                      setState(
-                                        () => _obscurePassword =
-                                            !_obscurePassword,
-                                      );
-                                    },
-                                  ),
-                                ),
-                                validator: (v) => _validatePassword(context, v),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _confirmPasswordController,
-                                obscureText: _obscureConfirmPassword,
-                                textInputAction: TextInputAction.done,
-                                onFieldSubmitted: (_) {
-                                  if (!_isSubmitting) {
-                                    _submitRegistration();
-                                  }
-                                },
-                                decoration: InputDecoration(
-                                  labelText:
-                                      loc?.translate('confirmPassword') ??
-                                      'Confirm Password',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirmPassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirmPassword
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                      ),
+                                      onPressed: () {
+                                        setState(
+                                          () => _obscureConfirmPassword =
+                                              !_obscureConfirmPassword,
+                                        );
+                                      },
                                     ),
-                                    onPressed: () {
-                                      setState(
-                                        () => _obscureConfirmPassword =
-                                            !_obscureConfirmPassword,
-                                      );
-                                    },
                                   ),
+                                  validator: (v) =>
+                                      _validateConfirmPassword(context, v),
                                 ),
-                                validator: (v) =>
-                                    _validateConfirmPassword(context, v),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 18),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: AppButtonStyles.primary.copyWith(
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: AppButtonStyles.primary.copyWith(
+                                minimumSize: const WidgetStatePropertyAll(
+                                  Size.fromHeight(52),
+                                ),
+                              ),
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : _submitRegistration,
+                              child: _isSubmitting
+                                  ? Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          loc?.translate('creatingStudio') ??
+                                              'Creating Studio...',
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      loc?.translate('createStudio') ??
+                                          'Create Studio',
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton(
+                            style: AppButtonStyles.secondary.copyWith(
                               minimumSize: const WidgetStatePropertyAll(
-                                Size.fromHeight(52),
+                                Size.fromHeight(50),
                               ),
                             ),
                             onPressed: _isSubmitting
                                 ? null
-                                : _submitRegistration,
-                            child: _isSubmitting
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.2,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        loc?.translate('creatingStudio') ??
-                                            'Creating Studio...',
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    loc?.translate('createStudio') ??
-                                        'Create Studio',
-                                  ),
+                                : () => _goBackToEntry(context),
+                            child: Text(loc?.translate('back') ?? 'Back'),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton(
-                          style: AppButtonStyles.secondary.copyWith(
-                            minimumSize: const WidgetStatePropertyAll(
-                              Size.fromHeight(50),
-                            ),
-                          ),
-                          onPressed: _isSubmitting
-                              ? null
-                              : () => _goBackToEntry(context),
-                          child: Text(loc?.translate('back') ?? 'Back'),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

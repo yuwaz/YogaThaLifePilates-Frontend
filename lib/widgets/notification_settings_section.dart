@@ -7,6 +7,7 @@ import '../models/studio_notification_settings.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_settings_provider.dart';
 import '../theme/app_design_tokens.dart';
+import 'dismiss_keyboard.dart';
 
 /// Admin-only studio notification settings. Switches for categories, numeric
 /// fields for thresholds/lead times, time pickers for quiet hours. Payment
@@ -201,184 +202,188 @@ class _NotificationSettingsSectionState
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Form(
-      key: _formKey,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 720;
-          final sidePadding = isNarrow ? 16.0 : 24.0;
-          return ListView(
-            padding: EdgeInsets.fromLTRB(sidePadding, 16, sidePadding, 24),
-            children: [
-              _SectionCard(
-                title:
-                    loc?.translate('notificationCategories') ??
-                    'Notification Categories',
-                child: Column(
-                  children: [
-                    _SwitchRow(
-                      label:
-                          loc?.translate('classReminderEnabled') ??
-                          'Class reminders',
-                      value: _classReminder,
-                      onChanged: (v) => setState(() => _classReminder = v),
-                    ),
-                    _SwitchRow(
-                      label:
-                          loc?.translate('packageAlertsEnabled') ??
-                          'Package alerts',
-                      value: _packageAlerts,
-                      onChanged: (v) => setState(() => _packageAlerts = v),
-                    ),
-                    _SwitchRow(
-                      label:
-                          loc?.translate('inactivityAlertsEnabled') ??
-                          'Inactivity alerts',
-                      value: _inactivityAlerts,
-                      onChanged: (v) => setState(() => _inactivityAlerts = v),
-                    ),
-                    _SwitchRow(
-                      label:
-                          loc?.translate('paymentAlertsEnabled') ??
-                          'Payment reminders',
-                      value: _paymentAlerts,
-                      onChanged: (v) => setState(() => _paymentAlerts = v),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        loc?.translate('paymentRemindersOptInHint') ??
-                            'Payment reminders are opt-in. Enabling them starts reminders from today onward; past payments are not affected.',
-                        style: AppTypography.caption.copyWith(
-                          color: AppDesignTokens.textMuted,
-                        ),
+    return DismissKeyboard(
+      child: Form(
+        key: _formKey,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 720;
+            final sidePadding = isNarrow ? 16.0 : 24.0;
+            return ListView(
+              padding: EdgeInsets.fromLTRB(sidePadding, 16, sidePadding, 24),
+              children: [
+                _SectionCard(
+                  title:
+                      loc?.translate('notificationCategories') ??
+                      'Notification Categories',
+                  child: Column(
+                    children: [
+                      _SwitchRow(
+                        label:
+                            loc?.translate('classReminderEnabled') ??
+                            'Class reminders',
+                        value: _classReminder,
+                        onChanged: (v) => setState(() => _classReminder = v),
                       ),
-                    ),
-                    if (settings.paymentRemindersActivatedAt != null &&
-                        settings.paymentRemindersActivatedAt!.trim().isNotEmpty)
+                      _SwitchRow(
+                        label:
+                            loc?.translate('packageAlertsEnabled') ??
+                            'Package alerts',
+                        value: _packageAlerts,
+                        onChanged: (v) => setState(() => _packageAlerts = v),
+                      ),
+                      _SwitchRow(
+                        label:
+                            loc?.translate('inactivityAlertsEnabled') ??
+                            'Inactivity alerts',
+                        value: _inactivityAlerts,
+                        onChanged: (v) => setState(() => _inactivityAlerts = v),
+                      ),
+                      _SwitchRow(
+                        label:
+                            loc?.translate('paymentAlertsEnabled') ??
+                            'Payment reminders',
+                        value: _paymentAlerts,
+                        onChanged: (v) => setState(() => _paymentAlerts = v),
+                      ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(
-                          children: [
-                            Text(
-                              '${loc?.translate('paymentRemindersActivatedAt') ?? 'Payment reminders active since'}: ',
-                              style: AppTypography.caption,
-                            ),
-                            Text(
-                              settings.paymentRemindersActivatedAt!,
-                              style: AppTypography.caption.copyWith(
-                                color: AppDesignTokens.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          loc?.translate('paymentRemindersOptInHint') ??
+                              'Payment reminders are opt-in. Enabling them starts reminders from today onward; past payments are not affected.',
+                          style: AppTypography.caption.copyWith(
+                            color: AppDesignTokens.textMuted,
+                          ),
                         ),
                       ),
-                  ],
+                      if (settings.paymentRemindersActivatedAt != null &&
+                          settings.paymentRemindersActivatedAt!
+                              .trim()
+                              .isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              Text(
+                                '${loc?.translate('paymentRemindersActivatedAt') ?? 'Payment reminders active since'}: ',
+                                style: AppTypography.caption,
+                              ),
+                              Text(
+                                settings.paymentRemindersActivatedAt!,
+                                style: AppTypography.caption.copyWith(
+                                  color: AppDesignTokens.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              _SectionCard(
-                title:
-                    loc?.translate('notificationTiming') ??
-                    'Timing & Thresholds',
-                child: Column(
-                  children: [
-                    _NumericField(
-                      controller: _memberReminderController,
-                      label:
-                          loc?.translate('memberReminderMinutes') ??
-                          'Member reminder lead time (minutes)',
-                      field: 'memberReminderMinutes',
-                      validator: _validateInt,
-                      loc: loc,
-                    ),
-                    _NumericField(
-                      controller: _instructorReminderController,
-                      label:
-                          loc?.translate('instructorReminderMinutes') ??
-                          'Instructor reminder lead time (minutes)',
-                      field: 'instructorReminderMinutes',
-                      validator: _validateInt,
-                      loc: loc,
-                    ),
-                    _NumericField(
-                      controller: _lowLessonsController,
-                      label:
-                          loc?.translate('lowLessonsThreshold') ??
-                          'Low lessons threshold',
-                      field: 'lowLessonsThreshold',
-                      validator: _validateInt,
-                      loc: loc,
-                    ),
-                    _NumericField(
-                      controller: _packageExpiryController,
-                      label:
-                          loc?.translate('packageExpiryDays') ??
-                          'Package expiry warning (days)',
-                      field: 'packageExpiryDays',
-                      validator: _validateInt,
-                      loc: loc,
-                    ),
-                    _NumericField(
-                      controller: _inactivityDaysController,
-                      label:
-                          loc?.translate('inactivityDays') ??
-                          'Inactivity period (days)',
-                      field: 'inactivityDays',
-                      validator: _validateInt,
-                      loc: loc,
-                      isLast: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _SectionCard(
-                title: loc?.translate('quietHours') ?? 'Quiet Hours',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TimeField(
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title:
+                      loc?.translate('notificationTiming') ??
+                      'Timing & Thresholds',
+                  child: Column(
+                    children: [
+                      _NumericField(
+                        controller: _memberReminderController,
                         label:
-                            loc?.translate('quietHoursStart') ??
-                            'Quiet hours start',
-                        value: _quietStart,
-                        onTap: () => _pickTime(true),
+                            loc?.translate('memberReminderMinutes') ??
+                            'Member reminder lead time (minutes)',
+                        field: 'memberReminderMinutes',
+                        validator: _validateInt,
+                        loc: loc,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _TimeField(
+                      _NumericField(
+                        controller: _instructorReminderController,
                         label:
-                            loc?.translate('quietHoursEnd') ??
-                            'Quiet hours end',
-                        value: _quietEnd,
-                        onTap: () => _pickTime(false),
+                            loc?.translate('instructorReminderMinutes') ??
+                            'Instructor reminder lead time (minutes)',
+                        field: 'instructorReminderMinutes',
+                        validator: _validateInt,
+                        loc: loc,
                       ),
-                    ),
-                  ],
+                      _NumericField(
+                        controller: _lowLessonsController,
+                        label:
+                            loc?.translate('lowLessonsThreshold') ??
+                            'Low lessons threshold',
+                        field: 'lowLessonsThreshold',
+                        validator: _validateInt,
+                        loc: loc,
+                      ),
+                      _NumericField(
+                        controller: _packageExpiryController,
+                        label:
+                            loc?.translate('packageExpiryDays') ??
+                            'Package expiry warning (days)',
+                        field: 'packageExpiryDays',
+                        validator: _validateInt,
+                        loc: loc,
+                      ),
+                      _NumericField(
+                        controller: _inactivityDaysController,
+                        label:
+                            loc?.translate('inactivityDays') ??
+                            'Inactivity period (days)',
+                        field: 'inactivityDays',
+                        validator: _validateInt,
+                        loc: loc,
+                        isLast: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  style: AppButtonStyles.primary,
-                  onPressed: state.isSaving ? null : _save,
-                  icon: state.isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined, size: 18),
-                  label: Text(loc?.translate('save') ?? 'Save'),
+                const SizedBox(height: 16),
+                _SectionCard(
+                  title: loc?.translate('quietHours') ?? 'Quiet Hours',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _TimeField(
+                          label:
+                              loc?.translate('quietHoursStart') ??
+                              'Quiet hours start',
+                          value: _quietStart,
+                          onTap: () => _pickTime(true),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _TimeField(
+                          label:
+                              loc?.translate('quietHoursEnd') ??
+                              'Quiet hours end',
+                          value: _quietEnd,
+                          onTap: () => _pickTime(false),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    style: AppButtonStyles.primary,
+                    onPressed: state.isSaving ? null : _save,
+                    icon: state.isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 18),
+                    label: Text(loc?.translate('save') ?? 'Save'),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -242,7 +242,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
         Uri.parse('$BASE_URL/$memberId/recovery-code'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': '******',
+          'Authorization': 'Bearer $token',
         },
       );
       if (response.statusCode != 201) {

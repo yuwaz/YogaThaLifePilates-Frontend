@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:frontend/models/member.dart';
+import 'package:frontend/providers/member_provider.dart';
 import 'package:frontend/services/member_api_service.dart';
 
 void main() {
@@ -133,6 +135,34 @@ void main() {
         ),
         throwsA(isA<MemberApiException>()),
       );
+    });
+  });
+
+  group('MemberNotifier.generateRecoveryCode Authorization header', () {
+    // Regression test: generateRecoveryCode must send a Bearer-scheme
+    // Authorization header (a literal masked value would 401 against the
+    // backend, which splits on the space and requires index [1]).
+    test('sends Authorization: Bearer <token>', () async {
+      const token = 'staff-token-abc';
+      String? capturedAuth;
+      String? capturedPath;
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(memberProvider.notifier);
+
+      // runWithClient makes package:http's top-level `post` use our MockClient.
+      await http.runWithClient(
+        () => notifier.generateRecoveryCode(memberId: 7, token: token),
+        () => MockClient((request) async {
+          capturedAuth = request.headers['Authorization'];
+          capturedPath = request.url.path;
+          return http.Response(jsonEncode({'code': '123456'}), 201);
+        }),
+      );
+
+      expect(capturedPath, '/settings/members/7/recovery-code');
+      expect(capturedAuth, 'Bearer $token');
     });
   });
 }

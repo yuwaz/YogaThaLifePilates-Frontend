@@ -120,19 +120,44 @@ class PushNotificationService {
 
   /// Register the current FCM token for the given owner. No-op if the same
   /// token is already registered for this owner (avoids duplicates).
+  ///
+  /// On iOS the FCM token depends on the APNs token, which is delivered
+  /// asynchronously after permission is granted. Calling getToken() immediately
+  /// after requestPermission() can return null, so we retry a few times with a
+  /// short delay before giving up. Never blocks login/navigation.
   Future<void> registerDevice({
     required PushOwner owner,
     required String authToken,
   }) async {
     if (!_isSupported) return;
     try {
-      final fcmToken = await _messaging.getToken();
+      final fcmToken = await _getTokenWithRetry();
       if (fcmToken == null || fcmToken.isEmpty) return;
       if (_registeredToken == fcmToken && _registeredOwner == owner) return;
       await _register(owner, authToken, fcmToken);
     } catch (_) {
       // Never block login/navigation on registration failure.
     }
+  }
+
+  /// Poll getToken() until the FCM token is available (iOS APNs dependency) or
+  /// the attempts are exhausted. Returns null if unavailable.
+  Future<String?> _getTokenWithRetry({
+    int maxAttempts = 5,
+    Duration delay = const Duration(milliseconds: 500),
+  }) async {
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        final token = await _messaging.getToken();
+        if (token != null && token.isNotEmpty) return token;
+      } catch (_) {
+        // Token not ready yet (e.g. APNs token pending on iOS).
+      }
+      if (attempt < maxAttempts - 1) {
+        await Future<void>.delayed(delay);
+      }
+    }
+    return null;
   }
 
   Future<void> _register(
