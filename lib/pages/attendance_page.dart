@@ -11,6 +11,7 @@ import '../providers/member_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/instructor_picker_field.dart';
+import '../widgets/notification_bell_button.dart';
 import 'member_attendance_details_page.dart';
 import '../theme/app_design_tokens.dart';
 import '../utils/action_feedback.dart';
@@ -165,6 +166,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage>
         ),
         elevation: 0,
         actions: [
+          NotificationBellButton(token: token),
           IconButton(
             icon: const Icon(AppIcons.create),
             tooltip: loc?.translate('add') ?? 'Add',

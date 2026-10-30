@@ -297,6 +297,7 @@ void main() {
         invalidateProvider: (provider) {
           invalidated.add(_providerName(provider));
         },
+        unregisterPushDevice: () async {},
       );
 
       await controller.logout();

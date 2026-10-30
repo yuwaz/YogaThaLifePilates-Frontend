@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "986007889861",
+    "project_id": "cepstudio",
+    "storage_bucket": "cepstudio.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:986007889861:android:997dc396be2aad5e2dcdac",
+        "android_client_info": {
+          "package_name": "com.yogatha.pilates"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBk0VK5vRaXOt-aLGIWan_id7ya-lyEeIw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

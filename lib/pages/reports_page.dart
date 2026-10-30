@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/action_feedback.dart';
 import '../widgets/manual_card_usage_dialog.dart';
+import '../widgets/notification_bell_button.dart';
 import 'manual_card_usage_history_page.dart';
 import '../theme/app_design_tokens.dart';
 
@@ -229,6 +230,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ),
         ),
         elevation: 0,
+        actions: [
+          NotificationBellButton(token: auth.token ?? ''),
+          const Padding(padding: EdgeInsets.only(right: 8)),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

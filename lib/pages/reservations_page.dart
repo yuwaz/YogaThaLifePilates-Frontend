@@ -19,6 +19,7 @@ import '../providers/reservation_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_design_tokens.dart';
 import '../utils/action_feedback.dart';
+import '../widgets/notification_bell_button.dart';
 
 const int reservationDurationMinutes = 50;
 const double hourRowHeight = 64;
@@ -1415,6 +1416,7 @@ class _ReservationsPageState extends ConsumerState<ReservationsPage> {
                     _refreshReservationsDataQuick();
                   },
                 ),
+                NotificationBellButton(token: widget.token),
                 IconButton(
                   icon: const Icon(AppIcons.create),
                   tooltip:

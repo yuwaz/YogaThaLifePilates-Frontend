@@ -13,6 +13,7 @@ import 'member_types_provider.dart';
 import 'payment_method_provider.dart';
 import 'payment_methods_provider.dart';
 import 'payment_provider.dart';
+import 'push_notification_provider.dart';
 import 'reports_provider.dart';
 import 'reservation_provider.dart';
 import 'salons_provider.dart';
@@ -34,6 +35,7 @@ class SessionLifecycleController {
   final void Function() _beginSessionTransition;
   final Future<void> Function() _logoutAuth;
   final void Function(ProviderOrFamily provider) _invalidateProvider;
+  final Future<void> Function() _unregisterPushDevice;
 
   const SessionLifecycleController({
     required SecureStorageService storage,
@@ -41,14 +43,22 @@ class SessionLifecycleController {
     required void Function() beginSessionTransition,
     required Future<void> Function() logoutAuth,
     required void Function(ProviderOrFamily provider) invalidateProvider,
+    required Future<void> Function() unregisterPushDevice,
   }) : _storage = storage,
        _runtimeService = runtimeService,
        _beginSessionTransition = beginSessionTransition,
        _logoutAuth = logoutAuth,
-       _invalidateProvider = invalidateProvider;
+       _invalidateProvider = invalidateProvider,
+       _unregisterPushDevice = unregisterPushDevice;
 
   Future<void> logout() async {
     _beginSessionTransition();
+
+    // Unregister the push device before clearing the authenticated session.
+    // Best-effort: network failures never block logout.
+    try {
+      await _unregisterPushDevice();
+    } catch (_) {}
 
     await _runtimeService.stop();
 
@@ -96,6 +106,13 @@ final sessionLifecycleControllerProvider = Provider<SessionLifecycleController>(
           ref.read(authProvider.notifier).beginSessionTransition(),
       logoutAuth: () => ref.read(authProvider.notifier).logout(),
       invalidateProvider: ref.invalidate,
+      unregisterPushDevice: () async {
+        final token = ref.read(authProvider).token;
+        if (token == null || token.isEmpty) return;
+        await ref
+            .read(pushNotificationServiceProvider)
+            .unregisterDevice(authToken: token);
+      },
     );
   },
 );

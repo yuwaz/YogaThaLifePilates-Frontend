@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/member_account.dart';
@@ -5,6 +7,8 @@ import '../models/member_membership.dart';
 import '../services/member_api_service.dart';
 import '../services/app_session_preference.dart';
 import '../services/member_secure_storage.dart';
+import '../services/push_notification_service.dart';
+import 'push_notification_provider.dart';
 
 enum MemberSessionStatus {
   signedOut,
@@ -65,6 +69,8 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
           .read(memberSecureStorageProvider)
           .saveGlobalToken(response.token);
       await _applyAuthentication(response, allowSavedSelection: false);
+      // Register for push after authenticated member login (best-effort).
+      unawaited(_registerPushDevice(response.token));
     } on MemberApiException catch (error) {
       state = MemberAuthState(
         status: MemberSessionStatus.signedOut,
@@ -98,6 +104,8 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
           .read(memberApiServiceProvider)
           .fetchAccountWithGlobalToken(token);
       await _applyAuthentication(response, allowSavedSelection: true);
+      // Restore push registration for the authenticated member session.
+      unawaited(_registerPushDevice(token));
     } on MemberApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await storage.clearMemberAuth();
@@ -218,7 +226,44 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
     }
   }
 
+  /// Register the member device for push using the GLOBAL member token.
+  /// Best-effort: never blocks login/navigation, no-ops on web.
+  Future<void> _registerPushDevice(String globalToken) async {
+    final service = _ref.read(pushNotificationServiceProvider);
+    final granted = await service.requestPermissionIfNeeded();
+    if (!granted) return;
+    await service.registerDevice(
+      owner: PushOwner.member,
+      authToken: globalToken,
+    );
+    unawaited(
+      service
+          .watchTokenRefresh(owner: PushOwner.member, authToken: globalToken)
+          .listen(
+            (newToken) => service.onTokenRefreshed(
+              owner: PushOwner.member,
+              authToken: globalToken,
+              newToken: newToken,
+            ),
+          )
+          .asFuture()
+          .catchError((_) {}),
+    );
+  }
+
   Future<void> logout() async {
+    // Unregister the push device before clearing the member session.
+    // Best-effort: network failures never block logout.
+    try {
+      final token = await _ref
+          .read(memberSecureStorageProvider)
+          .getGlobalToken();
+      if (token != null && token.isNotEmpty) {
+        await _ref
+            .read(pushNotificationServiceProvider)
+            .unregisterDevice(authToken: token);
+      }
+    } catch (_) {}
     await _ref.read(memberSecureStorageProvider).clearMemberAuth();
     state = const MemberAuthState();
   }

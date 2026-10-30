@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,12 +18,15 @@ import 'providers/auth_provider.dart';
 import 'providers/backoffice_auth_provider.dart';
 import 'providers/locale_provider.dart';
 import 'providers/member_auth_provider.dart';
+import 'providers/push_notification_provider.dart';
 import 'providers/session_lifecycle_provider.dart';
+import 'services/push_notification_service.dart';
 import 'providers/subscription_native_purchase_recovery_provider.dart';
 import 'providers/secure_storage_service.dart';
 import 'providers/studio_onboarding_provider.dart';
 import 'services/backoffice_secure_storage.dart';
 import 'services/app_session_preference.dart';
+import 'services/push_notification_coordinator.dart';
 import 'services/member_secure_storage.dart';
 import 'pages/backoffice/backoffice_shell_page.dart';
 import 'utils/app_bootstrap.dart';
@@ -54,10 +59,34 @@ BackofficeRouteDecision resolveBackofficeRouteDecision({
   return BackofficeRouteDecision.backofficeShell;
 }
 
+/// FlutterFire background message handler. Must be a top-level function.
+/// No business logic or backend writes run in this isolate; the OS displays
+/// the notification and the inbox is fetched fresh on next foreground.
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Intentionally empty: no duplicate inbox writes from background isolates.
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _initializeFirebase();
   await AppLocalizations.loadAll();
   runApp(const ProviderScope(child: AuthInit()));
+}
+
+/// Initialize Firebase on iOS/Android only. Web is skipped (push is
+/// mobile-only for this phase). Initialization is best-effort: any failure is
+/// logged and startup continues so login is never blocked. No notification
+/// permission, device-token registration, or background handler is set up here.
+Future<void> _initializeFirebase() async {
+  if (kIsWeb) return;
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (error, stackTrace) {
+    debugPrint('[Firebase] initialization failed: $error');
+    debugPrint('$stackTrace');
+  }
 }
 
 class AuthInit extends ConsumerStatefulWidget {
@@ -184,6 +213,15 @@ class _AuthInitState extends ConsumerState<AuthInit> {
               permissions: safePermissions,
             );
 
+        // Restore push registration for the authenticated staff session.
+        unawaited(
+          registerPushDeviceForSession(
+            ref,
+            owner: PushOwner.staff,
+            authToken: tenantToken,
+          ),
+        );
+
         final gateResolution = await ref
             .read(studioOnboardingProvider.notifier)
             .resolveOnboardingGate();
@@ -249,6 +287,8 @@ class _AuthInitState extends ConsumerState<AuthInit> {
   }
 }
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 class MyApp extends ConsumerWidget {
   final StartupDestination startupDestination;
 
@@ -257,6 +297,9 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    // Start FCM event coordination (foreground refresh + tap navigation).
+    // No-op on web.
+    ref.watch(pushNotificationCoordinatorProvider).start();
     if (auth.token?.trim().isNotEmpty ?? false) {
       // Non-blocking recovery bootstrap for unfinished native subscription flows.
       ref.watch(subscriptionNativePurchaseRecoveryProvider);
@@ -266,6 +309,7 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     print('[Locale] MaterialApp locale: \\${locale.languageCode}');
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: AppLocalizations.of(context)?.translate('appTitle') ?? 'CepStudio',
       theme: ThemeData(
         colorScheme: const ColorScheme.light(

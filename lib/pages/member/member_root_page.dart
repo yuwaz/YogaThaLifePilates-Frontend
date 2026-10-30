@@ -9,6 +9,7 @@ import '../../providers/member_self_provider.dart';
 import '../../services/app_session_preference.dart';
 import '../../theme/app_design_tokens.dart';
 import '../../utils/currency_formatter.dart';
+import '../../widgets/member_notification_bell_button.dart';
 import 'member_profile_page.dart';
 import 'member_secondary_pages.dart';
 import 'member_settings_page.dart';
@@ -75,7 +76,11 @@ class _MemberRootPageState extends ConsumerState<MemberRootPage> {
     ];
     return Scaffold(
       appBar: _selectedIndex == 0
-          ? AppBar(automaticallyImplyLeading: false, title: Text(labels[0]))
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              title: Text(labels[0]),
+              actions: const [MemberNotificationBellButton()],
+            )
           : null,
       body: IndexedStack(
         index: _selectedIndex,

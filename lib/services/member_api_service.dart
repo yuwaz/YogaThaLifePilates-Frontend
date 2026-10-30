@@ -294,4 +294,58 @@ class MemberApiService {
     );
     return MemberPaymentsData.fromJson(await _readObject(response));
   }
+
+  // --- Member Notification Center ---
+  // All notification endpoints use the GLOBAL member token (never the
+  // per-studio context token). Backend scopes results to the account's
+  // active memberships across studios.
+
+  /// Fetch a page of notifications. Returns the decoded map with
+  /// `notifications`, `total`, `limit`, `offset`.
+  Future<Map<String, dynamic>> fetchNotificationsWithGlobalToken(
+    String globalToken, {
+    int? limit,
+    int? offset,
+  }) async {
+    final query = <String, String>{};
+    if (limit != null) query['limit'] = limit.toString();
+    if (offset != null) query['offset'] = offset.toString();
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/member/notifications',
+    ).replace(queryParameters: query.isEmpty ? null : query);
+    final response = await _client.get(uri, headers: _headers(globalToken));
+    return _readObject(response);
+  }
+
+  Future<int> fetchUnreadCountWithGlobalToken(String globalToken) async {
+    final response = await _client.get(
+      Uri.parse('${ApiConfig.baseUrl}/member/notifications/unread-count'),
+      headers: _headers(globalToken),
+    );
+    final decoded = await _readObject(response);
+    final count = decoded['unreadCount'];
+    if (count is num) return count.toInt();
+    return int.tryParse(count?.toString() ?? '') ?? 0;
+  }
+
+  Future<void> markReadWithGlobalToken(
+    String globalToken,
+    int notificationId,
+  ) async {
+    final response = await _client.post(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/member/notifications/$notificationId/read',
+      ),
+      headers: _headers(globalToken),
+    );
+    await _readObject(response);
+  }
+
+  Future<void> markAllReadWithGlobalToken(String globalToken) async {
+    final response = await _client.post(
+      Uri.parse('${ApiConfig.baseUrl}/member/notifications/read-all'),
+      headers: _headers(globalToken),
+    );
+    await _readObject(response);
+  }
 }

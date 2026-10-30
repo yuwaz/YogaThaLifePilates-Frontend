@@ -17,6 +17,7 @@ import 'member_payment_details_page.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/action_feedback.dart';
 import '../theme/app_design_tokens.dart';
+import '../widgets/notification_bell_button.dart';
 
 // PaymentFormDialog for adding a payment
 class PaymentFormDialog extends ConsumerStatefulWidget {
@@ -765,6 +766,10 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
             textAlign: TextAlign.left,
           ),
         ),
+        actions: [
+          NotificationBellButton(token: widget.token),
+          const Padding(padding: EdgeInsets.only(right: 8)),
+        ],
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),

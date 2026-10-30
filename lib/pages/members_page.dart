@@ -15,6 +15,7 @@ import '../providers/equipment_provider.dart';
 import '../providers/member_types_provider.dart';
 import '../providers/lesson_packages_provider.dart';
 import '../utils/action_feedback.dart';
+import '../widgets/notification_bell_button.dart';
 import 'member_detail_page.dart';
 import 'member_edit_dialog.dart';
 
@@ -530,6 +531,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
               _refreshMembers();
             },
           ),
+          NotificationBellButton(token: widget.token),
           const Padding(padding: EdgeInsets.only(right: 8)),
         ],
       ),

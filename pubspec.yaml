@@ -52,6 +52,8 @@ dependencies:
   in_app_purchase: ^3.3.0
   in_app_purchase_storekit: ^0.4.11
   in_app_purchase_android: ^0.5.0
+  firebase_core: ^5.1.0
+  firebase_messaging: ^17.0.1
 
 dev_dependencies:
   flutter_test:

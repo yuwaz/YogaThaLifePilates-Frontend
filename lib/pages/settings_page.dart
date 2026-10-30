@@ -19,6 +19,8 @@ import '../providers/equipment_provider.dart';
 import '../providers/instructors_provider.dart' show instructorsProvider;
 import '../providers/locale_provider.dart';
 import '../widgets/logout_button.dart';
+import '../widgets/notification_bell_button.dart';
+import '../widgets/notification_settings_section.dart';
 import '../widgets/subscription_settings_section.dart';
 import '../theme/app_design_tokens.dart';
 import '../utils/action_feedback.dart';
@@ -71,6 +73,12 @@ class SettingsPage extends ConsumerWidget {
     if (canManageBilling) {
       tabs.add(Tab(text: loc?.translate('subscriptionTab') ?? 'Subscription'));
       tabViews.add(const SubscriptionSettingsSection());
+      // Notification settings are admin-only (backend: authorizeRoles(['admin'])).
+      // Instructors with the 'settings' permission must not see this tab.
+      tabs.add(
+        Tab(text: loc?.translate('notificationSettings') ?? 'Notifications'),
+      );
+      tabViews.add(const NotificationSettingsSection());
     }
 
     if (canManageSettings) {
@@ -112,6 +120,7 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
           actions: [
+            NotificationBellButton(token: auth.token ?? ''),
             IconButton(
               style: AppButtonStyles.compactIcon,
               icon: const Icon(Icons.language),

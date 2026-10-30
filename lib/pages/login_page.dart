@@ -7,8 +7,10 @@ import 'package:http/http.dart' as http;
 import '../api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/secure_storage_service.dart';
+import '../providers/push_notification_provider.dart';
 import '../providers/session_lifecycle_provider.dart';
 import '../providers/studio_onboarding_provider.dart';
+import '../services/push_notification_service.dart';
 import '../services/app_session_preference.dart';
 import '../utils/app_bootstrap.dart';
 import '../utils/action_feedback.dart';
@@ -157,6 +159,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 assignedSalonIds: assignedSalonIds,
                 permissions: permissions,
               );
+
+          // Register for push after authenticated staff login (best-effort).
+          unawaited(
+            registerPushDeviceForSession(
+              ref,
+              owner: PushOwner.staff,
+              authToken: token,
+            ),
+          );
 
           ref.invalidate(studioOnboardingProvider);
           final gateResolution = await ref
