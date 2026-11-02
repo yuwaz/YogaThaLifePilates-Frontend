@@ -663,6 +663,56 @@ class MemberNotifier extends StateNotifier<MemberState> {
     }
   }
 
+  /// Edits an assigned package's pricing. Only originalPrice/discountType/
+  /// discountValue are sent — finalPrice is computed server-side. Returns null
+  /// on success, 'CONFLICT' on a 409 stale edit, or an error message.
+  /// Does NOT mutate global member state; the caller refreshes the detail view.
+  Future<String?> updateAssignedLessonPackage({
+    required int memberId,
+    required int assignedPackageId,
+    required String token,
+    double? originalPrice,
+    String? discountType,
+    double? discountValue,
+  }) async {
+    try {
+      final url =
+          '${ApiConfig.baseUrl}/settings/members/$memberId/assigned-lesson-packages/$assignedPackageId';
+      final body = <String, dynamic>{};
+      if (originalPrice != null) body['originalPrice'] = originalPrice;
+      if (discountType != null) body['discountType'] = discountType;
+      if (discountValue != null) body['discountValue'] = discountValue;
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': '******',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        _clearSignal();
+        return null;
+      }
+      if (response.statusCode == 409) {
+        return 'CONFLICT';
+      }
+      _reportSignal(response);
+      try {
+        final decoded = response.body.isNotEmpty
+            ? jsonDecode(response.body)
+            : <String, dynamic>{};
+        return decoded['error'] ?? decoded['message'] ?? 'Update failed';
+      } catch (_) {
+        return 'Update failed (${response.statusCode})';
+      }
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
   Future<List<MemberMeasurementRecord>> fetchMemberMeasurements({
     required int memberId,
     required String token,

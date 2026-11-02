@@ -12,6 +12,7 @@ import '../models/salon.dart';
 import '../models/equipment.dart';
 import 'reservation_form_dialog.dart';
 import 'reservation_detail_dialog.dart';
+import 'edit_assigned_package_dialog.dart';
 import 'member_measurement_history_page.dart';
 import 'member_measurement_dialog.dart';
 import '../l10n/app_localizations.dart';
@@ -228,6 +229,60 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
           SnackBar(
             content: Text(loc?.translate('deleteFailed') ?? 'Delete failed'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Opens the edit dialog for one assigned package. Prefills the SAVED
+  /// assignment pricing (never the current catalog price). On success refreshes
+  /// member details (assigned packages + signed debt/credit). A 409 stale-edit
+  /// conflict asks the user to reload; nothing is silently overwritten.
+  Future<void> editAssignedLessonPackage(dynamic pkg) async {
+    if (pkg is! Map) return;
+    final loc = AppLocalizations.of(context);
+    final assignedId = pkg['id'];
+    final parsedAssignedId =
+        assignedId is int ? assignedId : int.tryParse(assignedId?.toString() ?? '');
+    if (parsedAssignedId == null) return;
+
+    num? parseNum(dynamic raw) =>
+        raw is num ? raw : num.tryParse(raw?.toString() ?? '');
+    // Prefill from the saved assignment, not the catalog price.
+    final originalPrice =
+        (parseNum(pkg['originalPrice']) ?? parseNum(pkg['price']) ?? 0)
+            .toDouble();
+    final discountTypeRaw = pkg['discountType']?.toString();
+    final String discountType =
+        (discountTypeRaw == 'amount' || discountTypeRaw == 'percent')
+            ? discountTypeRaw!
+            : 'none';
+    final discountValue = parseNum(pkg['discountValue'])?.toDouble();
+
+    final result = await showDialog<EditAssignedPackageResult>(
+      context: context,
+      builder: (ctx) => EditAssignedPackageDialog(
+        memberId: (memberDetail ?? widget.member).id,
+        assignedPackageId: parsedAssignedId,
+        packageName: pkg['name']?.toString() ?? '',
+        lessonCount: parseNum(pkg['lessonCount'])?.toInt() ?? 0,
+        initialOriginalPrice: originalPrice,
+        initialDiscountType: discountType,
+        initialDiscountValue: discountValue,
+      ),
+    );
+
+    if (!mounted) return;
+    if (result?.success == true) {
+      clearSubscriptionEnforcementSignal(ref.read);
+      await fetchDetail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              loc?.translate('lessonPackageUpdated') ?? 'Lesson package updated',
+            ),
           ),
         );
       }
@@ -1115,13 +1170,24 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                         Positioned(
                           top: 0,
                           right: 0,
-                          child: IconButton(
-                            icon: const Icon(
-                              AppIcons.delete,
-                              color: AppDesignTokens.destructive,
-                            ),
-                            tooltip: 'Sil',
-                            onPressed: () async {
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  AppIcons.edit,
+                                  color: AppDesignTokens.textSecondary,
+                                ),
+                                tooltip: loc?.translate('edit') ?? 'Edit',
+                                onPressed: () => editAssignedLessonPackage(pkg),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  AppIcons.delete,
+                                  color: AppDesignTokens.destructive,
+                                ),
+                                tooltip: 'Sil',
+                                onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
@@ -1163,7 +1229,9 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                                             -1,
                                 );
                               }
-                            },
+                                },
+                              ),
+                            ],
                           ),
                         ),
                     ],
