@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:frontend/services/push_notification_service.dart';
 
+typedef RequestLog =
+    List<({String method, String path, String? auth, String? token})>;
+
 void main() {
   NotificationSettings settingsFor(AuthorizationStatus status) =>
       NotificationSettings(
@@ -225,7 +228,7 @@ void main() {
       );
 
       await service.registerDevice(owner: PushOwner.staff, authToken: 't');
-      await service.unregisterDevice(authToken: 't');
+      await service.unregisterDevice(owner: PushOwner.staff, authToken: 't');
 
       expect(capturedMethod, 'DELETE');
       expect(capturedPath, '/settings/notifications/device');
@@ -240,7 +243,7 @@ void main() {
       );
       await service.registerDevice(owner: PushOwner.staff, authToken: 't');
       // Should not throw.
-      await service.unregisterDevice(authToken: 't');
+      await service.unregisterDevice(owner: PushOwner.staff, authToken: 't');
     });
 
     test(
@@ -259,11 +262,310 @@ void main() {
         // Account A registers.
         await service.registerDevice(owner: PushOwner.staff, authToken: 'a');
         // Logout A.
-        await service.unregisterDevice(authToken: 'a');
+        await service.unregisterDevice(owner: PushOwner.staff, authToken: 'a');
         // After switch, a second unregister (stale) must be a no-op.
-        await service.unregisterDevice(authToken: 'b');
+        await service.unregisterDevice(owner: PushOwner.staff, authToken: 'b');
 
         expect(paths.where((p) => p.startsWith('DELETE')).length, 1);
+      },
+    );
+  });
+
+  group('coexisting staff and member sessions', () {
+    PushNotificationService buildService(
+      _FakePushMessagingClient messaging,
+      RequestLog log,
+    ) {
+      return PushNotificationService(
+        messaging: messaging,
+        httpClient: MockClient((request) async {
+          String? token;
+          if (request.body.isNotEmpty) {
+            token = (jsonDecode(request.body) as Map)['token'] as String?;
+          }
+          log.add((
+            method: request.method,
+            path: request.url.path,
+            auth: request.headers['Authorization'],
+            token: token,
+          ));
+          return http.Response(jsonEncode({'ok': true}), 200);
+        }),
+      );
+    }
+
+    Future<void> pumpEvents() async {
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    test(
+      'staff then member login: member logout unregisters only member device',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = buildService(messaging, log);
+
+        // Staff logs in first, then a member logs in on the same device.
+        await service.registerDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'staff-jwt');
+        await service.registerDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        service.watchTokenRefresh(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        // Member logs out: only the member endpoint, only the member token.
+        await service.unregisterDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        var deletes = log.where((r) => r.method == 'DELETE').toList();
+        expect(deletes, hasLength(1));
+        expect(deletes.single.path, '/member/notifications/device');
+        expect(deletes.single.auth, 'Bearer member-jwt');
+        expect(deletes.single.token, 'fcm-token-1');
+
+        // Staff registration survives: staff logout still unregisters it.
+        await service.unregisterDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        deletes = log.where((r) => r.method == 'DELETE').toList();
+        expect(deletes, hasLength(2));
+        expect(deletes[1].path, '/settings/notifications/device');
+        expect(deletes[1].auth, 'Bearer staff-jwt');
+        expect(deletes[1].token, 'fcm-token-1');
+      },
+    );
+
+    test(
+      'member then staff login: staff logout unregisters only staff device',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = buildService(messaging, log);
+
+        // Member logs in first, then staff logs in on the same device.
+        await service.registerDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        service.watchTokenRefresh(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        await service.registerDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'staff-jwt');
+
+        // Staff logs out: only the staff endpoint, only the staff token.
+        await service.unregisterDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+
+        var deletes = log.where((r) => r.method == 'DELETE').toList();
+        expect(deletes, hasLength(1));
+        expect(deletes.single.path, '/settings/notifications/device');
+        expect(deletes.single.auth, 'Bearer staff-jwt');
+        expect(deletes.single.token, 'fcm-token-1');
+
+        // Member registration survives: member logout still unregisters it.
+        await service.unregisterDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        deletes = log.where((r) => r.method == 'DELETE').toList();
+        expect(deletes, hasLength(2));
+        expect(deletes[1].path, '/member/notifications/device');
+        expect(deletes[1].auth, 'Bearer member-jwt');
+        expect(deletes[1].token, 'fcm-token-1');
+      },
+    );
+
+    test(
+      'token refresh re-registers every active owner with its own auth token',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = buildService(messaging, log);
+
+        await service.registerDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'staff-jwt');
+        await service.registerDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        service.watchTokenRefresh(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        messaging.tokenRefreshController.add('fcm-token-rotated');
+        await pumpEvents();
+
+        final posts = log
+            .where((r) => r.method == 'POST' && r.token == 'fcm-token-rotated')
+            .toList();
+        expect(posts, hasLength(2));
+        expect(
+          posts.any(
+            (r) =>
+                r.path == '/settings/notifications/device' &&
+                r.auth == 'Bearer staff-jwt',
+          ),
+          isTrue,
+        );
+        expect(
+          posts.any(
+            (r) =>
+                r.path == '/member/notifications/device' &&
+                r.auth == 'Bearer member-jwt',
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'login/restore cycles never accumulate listeners or use stale tokens',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = buildService(messaging, log);
+
+        await service.registerDevice(owner: PushOwner.staff, authToken: 'jwt-1');
+        // Simulate repeated login/restore cycles for the same owner.
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'jwt-1');
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'jwt-2');
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'jwt-3');
+
+        messaging.tokenRefreshController.add('fcm-token-rotated');
+        await pumpEvents();
+
+        // Exactly one re-registration, authorized with the latest token.
+        final posts = log
+            .where((r) => r.method == 'POST' && r.token == 'fcm-token-rotated')
+            .toList();
+        expect(posts, hasLength(1));
+        expect(posts.single.path, '/settings/notifications/device');
+        expect(posts.single.auth, 'Bearer jwt-3');
+      },
+    );
+
+    test(
+      'logout stops token-refresh re-registration for that owner only',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = buildService(messaging, log);
+
+        await service.registerDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        service.watchTokenRefresh(owner: PushOwner.staff, authToken: 'staff-jwt');
+        await service.registerDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        service.watchTokenRefresh(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        await service.unregisterDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+
+        messaging.tokenRefreshController.add('fcm-token-rotated');
+        await pumpEvents();
+
+        final posts = log
+            .where((r) => r.method == 'POST' && r.token == 'fcm-token-rotated')
+            .toList();
+        expect(posts, hasLength(1));
+        expect(posts.single.path, '/member/notifications/device');
+        expect(posts.single.auth, 'Bearer member-jwt');
+      },
+    );
+
+    test(
+      'network failure on member logout keeps staff registration intact',
+      () async {
+        final messaging = _FakePushMessagingClient()..token = 'fcm-token-1';
+        final RequestLog log = [];
+        final service = PushNotificationService(
+          messaging: messaging,
+          httpClient: MockClient((request) async {
+            String? token;
+            if (request.body.isNotEmpty) {
+              token = (jsonDecode(request.body) as Map)['token'] as String?;
+            }
+            log.add((
+              method: request.method,
+              path: request.url.path,
+              auth: request.headers['Authorization'],
+              token: token,
+            ));
+            if (request.method == 'DELETE' &&
+                request.url.path == '/member/notifications/device') {
+              throw Exception('network down');
+            }
+            return http.Response(jsonEncode({'ok': true}), 200);
+          }),
+        );
+
+        await service.registerDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+        await service.registerDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        // Member logout DELETE fails: must not throw, must not touch staff.
+        await service.unregisterDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+        // Failed member logout clears member tracking: retry is a no-op.
+        await service.unregisterDevice(
+          owner: PushOwner.member,
+          authToken: 'member-jwt',
+        );
+
+        // Staff registration is fully intact and unregisters cleanly.
+        await service.unregisterDevice(
+          owner: PushOwner.staff,
+          authToken: 'staff-jwt',
+        );
+
+        final deletes = log.where((r) => r.method == 'DELETE').toList();
+        expect(deletes, hasLength(2));
+        expect(
+          deletes
+              .where((r) => r.path == '/member/notifications/device'),
+          hasLength(1),
+        );
+        expect(deletes.last.path, '/settings/notifications/device');
+        expect(deletes.last.auth, 'Bearer staff-jwt');
       },
     );
   });
@@ -342,4 +644,11 @@ class _FakePushMessagingClient implements PushMessagingClient {
 
   @override
   Future<RemoteMessage?> getInitialMessage() async => null;
+
+  @override
+  Future<void> setForegroundNotificationPresentationOptions({
+    bool alert = false,
+    bool badge = false,
+    bool sound = false,
+  }) async {}
 }

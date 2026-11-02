@@ -74,6 +74,33 @@ void main() {
     });
   });
 
+  group('AppNotification.reservationId', () {
+    AppNotification withPayload(Map<String, dynamic>? payload) =>
+        AppNotification.fromJson({...notifJson(1), 'payload': payload});
+
+    test('returns id for a valid positive int', () {
+      expect(withPayload({'reservationId': 42}).reservationId, 42);
+    });
+
+    test('accepts numeric string and double values', () {
+      expect(withPayload({'reservationId': '7'}).reservationId, 7);
+      expect(withPayload({'reservationId': 9.0}).reservationId, 9);
+    });
+
+    test('null when payload is missing or has no reservationId', () {
+      expect(withPayload(null).reservationId, isNull);
+      expect(withPayload({'k': 1}).reservationId, isNull);
+    });
+
+    test('null for malformed or non-positive values', () {
+      expect(withPayload({'reservationId': 'abc'}).reservationId, isNull);
+      expect(withPayload({'reservationId': 0}).reservationId, isNull);
+      expect(withPayload({'reservationId': -3}).reservationId, isNull);
+      expect(withPayload({'reservationId': true}).reservationId, isNull);
+      expect(withPayload({'reservationId': null}).reservationId, isNull);
+    });
+  });
+
   group('NotificationsNotifier', () {
     test(
       'fetchInbox sends staff Authorization header and parses page',

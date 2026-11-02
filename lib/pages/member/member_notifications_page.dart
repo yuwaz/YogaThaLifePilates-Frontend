@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/app_notification.dart';
+import '../../providers/member_auth_provider.dart';
 import '../../providers/member_notifications_provider.dart';
 import '../../theme/app_design_tokens.dart';
+import '../../widgets/notification_type_visual.dart';
+import 'member_secondary_pages.dart';
 
 /// Member Notification Center. Newest first, unread highlighted, tap to mark
 /// read, mark-all-read action, limit/offset "load more" pagination,
@@ -33,6 +36,26 @@ class _MemberNotificationsPageState
     await ref.read(memberNotificationsProvider.notifier).fetchInbox();
     if (!mounted) return;
     await ref.read(memberNotificationsProvider.notifier).fetchUnreadCount();
+  }
+
+  /// Tap on an inbox item: mark read (only when unread) and, when the
+  /// notification carries valid reservation metadata and the member holds an
+  /// authorized studio context, open the member's own reservations screen.
+  /// Otherwise the user stays in the inbox.
+  Future<void> _onNotificationTap(AppNotification notification) async {
+    if (notification.isUnread) {
+      await ref
+          .read(memberNotificationsProvider.notifier)
+          .markRead(notification.id);
+    }
+    if (!mounted) return;
+    if (notification.reservationId == null) return;
+    // The reservations screen is scoped to the member's selected studio
+    // context; without it we cannot safely show reservation data.
+    if (!ref.read(memberAuthProvider).hasContext) return;
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MemberReservationsPage()));
   }
 
   String _formatDateTime(DateTime? value) {
@@ -174,9 +197,7 @@ class _MemberNotificationsPageState
         return _MemberNotificationTile(
           notification: notification,
           dateLabel: _formatDateTime(notification.createdAt),
-          onTap: () => ref
-              .read(memberNotificationsProvider.notifier)
-              .markRead(notification.id),
+          onTap: () => _onNotificationTap(notification),
         );
       },
     );
@@ -226,6 +247,14 @@ class _MemberNotificationTile extends StatelessWidget {
                 )
               else
                 const SizedBox(width: 18),
+              Padding(
+                padding: const EdgeInsets.only(top: 1, right: 10),
+                child: Icon(
+                  NotificationTypeVisual.iconFor(notification.type),
+                  size: 20,
+                  color: NotificationTypeVisual.colorFor(notification.type),
+                ),
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

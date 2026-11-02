@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:frontend/l10n/app_localizations.dart';
+import 'package:frontend/models/member_membership.dart';
 import 'package:frontend/pages/member/member_notifications_page.dart';
+import 'package:frontend/pages/member/member_secondary_pages.dart';
 import 'package:frontend/providers/member_auth_provider.dart';
 import 'package:frontend/providers/member_notifications_provider.dart';
 import 'package:frontend/services/member_api_service.dart';
@@ -19,12 +21,17 @@ void main() {
     await AppLocalizations.loadAll();
   });
 
-  Map<String, dynamic> notifJson(int id, {String? readAt}) => {
+  Map<String, dynamic> notifJson(
+    int id, {
+    String? readAt,
+    Map<String, dynamic>? payload,
+    String type = 'class_reminder',
+  }) => {
     'id': id,
-    'type': 'class_reminder',
+    'type': type,
     'title': 'Notification $id',
     'body': 'Body $id',
-    'payload': null,
+    'payload': payload,
     'readAt': readAt,
     'createdAt': '2026-10-30T08:00:00.000Z',
   };
@@ -215,13 +222,21 @@ void main() {
   });
 
   group('Member Notification UI', () {
-    Widget harness(Widget child, _FakeMemberApiService api) {
+    Widget harness(
+      Widget child,
+      _FakeMemberApiService api, {
+      bool withMemberContext = false,
+    }) {
       return ProviderScope(
         overrides: [
           memberApiServiceProvider.overrideWithValue(api),
           memberSecureStorageProvider.overrideWithValue(
             _MemoryMemberSecureStorage(),
           ),
+          if (withMemberContext)
+            memberAuthProvider.overrideWith(
+              (ref) => _ContextMemberAuthNotifier(ref),
+            ),
         ],
         child: MaterialApp(
           localizationsDelegates: const [AppLocalizations.delegate],
@@ -270,6 +285,140 @@ void main() {
       await tester.pumpAndSettle();
       expect(api.markReadCalls, [1]);
     });
+
+    testWidgets('shows a type icon for each notification', (tester) async {
+      final api = _FakeMemberApiService();
+      api.inboxPages[0] = [
+        notifJson(1, type: 'reservation_created'),
+        notifJson(2, type: 'reservation_changed'),
+        notifJson(3, type: 'class_reminder'),
+        notifJson(4, type: 'unknown_future_type'),
+      ];
+      api.total = 4;
+
+      await tester.pumpWidget(harness(const MemberNotificationsPage(), api));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.event_available_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.event_note_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
+      // Unknown type falls back to the neutral bell.
+      expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+    });
+
+    testWidgets('tapping an already-read notification does not re-mark it', (
+      tester,
+    ) async {
+      final api = _FakeMemberApiService();
+      api.inboxPages[0] = [
+        notifJson(2, readAt: '2026-10-30T09:00:00.000Z'),
+      ];
+      api.total = 1;
+      api.unreadCount = 0;
+
+      await tester.pumpWidget(harness(const MemberNotificationsPage(), api));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notification 2'));
+      await tester.pumpAndSettle();
+      expect(api.markReadCalls, isEmpty);
+    });
+
+    testWidgets(
+      'valid reservation metadata + studio context opens reservations',
+      (tester) async {
+        final api = _FakeMemberApiService();
+        api.inboxPages[0] = [
+          notifJson(1, payload: {'reservationId': 42}),
+        ];
+        api.total = 1;
+        api.unreadCount = 1;
+
+        await tester.pumpWidget(
+          harness(
+            const MemberNotificationsPage(),
+            api,
+            withMemberContext: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Notification 1'));
+        await tester.pumpAndSettle();
+
+        expect(api.markReadCalls, [1]);
+        expect(find.byType(MemberReservationsPage), findsOneWidget);
+      },
+    );
+
+    testWidgets('missing reservation metadata keeps the user in the inbox', (
+      tester,
+    ) async {
+      final api = _FakeMemberApiService();
+      api.inboxPages[0] = [notifJson(1)];
+      api.total = 1;
+      api.unreadCount = 1;
+
+      await tester.pumpWidget(
+        harness(const MemberNotificationsPage(), api, withMemberContext: true),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notification 1'));
+      await tester.pumpAndSettle();
+
+      expect(api.markReadCalls, [1]);
+      expect(find.byType(MemberReservationsPage), findsNothing);
+      expect(find.byType(MemberNotificationsPage), findsOneWidget);
+    });
+
+    testWidgets('malformed reservation metadata keeps the user in the inbox', (
+      tester,
+    ) async {
+      final api = _FakeMemberApiService();
+      api.inboxPages[0] = [
+        notifJson(1, payload: {'reservationId': 'not-a-number'}),
+      ];
+      api.total = 1;
+      api.unreadCount = 1;
+
+      await tester.pumpWidget(
+        harness(const MemberNotificationsPage(), api, withMemberContext: true),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notification 1'));
+      await tester.pumpAndSettle();
+
+      expect(api.markReadCalls, [1]);
+      expect(find.byType(MemberReservationsPage), findsNothing);
+      expect(find.byType(MemberNotificationsPage), findsOneWidget);
+    });
+
+    testWidgets(
+      'valid reservation metadata without studio context stays in inbox',
+      (tester) async {
+        final api = _FakeMemberApiService();
+        api.inboxPages[0] = [
+          notifJson(1, payload: {'reservationId': 42}),
+        ];
+        api.total = 1;
+        api.unreadCount = 1;
+
+        // No memberAuthProvider override: signed-out, no studio context.
+        await tester.pumpWidget(
+          harness(const MemberNotificationsPage(), api),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Notification 1'));
+        await tester.pumpAndSettle();
+
+        expect(api.markReadCalls, [1]);
+        expect(find.byType(MemberReservationsPage), findsNothing);
+        expect(find.byType(MemberNotificationsPage), findsOneWidget);
+      },
+    );
 
     testWidgets('mark all read action calls read-all endpoint', (tester) async {
       final api = _FakeMemberApiService();
@@ -361,6 +510,22 @@ class _MemoryMemberSecureStorage extends MemberSecureStorage {
 
   @override
   Future<String?> getGlobalToken() async => globalToken;
+}
+
+class _ContextMemberAuthNotifier extends MemberAuthNotifier {
+  _ContextMemberAuthNotifier(super.ref);
+
+  @override
+  MemberAuthState get state => const MemberAuthState(
+    status: MemberSessionStatus.ready,
+    contextToken: 'context-token',
+    selectedMembership: MemberMembership(
+      membershipId: 1,
+      studioId: 1,
+      studioName: 'Studio',
+      memberId: 1,
+    ),
+  );
 }
 
 class _FakeMemberApiService extends MemberApiService {

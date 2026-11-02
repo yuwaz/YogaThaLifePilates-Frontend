@@ -24,6 +24,20 @@ class AppNotification {
 
   bool get isUnread => readAt == null;
 
+  /// The reservation id from [payload], only when it is a positive integer.
+  /// Returns null for missing, malformed, or non-positive values — callers
+  /// must treat null as "no reservation metadata" and stay in the inbox.
+  int? get reservationId {
+    final value = payload?['reservationId'];
+    final id = switch (value) {
+      int v => v,
+      num v => v.toInt(),
+      String v => int.tryParse(v),
+      _ => null,
+    };
+    return id != null && id > 0 ? id : null;
+  }
+
   static int _asInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();

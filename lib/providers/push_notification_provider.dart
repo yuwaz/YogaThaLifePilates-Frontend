@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/push_notification_service.dart';
@@ -21,30 +19,21 @@ Future<void> registerPushDeviceForSession(
   final granted = await service.requestPermissionIfNeeded();
   if (!granted) return;
   await service.registerDevice(owner: owner, authToken: authToken);
-  // Re-register whenever FCM rotates the token.
-  unawaited(
-    service
-        .watchTokenRefresh(owner: owner, authToken: authToken)
-        .listen(
-          (newToken) => service.onTokenRefreshed(
-            owner: owner,
-            authToken: authToken,
-            newToken: newToken,
-          ),
-        )
-        .asFuture()
-        .catchError((_) {}),
-  );
+  // Re-register whenever FCM rotates the token. Idempotent across
+  // login/restore cycles: the service keeps one shared listener per owner.
+  service.watchTokenRefresh(owner: owner, authToken: authToken);
 }
 
 /// Unregister the device token before the authenticated session is cleared.
-/// Never blocks logout. [authToken] is the current session's staff or member
-/// token used to authorize the DELETE.
+/// Never blocks logout. [owner] selects which session's registration is
+/// removed; [authToken] is that session's staff or member token used to
+/// authorize the DELETE. A coexisting session's registration is untouched.
 Future<void> unregisterPushDeviceForSession(
   WidgetRef ref, {
+  required PushOwner owner,
   required String authToken,
 }) async {
   await ref
       .read(pushNotificationServiceProvider)
-      .unregisterDevice(authToken: authToken);
+      .unregisterDevice(owner: owner, authToken: authToken);
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/models/member_account.dart';
 import 'package:frontend/models/member_self_models.dart';
 import 'package:frontend/models/member_membership.dart';
 import 'package:frontend/providers/member_auth_provider.dart';
@@ -115,6 +116,22 @@ class _FakeMemberApiService extends MemberApiService {
       return Future.error(MemberApiException(loginErrorStatus!));
     }
     throw UnimplementedError();
+  }
+
+  int? accountErrorStatus;
+
+  @override
+  Future<MemberAuthResponse> fetchAccountWithGlobalToken(String globalToken) {
+    if (accountErrorStatus != null) {
+      return Future.error(MemberApiException(accountErrorStatus!));
+    }
+    return Future.value(
+      MemberAuthResponse(
+        account: const MemberAccount(id: 1, status: 'active'),
+        memberships: const [],
+        requiresStudioSelection: false,
+      ),
+    );
   }
 
   @override
@@ -407,4 +424,44 @@ void main() {
       'memberServiceUnavailable',
     );
   });
+
+  test(
+    'restore with invalid member session clears the active surface flag',
+    () async {
+      final api = _FakeMemberApiService()..accountErrorStatus = 401;
+      final storage = _MemoryMemberSecureStorage();
+      final sessionPreference = _MemorySessionPreference();
+      final container = createContainer(api, storage, sessionPreference);
+      addTearDown(container.dispose);
+
+      await container.read(memberAuthProvider.notifier).restore();
+
+      expect(storage.clearCalls, 1);
+      expect(sessionPreference.clearCalls, 1);
+      expect(
+        container.read(memberAuthProvider).status,
+        MemberSessionStatus.signedOut,
+      );
+    },
+  );
+
+  test(
+    'restore with a transient failure keeps the active surface flag',
+    () async {
+      final api = _FakeMemberApiService()..accountErrorStatus = 500;
+      final storage = _MemoryMemberSecureStorage();
+      final sessionPreference = _MemorySessionPreference();
+      final container = createContainer(api, storage, sessionPreference);
+      addTearDown(container.dispose);
+
+      await container.read(memberAuthProvider.notifier).restore();
+
+      expect(storage.clearCalls, 0);
+      expect(sessionPreference.clearCalls, 0);
+      expect(
+        container.read(memberAuthProvider).status,
+        MemberSessionStatus.error,
+      );
+    },
+  );
 }

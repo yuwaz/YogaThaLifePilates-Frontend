@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 import 'package:frontend/pages/notifications_page.dart';
+import 'package:frontend/pages/reservations_page.dart';
+import 'package:frontend/providers/auth_provider.dart';
 import 'package:frontend/providers/notifications_provider.dart';
 import 'package:frontend/widgets/notification_bell_button.dart';
 
@@ -18,23 +20,42 @@ void main() {
     await AppLocalizations.loadAll();
   });
 
-  Map<String, dynamic> notifJson(int id, {String? readAt}) => {
+  Map<String, dynamic> notifJson(
+    int id, {
+    String? readAt,
+    Map<String, dynamic>? payload,
+    String type = 'class_reminder',
+  }) => {
     'id': id,
-    'type': 'class_reminder',
+    'type': type,
     'title': 'Notification $id',
     'body': 'Body $id',
-    'payload': null,
+    'payload': payload,
     'readAt': readAt,
     'createdAt': '2026-10-30T08:00:00.000Z',
   };
 
   // Wraps the widget under test with localization + Riverpod.
-  Widget harness(Widget child, http.Client client) {
+  Widget harness(
+    Widget child,
+    http.Client client, {
+    List<String>? permissions,
+  }) {
     return ProviderScope(
       overrides: [
         notificationsProvider.overrideWith(
           (ref) => NotificationsNotifier(ref, client: client),
         ),
+        if (permissions != null)
+          authProvider.overrideWith(
+            (ref) => AuthNotifier()
+              ..setAuth(
+                token: token,
+                role: 'admin',
+                assignedSalonIds: const [],
+                permissions: permissions,
+              ),
+          ),
       ],
       child: MaterialApp(
         localizationsDelegates: const [AppLocalizations.delegate],
@@ -139,6 +160,164 @@ void main() {
       await tester.pumpAndSettle();
       expect(readCalls, [1]);
     });
+
+    testWidgets('shows a type icon for each notification', (tester) async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'notifications': [
+              notifJson(1, type: 'reservation_created'),
+              notifJson(2, type: 'reservation_cancelled'),
+              notifJson(3, type: 'class_reminder'),
+              notifJson(4, type: 'unknown_future_type'),
+            ],
+            'total': 4,
+          }),
+          200,
+        );
+      });
+
+      await tester.pumpWidget(harness(NotificationsPage(token: token), client));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.event_available_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.event_busy_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
+      // Unknown type falls back to the neutral bell.
+      expect(find.byIcon(Icons.notifications_outlined), findsOneWidget);
+    });
+
+    testWidgets('tapping an already-read notification does not re-mark it', (
+      tester,
+    ) async {
+      final readCalls = <int>[];
+      final client = MockClient((request) async {
+        if (request.method == 'POST' && request.url.path.endsWith('/read')) {
+          readCalls.add(int.parse(request.url.pathSegments[2]));
+          return http.Response(jsonEncode(notifJson(2)), 200);
+        }
+        return http.Response(
+          jsonEncode({
+            'notifications': [
+              notifJson(2, readAt: '2026-10-30T09:00:00.000Z'),
+            ],
+            'total': 1,
+          }),
+          200,
+        );
+      });
+
+      await tester.pumpWidget(harness(NotificationsPage(token: token), client));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notification 2'));
+      await tester.pumpAndSettle();
+      expect(readCalls, isEmpty);
+    });
+
+    testWidgets(
+      'valid reservation metadata + permission opens ReservationsPage',
+      (tester) async {
+        final client = MockClient((request) async {
+          if (request.method == 'POST' && request.url.path.endsWith('/read')) {
+            return http.Response(jsonEncode(notifJson(1)), 200);
+          }
+          return http.Response(
+            jsonEncode({
+              'notifications': [
+                notifJson(1, payload: {'reservationId': 42}),
+              ],
+              'total': 1,
+            }),
+            200,
+          );
+        });
+
+        await tester.pumpWidget(
+          harness(
+            NotificationsPage(token: token),
+            client,
+            permissions: const ['reservations'],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Notification 1'));
+        // ReservationsPage runs periodic refresh timers, so pumpAndSettle
+        // would time out; bounded pumps are enough to complete navigation.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        expect(find.byType(ReservationsPage), findsOneWidget);
+      },
+    );
+
+    testWidgets('missing reservation metadata keeps the user in the inbox', (
+      tester,
+    ) async {
+      final client = MockClient((request) async {
+        if (request.method == 'POST' && request.url.path.endsWith('/read')) {
+          return http.Response(jsonEncode(notifJson(1)), 200);
+        }
+        return http.Response(
+          jsonEncode({
+            'notifications': [notifJson(1)],
+            'total': 1,
+          }),
+          200,
+        );
+      });
+
+      await tester.pumpWidget(
+        harness(
+          NotificationsPage(token: token),
+          client,
+          permissions: const ['reservations'],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Notification 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReservationsPage), findsNothing);
+      expect(find.byType(NotificationsPage), findsOneWidget);
+    });
+
+    testWidgets(
+      'valid reservation metadata without permission stays in inbox',
+      (tester) async {
+        final client = MockClient((request) async {
+          if (request.method == 'POST' && request.url.path.endsWith('/read')) {
+            return http.Response(jsonEncode(notifJson(1)), 200);
+          }
+          return http.Response(
+            jsonEncode({
+              'notifications': [
+                notifJson(1, payload: {'reservationId': 42}),
+              ],
+              'total': 1,
+            }),
+            200,
+          );
+        });
+
+        await tester.pumpWidget(
+          harness(
+            NotificationsPage(token: token),
+            client,
+            permissions: const ['members'],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Notification 1'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ReservationsPage), findsNothing);
+        expect(find.byType(NotificationsPage), findsOneWidget);
+      },
+    );
 
     testWidgets('mark-all-read action calls read-all endpoint', (tester) async {
       var markAllCalled = false;

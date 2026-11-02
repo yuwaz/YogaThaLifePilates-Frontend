@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -16,6 +17,11 @@ abstract class PushMessagingClient {
   Stream<RemoteMessage> get onMessage;
   Stream<RemoteMessage> get onMessageOpenedApp;
   Future<RemoteMessage?> getInitialMessage();
+  Future<void> setForegroundNotificationPresentationOptions({
+    bool alert = false,
+    bool badge = false,
+    bool sound = false,
+  });
 }
 
 class _FirebasePushMessagingClient implements PushMessagingClient {
@@ -48,6 +54,39 @@ class _FirebasePushMessagingClient implements PushMessagingClient {
 
   @override
   Future<RemoteMessage?> getInitialMessage() => _messaging.getInitialMessage();
+
+  @override
+  Future<void> setForegroundNotificationPresentationOptions({
+    bool alert = false,
+    bool badge = false,
+    bool sound = false,
+  }) => _messaging.setForegroundNotificationPresentationOptions(
+    alert: alert,
+    badge: badge,
+    sound: sound,
+  );
+}
+
+/// Abstraction over the OS foreground-notification presentation so the
+/// coordinator can be tested without flutter_local_notifications/platform
+/// channels. Implementations must no-op on web.
+abstract class ForegroundNotificationPresenter {
+  /// iOS: let the system show foreground notifications natively (alert,
+  /// badge, sound). Android: no-op (the plugin shows via a channel instead).
+  Future<void> configureSystemPresentation();
+
+  /// Show a foreground banner. Returns true when the banner was presented
+  /// (or delegated to the OS), false when there was nothing to show.
+  Future<bool> present({
+    required String title,
+    String? body,
+    Map<String, dynamic>? payload,
+  });
+
+  /// Stream of payloads for banners tapped while the app was in the
+  /// foreground (Android only; iOS foreground taps arrive via
+  /// onMessageOpenedApp).
+  Stream<Map<String, dynamic>> get notificationTaps;
 }
 
 /// The authenticated identity a device token is registered under.
@@ -60,10 +99,18 @@ class PushNotificationService {
   final PushMessagingClient _messaging;
   final http.Client _httpClient;
 
-  /// Tracks the currently registered (owner, token) so we never register
-  /// duplicates and can unregister the exact token on logout/switch.
-  String? _registeredToken;
-  PushOwner? _registeredOwner;
+  /// Tracks the registered FCM token per owner so staff and member sessions
+  /// can coexist: each owner's logout unregisters only its own device via its
+  /// own endpoint/auth token, never touching the other owner's registration.
+  final Map<PushOwner, String> _registeredTokens = {};
+
+  /// Latest auth token per owner watching token refresh. Updated on every
+  /// login/restore so re-registration never uses a stale session token.
+  final Map<PushOwner, String> _watchedAuthTokens = {};
+
+  /// Single shared onTokenRefresh subscription for all owners. Created once
+  /// and reused across login/restore cycles so listeners never accumulate.
+  StreamSubscription<String>? _tokenRefreshSub;
 
   PushNotificationService({
     PushMessagingClient? messaging,
@@ -119,7 +166,8 @@ class PushNotificationService {
   }
 
   /// Register the current FCM token for the given owner. No-op if the same
-  /// token is already registered for this owner (avoids duplicates).
+  /// token is already registered for this owner (avoids duplicates). Other
+  /// owners' registrations are left untouched.
   ///
   /// On iOS the FCM token depends on the APNs token, which is delivered
   /// asynchronously after permission is granted. Calling getToken() immediately
@@ -133,7 +181,7 @@ class PushNotificationService {
     try {
       final fcmToken = await _getTokenWithRetry();
       if (fcmToken == null || fcmToken.isEmpty) return;
-      if (_registeredToken == fcmToken && _registeredOwner == owner) return;
+      if (_registeredTokens[owner] == fcmToken) return;
       await _register(owner, authToken, fcmToken);
     } catch (_) {
       // Never block login/navigation on registration failure.
@@ -171,22 +219,51 @@ class PushNotificationService {
       body: jsonEncode({'token': fcmToken, 'platform': _platform}),
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      _registeredToken = fcmToken;
-      _registeredOwner = owner;
+      _registeredTokens[owner] = fcmToken;
     }
   }
 
-  /// Re-register when FCM rotates the token. Call once after login; the
-  /// listener re-registers under the same owner/authToken.
-  Stream<String> watchTokenRefresh({
+  /// Start watching FCM token rotation for the given owner. Safe to call on
+  /// every login/restore: a single shared stream subscription is reused and
+  /// the owner's auth token is replaced with the latest one, so listeners
+  /// never accumulate and re-registration never uses a stale session token.
+  void watchTokenRefresh({
     required PushOwner owner,
     required String authToken,
   }) {
-    if (!_isSupported) return const Stream.empty();
-    return _messaging.onTokenRefresh;
+    if (!_isSupported) return;
+    _watchedAuthTokens[owner] = authToken;
+    _tokenRefreshSub ??= _messaging.onTokenRefresh.listen(
+      (newToken) => unawaited(_handleTokenRefresh(newToken)),
+    );
   }
 
-  /// Handle a token refresh event: re-register the new token.
+  /// Stop watching token rotation for the given owner. Cancels the shared
+  /// subscription once no owner is watching anymore.
+  void _stopWatchingTokenRefresh(PushOwner owner) {
+    _watchedAuthTokens.remove(owner);
+    if (_watchedAuthTokens.isEmpty) {
+      final sub = _tokenRefreshSub;
+      _tokenRefreshSub = null;
+      if (sub != null) unawaited(sub.cancel());
+    }
+  }
+
+  Future<void> _handleTokenRefresh(String newToken) async {
+    if (newToken.isEmpty) return;
+    // Snapshot: logout during an await must not affect the iteration.
+    for (final entry in Map.of(_watchedAuthTokens).entries) {
+      // The owner may have logged out while awaiting a previous owner.
+      if (!_watchedAuthTokens.containsKey(entry.key)) continue;
+      await onTokenRefreshed(
+        owner: entry.key,
+        authToken: entry.value,
+        newToken: newToken,
+      );
+    }
+  }
+
+  /// Handle a token refresh event: re-register the new token for this owner.
   Future<void> onTokenRefreshed({
     required PushOwner owner,
     required String authToken,
@@ -194,23 +271,25 @@ class PushNotificationService {
   }) async {
     if (!_isSupported) return;
     if (newToken.isEmpty) return;
-    if (_registeredToken == newToken && _registeredOwner == owner) return;
+    if (_registeredTokens[owner] == newToken) return;
     try {
       await _register(owner, authToken, newToken);
     } catch (_) {}
   }
 
-  /// Unregister the currently registered token before clearing the session.
-  /// Network failures are swallowed so logout is never blocked. Clears the
-  /// tracked registration so a subsequent account cannot unregister it again.
-  Future<void> unregisterDevice({required String authToken}) async {
+  /// Unregister [owner]'s registered token before clearing that session.
+  /// Only this owner's tracking is cleared and only this owner's endpoint is
+  /// called; a coexisting session's registration is never affected. Network
+  /// failures are swallowed so logout is never blocked.
+  Future<void> unregisterDevice({
+    required PushOwner owner,
+    required String authToken,
+  }) async {
     if (!_isSupported) return;
-    final token = _registeredToken;
-    final owner = _registeredOwner;
-    // Clear tracking first so account switching never re-uses a stale token.
-    _registeredToken = null;
-    _registeredOwner = null;
-    if (token == null || owner == null) return;
+    _stopWatchingTokenRefresh(owner);
+    // Clear this owner's tracking first so a repeated logout is a no-op.
+    final token = _registeredTokens.remove(owner);
+    if (token == null) return;
     try {
       await _httpClient.delete(
         Uri.parse('${ApiConfig.baseUrl}${_registerPath(owner)}'),
@@ -233,4 +312,24 @@ class PushNotificationService {
   /// Message that opened the app from a terminated state.
   Future<RemoteMessage?> getInitialMessage() =>
       _isSupported ? _messaging.getInitialMessage() : Future.value(null);
+
+  /// Whether push is supported on this device (mobile with Firebase
+  /// initialized). Exposed for the foreground presenter.
+  bool get isSupported => _isSupported;
+
+  /// iOS: delegate foreground presentation to the system (alert, badge,
+  /// sound). No-op on other platforms and when push is unsupported.
+  Future<void> setForegroundSystemPresentation() async {
+    if (!_isSupported) return;
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    try {
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (_) {
+      // Foreground presentation is best-effort; inbox refresh still works.
+    }
+  }
 }

@@ -109,6 +109,11 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
     } on MemberApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await storage.clearMemberAuth();
+        // The member session is invalid: clear the active-surface flag so
+        // push taps and startup never route to a dead member session.
+        await _ref
+            .read(appSessionPreferenceProvider)
+            .clearActiveSurfaceIf(AppSessionSurface.member);
         state = const MemberAuthState();
       } else {
         state = const MemberAuthState(
@@ -236,19 +241,9 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
       owner: PushOwner.member,
       authToken: globalToken,
     );
-    unawaited(
-      service
-          .watchTokenRefresh(owner: PushOwner.member, authToken: globalToken)
-          .listen(
-            (newToken) => service.onTokenRefreshed(
-              owner: PushOwner.member,
-              authToken: globalToken,
-              newToken: newToken,
-            ),
-          )
-          .asFuture()
-          .catchError((_) {}),
-    );
+    // Idempotent across login/restore: one shared listener per owner, and
+    // the latest global token replaces any stale one.
+    service.watchTokenRefresh(owner: PushOwner.member, authToken: globalToken);
   }
 
   Future<void> logout() async {
@@ -259,9 +254,11 @@ class MemberAuthNotifier extends StateNotifier<MemberAuthState> {
           .read(memberSecureStorageProvider)
           .getGlobalToken();
       if (token != null && token.isNotEmpty) {
+        // Unregister only the member device; a coexisting staff session's
+        // registration is never affected.
         await _ref
             .read(pushNotificationServiceProvider)
-            .unregisterDevice(authToken: token);
+            .unregisterDevice(owner: PushOwner.member, authToken: token);
       }
     } catch (_) {}
     await _ref.read(memberSecureStorageProvider).clearMemberAuth();

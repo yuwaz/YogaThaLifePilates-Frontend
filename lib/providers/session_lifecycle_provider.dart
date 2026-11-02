@@ -15,6 +15,7 @@ import 'payment_methods_provider.dart';
 import 'payment_provider.dart';
 import 'push_notification_provider.dart';
 import 'reports_provider.dart';
+import '../services/push_notification_service.dart';
 import 'reservation_provider.dart';
 import 'salons_provider.dart';
 import 'secure_storage_service.dart';
@@ -109,9 +110,11 @@ final sessionLifecycleControllerProvider = Provider<SessionLifecycleController>(
       unregisterPushDevice: () async {
         final token = ref.read(authProvider).token;
         if (token == null || token.isEmpty) return;
+        // Unregister only the staff device; a coexisting member session's
+        // registration is never affected.
         await ref
             .read(pushNotificationServiceProvider)
-            .unregisterDevice(authToken: token);
+            .unregisterDevice(owner: PushOwner.staff, authToken: token);
       },
     );
   },

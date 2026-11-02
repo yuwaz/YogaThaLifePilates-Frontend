@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/app_notification.dart';
+import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../theme/app_design_tokens.dart';
+import '../widgets/notification_type_visual.dart';
+import 'reservations_page.dart';
 
 /// Staff Notification Center. Newest first, unread highlighted, tap to mark
 /// read, mark-all-read action, limit/offset "load more" pagination,
@@ -41,6 +44,27 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
     await ref
         .read(notificationsProvider.notifier)
         .markRead(widget.token, notification.id);
+  }
+
+  /// Tap on an inbox item: mark read (only when unread) and, when the
+  /// notification carries valid reservation metadata and the staff session
+  /// holds the reservations permission, open the studio's reservations
+  /// screen. Otherwise the user stays in the inbox.
+  Future<void> _onNotificationTap(AppNotification notification) async {
+    await _markRead(notification);
+    if (!mounted) return;
+    if (notification.reservationId == null) return;
+    final auth = ref.read(authProvider);
+    if (!auth.permissions.contains('reservations')) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReservationsPage(
+          token: widget.token,
+          role: auth.role ?? '',
+          assignedSalonIds: auth.assignedSalonIds,
+        ),
+      ),
+    );
   }
 
   Future<void> _markAllRead() async {
@@ -185,7 +209,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         return _NotificationTile(
           notification: notification,
           dateLabel: _formatDateTime(notification.createdAt),
-          onTap: () => _markRead(notification),
+          onTap: () => _onNotificationTap(notification),
         );
       },
     );
@@ -235,6 +259,14 @@ class _NotificationTile extends StatelessWidget {
                 )
               else
                 const SizedBox(width: 18),
+              Padding(
+                padding: const EdgeInsets.only(top: 1, right: 10),
+                child: Icon(
+                  NotificationTypeVisual.iconFor(notification.type),
+                  size: 20,
+                  color: NotificationTypeVisual.colorFor(notification.type),
+                ),
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
