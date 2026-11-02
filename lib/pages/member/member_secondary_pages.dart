@@ -221,7 +221,7 @@ class _MemberPaymentsPageState extends ConsumerState<MemberPaymentsPage> {
       header: payments.data == null
           ? null
           : Text(
-              '${AppLocalizations.of(context)?.translate('memberTotalDebt') ?? 'Total debt'}: ${formatCurrency(payments.data!.totalDebt)}',
+              _balanceLine(context, payments.data!.totalDebt),
               style: AppTypography.sectionTitle,
             ),
       count: payments.data?.payments.length ?? 0,
@@ -230,7 +230,24 @@ class _MemberPaymentsPageState extends ConsumerState<MemberPaymentsPage> {
         final item = payments.data!.payments[index];
         return Card(
           child: ListTile(
-            title: Text(formatCurrency(item.amount)),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(formatCurrency(item.amount)),
+                if (item.amount < 0) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    AppLocalizations.of(
+                          context,
+                        )?.translate('paymentRefund') ??
+                        'Refund',
+                    style: AppTypography.label.copyWith(
+                      color: AppDesignTokens.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
             subtitle: Text(
               '${_date(item.date)} ${item.paymentMethodName ?? ''}',
             ),
@@ -331,6 +348,17 @@ class _MemberListScaffold extends StatelessWidget {
 String _date(DateTime? date) => date == null
     ? '-'
     : '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+
+String _balanceLine(BuildContext context, double totalDebt) {
+  final loc = AppLocalizations.of(context);
+  // Signed balance: positive = debt, negative = member credit.
+  final balance = formatSignedBalance(
+    totalDebt,
+    debtLabel: loc?.translate('memberTotalDebt') ?? 'Total debt',
+    creditLabel: loc?.translate('memberCredit') ?? 'Credit',
+  );
+  return '${balance.label}: ${balance.amount}';
+}
 
 String _packageDetails(BuildContext context, MemberPackageAssignment item) {
   final loc = AppLocalizations.of(context);

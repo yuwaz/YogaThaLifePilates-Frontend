@@ -214,6 +214,12 @@ class _MembershipGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final name = profile.assignedInstructor?.name.trim();
+    // Signed balance: positive = debt, negative = member credit.
+    final balance = formatSignedBalance(
+      profile.totalDebt,
+      debtLabel: loc?.translate('memberTotalDebt') ?? 'Total debt',
+      creditLabel: loc?.translate('memberCredit') ?? 'Credit',
+    );
     final fields = <(IconData, String, String)>[
       (
         Icons.event_outlined,
@@ -235,8 +241,8 @@ class _MembershipGrid extends StatelessWidget {
       ),
       (
         Icons.account_balance_wallet_outlined,
-        loc?.translate('memberTotalDebt') ?? 'Total debt',
-        formatCurrency(profile.totalDebt),
+        balance.label,
+        balance.amount,
       ),
     ];
     return LayoutBuilder(

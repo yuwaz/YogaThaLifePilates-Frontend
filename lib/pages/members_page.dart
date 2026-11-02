@@ -19,6 +19,17 @@ import '../widgets/notification_bell_button.dart';
 import 'member_detail_page.dart';
 import 'member_edit_dialog.dart';
 
+/// Returns the warning localization key when deactivation must be blocked —
+/// the backend rejects deactivation for any nonzero balance (positive =
+/// debt, negative = member credit) — or null when the balance is settled.
+@visibleForTesting
+String? deactivationBlockedWarningKey(double totalDebt) {
+  if (totalDebt == 0) return null;
+  return totalDebt < 0
+      ? 'memberDeactivateCreditWarning'
+      : 'memberDeactivateDebtWarning';
+}
+
 class MembersPage extends ConsumerStatefulWidget {
   final String token;
   final String role;
@@ -1387,7 +1398,16 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                             );
                                           }
                                           if (value == 'deactivate') {
-                                            if (member.totalDebt > 0) {
+                                            final warningKey =
+                                                deactivationBlockedWarningKey(
+                                                  member.totalDebt,
+                                                );
+                                            if (warningKey != null) {
+                                              final warningFallback =
+                                                  warningKey ==
+                                                      'memberDeactivateCreditWarning'
+                                                  ? 'Bu üyenin alacağı var. Lütfen pasifleştirmeden önce bakiyeyi sıfırlayın.'
+                                                  : 'Bu üyenin borcu var. Lütfen önce borcu kapatın.';
                                               await showDialog<void>(
                                                 context: context,
                                                 builder: (dialogContext) {
@@ -1395,8 +1415,11 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                                                     title: const Text(
                                                       'Üye Pasifleştirilemez',
                                                     ),
-                                                    content: const Text(
-                                                      'Bu üyenin borcu var. Lütfen önce borcu kapatın.',
+                                                    content: Text(
+                                                      l10n?.translate(
+                                                            warningKey,
+                                                          ) ??
+                                                          warningFallback,
                                                     ),
                                                     actions: [
                                                       TextButton(

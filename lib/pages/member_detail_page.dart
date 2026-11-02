@@ -21,6 +21,21 @@ import '../theme/app_design_tokens.dart';
 import '../utils/action_feedback.dart';
 import '../utils/measurement_formatter.dart';
 
+/// Resolves the price shown for an assigned lesson package: prefer the
+/// discounted `finalPrice` stored on the assignment and fall back to the
+/// catalog `price`. [original] is non-null only when a discount applies.
+@visibleForTesting
+({num? displayed, num? original}) resolveAssignedPackagePrice(dynamic pkg) {
+  if (pkg is! Map) return (displayed: null, original: null);
+  num? parse(dynamic raw) =>
+      raw is num ? raw : num.tryParse(raw?.toString() ?? '');
+  final price = parse(pkg['price']);
+  final finalPrice = parse(pkg['finalPrice']);
+  final displayed = finalPrice ?? price;
+  final discounted = finalPrice != null && price != null && finalPrice != price;
+  return (displayed: displayed, original: discounted ? price : null);
+}
+
 class MemberDetailPage extends ConsumerStatefulWidget {
   final Member member;
   final List<Salon> salons;
@@ -780,8 +795,11 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                   ),
                   _infoCard(
                     icon: Icons.account_balance_wallet_outlined,
-                    label: 'Toplam Borç',
-                    value: '₺${_formatPrice(member.totalDebt)}',
+                    // Signed balance: positive = debt, negative = credit.
+                    label: member.totalDebt < 0
+                        ? (loc?.translate('memberCredit') ?? 'Alacak')
+                        : 'Toplam Borç',
+                    value: '₺${_formatPrice(member.totalDebt.abs())}',
                   ),
                   _infoCard(
                     icon: Icons.event_outlined,
@@ -1026,16 +1044,13 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                 final lessonCount = pkg is Map
                     ? pkg['lessonCount']?.toString() ?? ''
                     : '';
-                final priceRaw = pkg is Map ? pkg['price'] : null;
-                String priceStr = '';
-                if (priceRaw != null) {
-                  final priceNum = priceRaw is num
-                      ? priceRaw
-                      : num.tryParse(priceRaw.toString()) ?? 0;
-                  priceStr = priceNum.truncateToDouble() == priceNum
-                      ? priceNum.toStringAsFixed(0)
-                      : priceNum.toStringAsFixed(2);
-                }
+                final priceInfo = resolveAssignedPackagePrice(pkg);
+                final priceStr = priceInfo.displayed != null
+                    ? _formatPrice(priceInfo.displayed!.toDouble())
+                    : '';
+                final originalPriceStr = priceInfo.original != null
+                    ? _formatPrice(priceInfo.original!.toDouble())
+                    : '';
                 final assignedAtRaw = pkg is Map
                     ? pkg['assignedAt']?.toString()
                     : null;
@@ -1080,6 +1095,14 @@ class _MemberDetailPageState extends ConsumerState<MemberDetailPage> {
                             if (priceStr.isNotEmpty)
                               Text(
                                 '${loc?.translate('price') ?? 'Price'}: ₺$priceStr',
+                              ),
+                            if (originalPriceStr.isNotEmpty)
+                              Text(
+                                '${loc?.translate('memberOriginalPrice') ?? 'Original price'}: ₺$originalPriceStr',
+                                style: const TextStyle(
+                                  color: AppDesignTokens.textSecondary,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
                               ),
                             if (formattedDate.isNotEmpty)
                               Text(

@@ -122,11 +122,19 @@ class _PaymentFormDialogState extends ConsumerState<PaymentFormDialog> {
             const SizedBox(height: 12),
             TextFormField(
               controller: _amountController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                signed: true,
+                decimal: true,
+              ),
               decoration: _dialogInputDecoration('Tutar', prefixText: '₺'),
               validator: (v) {
                 final n = double.tryParse(v ?? '');
-                if (n == null || n <= 0) return 'Pozitif bir tutar girin';
+                // Negative amounts are refunds (backend rule); only zero or
+                // non-numeric input is invalid.
+                if (n == null || n == 0) {
+                  return loc?.translate('paymentAmountNonzero') ??
+                      'Sıfır dışında bir tutar girin';
+                }
                 return null;
               },
             ),
@@ -1000,7 +1008,14 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         itemCount: _filteredMembers.length,
                         itemBuilder: (context, idx) {
                           final member = _filteredMembers[idx];
-                          // Removed unused memberPayments
+                          // Signed balance: positive = debt, negative = credit.
+                          final balance = formatSignedBalance(
+                            _memberDebt(member),
+                            debtLabel:
+                                loc?.translate('totalDebt') ?? 'Total Debt',
+                            creditLabel:
+                                loc?.translate('memberCredit') ?? 'Credit',
+                          );
                           return Card(
                             key: ValueKey('${member.id}-${member.totalDebt}'),
                             color: AppDesignTokens.surface,
@@ -1048,13 +1063,11 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                 subtitle: Row(
                                   children: [
                                     Text(
-                                      (loc?.translate('totalDebt') ??
-                                              'Total Debt') +
-                                          ': ',
+                                      '${balance.label}: ',
                                       style: AppTypography.label,
                                     ),
                                     Text(
-                                      formatCurrency(member.totalDebt),
+                                      balance.amount,
                                       style: AppTypography.bodyStrong,
                                     ),
                                   ],
@@ -1199,6 +1212,20 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                                 p.method,
                                                 style: AppTypography.label,
                                               ),
+                                              if (p.amount < 0) ...[
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  loc?.translate(
+                                                        'paymentRefund',
+                                                      ) ??
+                                                      'Refund',
+                                                  style: AppTypography.label
+                                                      .copyWith(
+                                                        color: AppDesignTokens
+                                                            .error,
+                                                      ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                           Text(
