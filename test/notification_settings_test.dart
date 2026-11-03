@@ -27,6 +27,7 @@ void main() {
     'quietHoursStart': '21:00',
     'quietHoursEnd': '09:00',
     'classReminderEnabled': true,
+    'reservationAlertsEnabled': true,
     'packageAlertsEnabled': true,
     'paymentAlertsEnabled': paymentAlertsEnabled,
     'inactivityAlertsEnabled': true,
@@ -44,6 +45,7 @@ void main() {
         settingsJson(paymentRemindersActivatedAt: '2026-10-30'),
       );
       expect(s.classReminderEnabled, isTrue);
+      expect(s.reservationAlertsEnabled, isTrue);
       expect(s.paymentAlertsEnabled, isFalse);
       expect(s.memberReminderMinutes, 120);
       expect(s.instructorReminderMinutes, 60);
@@ -63,6 +65,7 @@ void main() {
       expect(s.memberReminderMinutes, 120); // default
       expect(s.quietHoursStart, '21:00'); // default
       expect(s.paymentAlertsEnabled, isFalse); // default
+      expect(s.reservationAlertsEnabled, isTrue); // default
     });
 
     test('toJson sends only editable fields, never activation date', () {
@@ -197,6 +200,15 @@ void main() {
       }
     }
 
+    Future<void> scrollUntil(WidgetTester tester, Finder finder) async {
+      // Drag the ListView up repeatedly until the target is visible.
+      for (var i = 0; i < 12; i++) {
+        if (finder.evaluate().isNotEmpty) return;
+        await tester.drag(find.byType(ListView), const Offset(0, -400));
+        await tester.pumpAndSettle();
+      }
+    }
+
     Widget harness(http.Client client, {String role = 'admin'}) {
       return ProviderScope(
         overrides: [
@@ -229,16 +241,71 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Notification Categories'), findsOneWidget);
-      expect(find.text('Class reminders'), findsOneWidget);
-      expect(find.text('Payment reminders'), findsOneWidget);
+      expect(find.text('Class Reminders'), findsOneWidget);
+      expect(find.text('Reservations'), findsOneWidget);
 
       // Scroll down to reveal lower sections.
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await scrollUntil(tester, find.text('Timing & Thresholds'));
       expect(find.text('Timing & Thresholds'), findsOneWidget);
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await scrollUntil(tester, find.text('Quiet Hours'));
       expect(find.text('Quiet Hours'), findsOneWidget);
+    });
+
+    testWidgets('groups notification types into five backend categories', (
+      tester,
+    ) async {
+      var putBody = <String, dynamic>{};
+      final client = MockClient((request) async {
+        if (request.method == 'PUT') {
+          putBody = jsonDecode(request.body) as Map<String, dynamic>;
+        }
+        return http.Response(jsonEncode(settingsJson()), 200);
+      });
+      await tester.pumpWidget(harness(client));
+      await tester.pumpAndSettle();
+
+      // The five backend-aligned categories, in order.
+      for (final title in [
+        'Class Reminders',
+        'Reservations',
+        'Packages',
+        'Inactivity',
+        'Payments',
+      ]) {
+        await scrollUntil(tester, find.text(title));
+        expect(find.text(title), findsOneWidget, reason: 'category $title');
+      }
+
+      // Exactly five toggles — every category has a stored preference now.
+      expect(find.text('Always on'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(NotificationSettingsSection),
+          matching: find.byType(Switch),
+        ),
+        findsNWidgets(5),
+      );
+
+      // Toggling Reservations persists reservationAlertsEnabled via the
+      // existing PUT contract (no new or unknown fields are introduced).
+      await scrollUntil(tester, find.text('Reservations'));
+      await tester.tap(
+        find.ancestor(
+          of: find.text('Reservations'),
+          matching: find.byType(SwitchListTile),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await scrollToBottom(tester);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(putBody['reservationAlertsEnabled'], isFalse);
+      expect(putBody['packageAlertsEnabled'], isTrue);
+      expect(
+        putBody.keys.toSet(),
+        StudioNotificationSettings.fromJson(settingsJson()).toJson().keys.toSet(),
+      );
     });
 
     testWidgets('save PUTs updated settings and shows success', (tester) async {
@@ -302,8 +369,10 @@ void main() {
 
       // Scroll to reveal the numeric field, then enter an out-of-range value
       // for lowLessonsThreshold (max 100).
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
-      await tester.pumpAndSettle();
+      await scrollUntil(
+        tester,
+        find.widgetWithText(TextFormField, 'Low lessons threshold'),
+      );
       final field = find.widgetWithText(TextFormField, 'Low lessons threshold');
       await tester.enterText(field, '500');
       await scrollToBottom(tester);

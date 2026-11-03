@@ -27,6 +27,7 @@ class _NotificationSettingsSectionState
 
   // Editable form state (initialized from loaded settings; preserved on error).
   bool _classReminder = true;
+  bool _reservationAlerts = true;
   bool _packageAlerts = true;
   bool _paymentAlerts = false;
   bool _inactivityAlerts = true;
@@ -62,6 +63,7 @@ class _NotificationSettingsSectionState
 
   void _initFrom(StudioNotificationSettings s) {
     _classReminder = s.classReminderEnabled;
+    _reservationAlerts = s.reservationAlertsEnabled;
     _packageAlerts = s.packageAlertsEnabled;
     _paymentAlerts = s.paymentAlertsEnabled;
     _inactivityAlerts = s.inactivityAlertsEnabled;
@@ -114,6 +116,7 @@ class _NotificationSettingsSectionState
 
     final settings = StudioNotificationSettings(
       classReminderEnabled: _classReminder,
+      reservationAlertsEnabled: _reservationAlerts,
       packageAlertsEnabled: _packageAlerts,
       paymentAlertsEnabled: _paymentAlerts,
       inactivityAlertsEnabled: _inactivityAlerts,
@@ -218,31 +221,62 @@ class _NotificationSettingsSectionState
                       'Notification Categories',
                   child: Column(
                     children: [
+                      // Backend-aligned notification categories, one switch
+                      // per stored preference (all five are persisted).
                       _SwitchRow(
                         label:
-                            loc?.translate('classReminderEnabled') ??
-                            'Class reminders',
+                            loc?.translate('notificationCategoryClassReminders') ??
+                            'Class Reminders',
+                        subtitle:
+                            loc?.translate(
+                              'notificationCategoryClassRemindersDesc',
+                            ) ??
+                            'Upcoming class reminders for members and instructors.',
                         value: _classReminder,
                         onChanged: (v) => setState(() => _classReminder = v),
                       ),
                       _SwitchRow(
                         label:
-                            loc?.translate('packageAlertsEnabled') ??
-                            'Package alerts',
+                            loc?.translate('notificationCategoryReservations') ??
+                            'Reservations',
+                        subtitle:
+                            loc?.translate(
+                              'notificationCategoryReservationsDesc',
+                            ) ??
+                            'Reservation created, changed and cancelled notifications.',
+                        value: _reservationAlerts,
+                        onChanged: (v) =>
+                            setState(() => _reservationAlerts = v),
+                      ),
+                      _SwitchRow(
+                        label:
+                            loc?.translate('notificationCategoryPackages') ??
+                            'Packages',
+                        subtitle:
+                            loc?.translate('notificationCategoryPackagesDesc') ??
+                            'Package assignment, low lesson and package expiry alerts.',
                         value: _packageAlerts,
                         onChanged: (v) => setState(() => _packageAlerts = v),
                       ),
                       _SwitchRow(
                         label:
-                            loc?.translate('inactivityAlertsEnabled') ??
-                            'Inactivity alerts',
+                            loc?.translate('notificationCategoryInactivity') ??
+                            'Inactivity',
+                        subtitle:
+                            loc?.translate(
+                              'notificationCategoryInactivityDesc',
+                            ) ??
+                            'Alert when a member has not attended classes for the configured period.',
                         value: _inactivityAlerts,
                         onChanged: (v) => setState(() => _inactivityAlerts = v),
                       ),
                       _SwitchRow(
                         label:
-                            loc?.translate('paymentAlertsEnabled') ??
-                            'Payment reminders',
+                            loc?.translate('notificationCategoryPayments') ??
+                            'Payments',
+                        subtitle:
+                            loc?.translate('notificationCategoryPaymentsDesc') ??
+                            'Payment reminders for members with an outstanding balance.',
                         value: _paymentAlerts,
                         onChanged: (v) => setState(() => _paymentAlerts = v),
                       ),
@@ -420,11 +454,13 @@ class _SectionCard extends StatelessWidget {
 
 class _SwitchRow extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
   const _SwitchRow({
     required this.label,
+    this.subtitle,
     required this.value,
     required this.onChanged,
   });
@@ -434,6 +470,14 @@ class _SwitchRow extends StatelessWidget {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label, style: AppTypography.body),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle!,
+              style: AppTypography.caption.copyWith(
+                color: AppDesignTokens.textMuted,
+              ),
+            ),
       value: value,
       onChanged: onChanged,
       activeTrackColor: AppDesignTokens.primaryAction,

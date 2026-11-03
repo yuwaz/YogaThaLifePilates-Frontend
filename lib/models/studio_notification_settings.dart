@@ -1,8 +1,8 @@
 /// Studio notification settings (admin-only).
 ///
 /// Backend contract (GET/PUT /settings/notifications/settings):
-/// booleans: classReminderEnabled, packageAlertsEnabled, paymentAlertsEnabled,
-///   inactivityAlertsEnabled
+/// booleans: classReminderEnabled, reservationAlertsEnabled,
+///   packageAlertsEnabled, paymentAlertsEnabled, inactivityAlertsEnabled
 /// integers (with ranges): memberReminderMinutes (0-1440),
 ///   instructorReminderMinutes (0-1440), lowLessonsThreshold (0-100),
 ///   packageExpiryDays (1-90), inactivityDays (1-365)
@@ -10,6 +10,7 @@
 /// read-only: paymentRemindersActivatedAt (set by backend on first enable).
 class StudioNotificationSettings {
   final bool classReminderEnabled;
+  final bool reservationAlertsEnabled;
   final bool packageAlertsEnabled;
   final bool paymentAlertsEnabled;
   final bool inactivityAlertsEnabled;
@@ -27,6 +28,7 @@ class StudioNotificationSettings {
 
   const StudioNotificationSettings({
     required this.classReminderEnabled,
+    required this.reservationAlertsEnabled,
     required this.packageAlertsEnabled,
     required this.paymentAlertsEnabled,
     required this.inactivityAlertsEnabled,
@@ -76,6 +78,7 @@ class StudioNotificationSettings {
   factory StudioNotificationSettings.fromJson(Map<String, dynamic> json) {
     return StudioNotificationSettings(
       classReminderEnabled: _asBool(json['classReminderEnabled'], true),
+      reservationAlertsEnabled: _asBool(json['reservationAlertsEnabled'], true),
       packageAlertsEnabled: _asBool(json['packageAlertsEnabled'], true),
       paymentAlertsEnabled: _asBool(json['paymentAlertsEnabled'], false),
       inactivityAlertsEnabled: _asBool(json['inactivityAlertsEnabled'], true),
@@ -96,6 +99,7 @@ class StudioNotificationSettings {
   Map<String, dynamic> toJson() {
     return {
       'classReminderEnabled': classReminderEnabled,
+      'reservationAlertsEnabled': reservationAlertsEnabled,
       'packageAlertsEnabled': packageAlertsEnabled,
       'paymentAlertsEnabled': paymentAlertsEnabled,
       'inactivityAlertsEnabled': inactivityAlertsEnabled,
@@ -111,6 +115,7 @@ class StudioNotificationSettings {
 
   StudioNotificationSettings copyWith({
     bool? classReminderEnabled,
+    bool? reservationAlertsEnabled,
     bool? packageAlertsEnabled,
     bool? paymentAlertsEnabled,
     bool? inactivityAlertsEnabled,
@@ -125,6 +130,8 @@ class StudioNotificationSettings {
   }) {
     return StudioNotificationSettings(
       classReminderEnabled: classReminderEnabled ?? this.classReminderEnabled,
+      reservationAlertsEnabled:
+          reservationAlertsEnabled ?? this.reservationAlertsEnabled,
       packageAlertsEnabled: packageAlertsEnabled ?? this.packageAlertsEnabled,
       paymentAlertsEnabled: paymentAlertsEnabled ?? this.paymentAlertsEnabled,
       inactivityAlertsEnabled:
