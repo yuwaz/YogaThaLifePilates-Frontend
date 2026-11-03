@@ -1008,14 +1008,20 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                         itemCount: _filteredMembers.length,
                         itemBuilder: (context, idx) {
                           final member = _filteredMembers[idx];
+                          final debtValue = _memberDebt(member);
                           // Signed balance: positive = debt, negative = credit.
                           final balance = formatSignedBalance(
-                            _memberDebt(member),
+                            debtValue,
                             debtLabel:
                                 loc?.translate('totalDebt') ?? 'Total Debt',
                             creditLabel:
                                 loc?.translate('memberCredit') ?? 'Credit',
                           );
+                          final balanceColor = balance.isCredit
+                              ? AppDesignTokens.success
+                              : debtValue > 0
+                              ? AppDesignTokens.error
+                              : AppDesignTokens.textPrimary;
                           return Card(
                             key: ValueKey('${member.id}-${member.totalDebt}'),
                             color: AppDesignTokens.surface,
@@ -1067,8 +1073,12 @@ class _PaymentsPageState extends ConsumerState<PaymentsPage> {
                                       style: AppTypography.label,
                                     ),
                                     Text(
-                                      balance.amount,
-                                      style: AppTypography.bodyStrong,
+                                      // Signed value: credit renders with a
+                                      // leading minus (e.g. -₺500,00).
+                                      formatCurrency(debtValue),
+                                      style: AppTypography.bodyStrong.copyWith(
+                                        color: balanceColor,
+                                      ),
                                     ),
                                   ],
                                 ),

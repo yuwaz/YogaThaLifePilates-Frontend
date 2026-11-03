@@ -10,10 +10,10 @@ String formatCurrency(num value) {
 }
 
 /// Presentation helper for signed member balances (positive = debt,
-/// negative = member credit). Returns the label to display and the
-/// formatted magnitude; the signed value itself must stay untouched in
-/// models and API payloads.
-({String label, String amount}) formatSignedBalance(
+/// negative = member credit). Returns the label to display, the formatted
+/// magnitude, and whether the balance is a credit; the signed value itself
+/// must stay untouched in models and API payloads.
+({String label, String amount, bool isCredit}) formatSignedBalance(
   num value, {
   required String debtLabel,
   required String creditLabel,
@@ -22,5 +22,6 @@ String formatCurrency(num value) {
   return (
     label: isCredit ? creditLabel : debtLabel,
     amount: formatCurrency(value.abs()),
+    isCredit: isCredit,
   );
 }

@@ -49,6 +49,27 @@ void main() {
       expect(balance.amount, formatCurrency(250));
     });
 
+    test('flags credit balances via isCredit', () {
+      expect(
+        formatSignedBalance(-1, debtLabel: 'D', creditLabel: 'C').isCredit,
+        isTrue,
+      );
+      expect(
+        formatSignedBalance(1, debtLabel: 'D', creditLabel: 'C').isCredit,
+        isFalse,
+      );
+      expect(
+        formatSignedBalance(0, debtLabel: 'D', creditLabel: 'C').isCredit,
+        isFalse,
+      );
+    });
+
+    test('formatCurrency renders negative balances with a leading minus', () {
+      final formatted = formatCurrency(-500);
+      expect(formatted.startsWith('-'), isTrue);
+      expect(formatCurrency(500).startsWith('-'), isFalse);
+    });
+
     test('zero keeps the debt label', () {
       final balance = formatSignedBalance(
         0,

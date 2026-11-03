@@ -687,7 +687,7 @@ class MemberNotifier extends StateNotifier<MemberState> {
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': '******',
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode(body),
       );
